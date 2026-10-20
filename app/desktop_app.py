@@ -3,6 +3,21 @@ import sys, os, threading, json, time, ctypes
 from pathlib import Path
 from datetime import datetime
 
+# ── Suppress console windows for all child processes ────────────────────────
+# This is a --windowed build with no console of its own, so every child that
+# is a console program (powershell, cmd, powercfg, …) would otherwise flash
+# its own black window for a second. Force CREATE_NO_WINDOW on every Popen
+# (subprocess.run builds a Popen too) unless the caller already set flags.
+import subprocess as _subprocess
+if os.name == "nt":
+    _CREATE_NO_WINDOW = 0x08000000
+    _ORIG_POPEN_INIT = _subprocess.Popen.__init__
+    def _popen_no_window(self, *args, **kwargs):
+        if not kwargs.get("creationflags"):
+            kwargs["creationflags"] = _CREATE_NO_WINDOW
+        return _ORIG_POPEN_INIT(self, *args, **kwargs)
+    _subprocess.Popen.__init__ = _popen_no_window
+
 if getattr(sys, "frozen", False):
     # Packaged .exe: keep writable data under %LOCALAPPDATA%\PCHealthAgent
     BASE = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "PCHealthAgent"
@@ -3633,17 +3648,47 @@ function setLang(lang){
   if(window.pywebview) window.pywebview.api.save_settings({language:lang});
 }
 
+// Legacy sub-page names now live inside a tab of a container page (the pages
+// are physically MOVED there by _mirrorIntoTab). Navigating straight to them
+// used to blank the screen, so redirect each to its container page + tab.
+const _SUBPAGE={
+  monitor:{page:'performance',group:'perf',panel:'live'},
+  startup:{page:'performance',group:'perf',panel:'startup'},
+  sysinfo:{page:'performance',group:'perf',panel:'sysinfo'},
+  organize:{page:'storage',group:'storage',panel:'organize'},
+  events:{page:'problems',group:'prob',panel:'events'},
+  troubleshoot:{page:'problems',group:'prob',panel:'fix'}
+};
+function _activateTab(group,panel){
+  const prefix=group+'-tab-';
+  document.querySelectorAll('[id^="'+prefix+'"]').forEach(p=>p.classList.remove('active'));
+  const target=document.getElementById(prefix+panel); if(target) target.classList.add('active');
+  const needle="switchTab('"+group+"','"+panel+"'";
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    if((b.getAttribute('onclick')||'').indexOf(needle)>-1){
+      const bar=b.closest('.tab-bar'); if(bar) bar.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+    }
+  });
+}
 function showPage(name){
+  const sub=_SUBPAGE[name];
+  if(sub){
+    showPage(sub.page);                // activate container (runs its mirror/init)
+    _activateTab(sub.group,sub.panel); // then reveal the requested tab
+    if(sub.group==='perf'&&sub.panel==='sysinfo') loadSysInfo();
+    if(sub.group==='prob'&&sub.panel==='events') loadEvents();
+    if(sub.group==='storage'&&sub.panel==='organize') orgLoadHistory();
+    if(sub.group==='perf'&&sub.panel==='live') _globalPoll();
+    return;
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const pg=document.getElementById('page-'+name); if(pg) pg.classList.add('active');
   const nav=document.querySelector(`[data-page="${name}"]`); if(nav) nav.classList.add('active');
   if(name==='history') loadHistory();
   if(name==='storage'){ loadRecycleBin(); _initStoragePage(); }
-  if(name==='sysinfo') loadSysInfo();
-  if(name==='organize') orgLoadHistory();
-  if(name==='monitor'||name==='performance'){ startGlobalPoll(); _globalPoll(); }
-  if(name==='performance') _initPerfPage();
+  if(name==='performance'){ _initPerfPage(); startGlobalPoll(); _globalPoll(); }
   if(name==='problems') _initProblemsPage();
 }
 
