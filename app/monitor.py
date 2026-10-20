@@ -7,6 +7,11 @@ import time
 from collections import deque
 from datetime import datetime
 
+import psutil
+
+# Prime psutil's CPU meter so the first non-blocking read returns a real value.
+psutil.cpu_percent(interval=None)
+
 # Ring buffer: keep last 60 samples (at 3s interval = ~3 minutes of history)
 MAX_HISTORY = 60
 
@@ -25,29 +30,16 @@ _thresholds = {
 
 def _collect_cpu_ram() -> dict:
     try:
-        r = subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             "$c=[math]::Round((Get-CimInstance Win32_Processor).LoadPercentage);"
-             "$os=Get-CimInstance Win32_OperatingSystem;"
-             "$totalMB=[math]::Round($os.TotalVisibleMemorySize/1024);"
-             "$freeMB=[math]::Round($os.FreePhysicalMemory/1024);"
-             "$usedMB=$totalMB-$freeMB;"
-             "\"$c|$usedMB|$totalMB\""],
-            capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=6
-        )
-        parts = r.stdout.strip().split("|")
-        if len(parts) == 3:
-            total = int(parts[2])
-            used = int(parts[1])
-            return {
-                "cpu_pct": int(parts[0]) if parts[0] else 0,
-                "ram_used_mb": used,
-                "ram_total_mb": total,
-                "ram_pct": round(used / max(total, 1) * 100),
-            }
+        cpu = psutil.cpu_percent(interval=None)
+        vm = psutil.virtual_memory()
+        return {
+            "cpu_pct": round(cpu),
+            "ram_used_mb": round(vm.used / (1 << 20)),
+            "ram_total_mb": round(vm.total / (1 << 20)),
+            "ram_pct": round(vm.percent),
+        }
     except Exception:
-        pass
-    return {"cpu_pct": 0, "ram_used_mb": 0, "ram_total_mb": 0, "ram_pct": 0}
+        return {"cpu_pct": 0, "ram_used_mb": 0, "ram_total_mb": 0, "ram_pct": 0}
 
 
 def _collect_disk() -> dict:
@@ -64,39 +56,35 @@ def _collect_disk() -> dict:
 
 def _collect_battery() -> dict:
     try:
-        r = subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             "$b=Get-CimInstance Win32_Battery;"
-             "if($b){"
-             "$b.EstimatedChargeRemaining.ToString()+'|'+"
-             "$b.Status+'|'+"
-             "$b.BatteryStatus.ToString()+'|'+"
-             "$(if($b.EstimatedRunTime -and $b.EstimatedRunTime -lt 71582788){$b.EstimatedRunTime}else{'0'})"
-             "}else{'none'}"],
-            capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5
-        )
-        out = r.stdout.strip()
-        if not out or out == "none":
+        b = psutil.sensors_battery()
+        if b is None:
             return {"has_battery": False}
-        parts = out.split("|")
-        if len(parts) >= 4:
-            charge = int(parts[0])
-            # BatteryStatus: 1=discharging, 2=AC, 3-5=charging variants
-            status_code = int(parts[2]) if parts[2].isdigit() else 0
-            return {
-                "has_battery": True,
-                "battery_pct": charge,
-                "battery_status": parts[1].strip(),
-                "battery_charging": status_code >= 2,
-                "battery_remaining_min": int(parts[3]) if parts[3].isdigit() else 0,
-            }
+        remaining = 0
+        if (not b.power_plugged and b.secsleft is not None
+                and b.secsleft >= 0 and b.secsleft != psutil.POWER_TIME_UNLIMITED):
+            remaining = round(b.secsleft / 60)
+        return {
+            "has_battery": True,
+            "battery_pct": round(b.percent),
+            "battery_status": "Charging" if b.power_plugged else "Discharging",
+            "battery_charging": bool(b.power_plugged),
+            "battery_remaining_min": remaining,
+        }
     except Exception:
-        pass
-    return {"has_battery": False}
+        return {"has_battery": False}
+
+
+_temp_cache = {"value": {"has_temp": False}, "ts": 0.0}
+_TEMP_TTL = 30.0  # thermal zone query is slow; temp changes slowly — cache it
 
 
 def _collect_temperature() -> dict:
-    """Try to read CPU temperature via WMI thermal zone. Not all hardware exposes this."""
+    """Try to read CPU temperature via WMI thermal zone. Not all hardware exposes this.
+    Cached for _TEMP_TTL seconds because the CIM query spawns a slow PowerShell process."""
+    now = time.time()
+    if now - _temp_cache["ts"] < _TEMP_TTL:
+        return _temp_cache["value"]
+    val = {"has_temp": False}
     try:
         r = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
@@ -109,10 +97,12 @@ def _collect_temperature() -> dict:
         if out and out != "na":
             temp_c = float(out)
             if 0 < temp_c < 120:
-                return {"cpu_temp_c": temp_c, "has_temp": True}
+                val = {"cpu_temp_c": temp_c, "has_temp": True}
     except Exception:
         pass
-    return {"has_temp": False}
+    _temp_cache["value"] = val
+    _temp_cache["ts"] = now
+    return val
 
 
 def collect_metrics() -> dict:

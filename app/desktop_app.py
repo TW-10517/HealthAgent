@@ -3,11 +3,16 @@ import sys, os, threading, json, time, ctypes
 from pathlib import Path
 from datetime import datetime
 
-BASE    = Path(__file__).parent.parent
+if getattr(sys, "frozen", False):
+    # Packaged .exe: keep writable data under %LOCALAPPDATA%\PCHealthAgent
+    BASE = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "PCHealthAgent"
+else:
+    BASE = Path(__file__).parent.parent
 REPORTS = BASE / "reports"
 LOGS    = BASE / "logs"
-REPORTS.mkdir(exist_ok=True)
-LOGS.mkdir(exist_ok=True)
+BASE.mkdir(parents=True, exist_ok=True)
+REPORTS.mkdir(parents=True, exist_ok=True)
+LOGS.mkdir(parents=True, exist_ok=True)
 
 sys.path.insert(0, str(Path(__file__).parent))
 from scanner import run_full_scan, fmt_size, get_system_info, cleanup_temp_files, scan_disk
@@ -24,58 +29,53 @@ db.migrate_from_txt(str(LOGS / "scan-history.txt"))
 APP_VERSION = "1.0.0"
 
 def _create_shield_icon(size=64):
+    # Helix "Orbit Pulse" mark: a glowing teal gauge arc with a heart-rate
+    # pulse and end dot, on a dark rounded tile. Supersampled 4x + neon glow.
     from PIL import Image, ImageDraw, ImageFilter
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    s = size
 
-    # Dark circular background
-    pad = max(1, s // 16)
-    draw.ellipse([pad, pad, s - pad, s - pad], fill=(11, 18, 32, 240))
+    ss = 4
+    S = size * ss
+    cx = cy = S / 2.0
 
-    # Shield path — clean modern proportions
-    cx = s // 2
-    pts = [
-        (cx,          int(s * 0.10)),
-        (int(s * 0.84), int(s * 0.22)),
-        (int(s * 0.84), int(s * 0.52)),
-        (cx,          int(s * 0.90)),
-        (int(s * 0.16), int(s * 0.52)),
-        (int(s * 0.16), int(s * 0.22)),
-    ]
+    # Dark rounded-square tile with a vertical navy gradient.
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    g = Image.new("RGBA", (S, S))
+    gd = ImageDraw.Draw(g)
+    top, bot = (18, 22, 34), (10, 13, 20)
+    for y in range(S):
+        t = y / (S - 1)
+        r = int(top[0] + (bot[0] - top[0]) * t)
+        gg = int(top[1] + (bot[1] - top[1]) * t)
+        b = int(top[2] + (bot[2] - top[2]) * t)
+        gd.line([(0, y), (S, y)], fill=(r, gg, b, 255))
+    tile = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(tile).rounded_rectangle([0, 0, S - 1, S - 1],
+                                           radius=int(S * 0.23), fill=255)
+    img.paste(g, (0, 0), tile)
 
-    # Gradient simulation: draw shield in 3 overlapping tints top→bottom
-    gradient_layers = [
-        ((0, 220, 180, 255), [pts[0], pts[1], pts[2], (cx, int(s * 0.50)), pts[5], pts[0]]),
-        ((0, 200, 160, 255), [(cx, int(s * 0.48)), pts[2], pts[3], pts[4], (cx, int(s * 0.48))]),
-    ]
-    draw.polygon(pts, fill=(0, 212, 170, 255))
-    for fill, layer_pts in gradient_layers:
-        overlay = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-        od = ImageDraw.Draw(overlay)
-        od.polygon(layer_pts, fill=fill)
-        img = Image.alpha_composite(img, overlay)
-        draw = ImageDraw.Draw(img)
+    def draw_marks(d):
+        d.arc([S * 0.22, S * 0.22, S * 0.78, S * 0.78], start=140, end=400,
+              fill=(45, 220, 200, 255), width=max(3, int(S * 0.045)))
+        pulse = [(S * 0.30, cy), (S * 0.42, cy), (S * 0.49, cy - S * 0.13),
+                 (S * 0.57, cy + S * 0.15), (S * 0.64, cy), (S * 0.72, cy)]
+        d.line(pulse, fill=(130, 240, 255, 255),
+               width=max(3, int(S * 0.04)), joint="curve")
+        rr = max(3, int(S * 0.028))
+        d.ellipse([S * 0.72 - rr, cy - rr, S * 0.72 + rr, cy + rr],
+                  fill=(255, 255, 255, 255))
 
-    # Crisp outline
-    border_w = max(1, s // 24)
-    draw.polygon(pts, outline=(0, 255, 200, 180), width=border_w)
+    # Neon glow: draw marks, blur, composite twice, then crisp on top.
+    glow = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    draw_marks(ImageDraw.Draw(glow))
+    gb = glow.filter(ImageFilter.GaussianBlur(int(S * 0.05)))
+    img.alpha_composite(gb)
+    img.alpha_composite(gb)
+    draw_marks(ImageDraw.Draw(img))
 
-    # Bold checkmark
-    ck_w = max(2, s // 10)
-    ck_pts = [
-        (int(s * 0.30), int(s * 0.53)),
-        (int(s * 0.44), int(s * 0.67)),
-        (int(s * 0.70), int(s * 0.37)),
-    ]
-    draw.line(ck_pts, fill=(255, 255, 255, 255), width=ck_w, joint="curve")
-
-    # Subtle glow at large sizes
-    if size >= 64:
-        glow = img.filter(ImageFilter.GaussianBlur(radius=max(1, size // 20)))
-        img = Image.alpha_composite(glow, img)
-
-    return img
+    # Clip any glow bleed back to the rounded tile.
+    out = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    out.paste(img, (0, 0), tile)
+    return out.resize((size, size), Image.LANCZOS)
 
 def make_icon():
     return _create_shield_icon(64)
@@ -1649,6 +1649,13 @@ ForEach-Object{
             except Exception:
                 pass
             return {"type": "info", "content": "Window minimized."}
+        elif action_id == "greet":
+            greetings = {
+                "en": "Hey! I'm Helix — your PC health assistant. Type **help** to see what I can do, or try: \"disk space\", \"cpu usage\", \"run a scan\".",
+                "ja": "こんにちは！Helixです。**help**と入力するとできることが確認できます。「スキャン」「ディスク」「CPU」などとどうぞ。",
+            }
+            return {"type": "text", "content": greetings.get(lang, greetings["en"])}
+
         elif action_id == "help":
             return {"type": "help", "content": (
                 "I can help with:\n"
@@ -1689,7 +1696,12 @@ ForEach-Object{
                 self._chat_history.append({"role": "assistant", "content": resp})
                 payload = json.dumps({"type": "text", "content": resp})
             else:
-                payload = json.dumps({"type": "error", "content": "Ollama is not available. Start it with: ollama run qwen2.5:3b"})
+                msg_en = ("I didn't quite understand that. Try: \"disk space\", \"cpu usage\", \"run a scan\", "
+                          "\"show insights\", or type **help** for the full command list.\n\n"
+                          "_(Ollama AI is offline — free-form questions need `ollama run qwen2.5:3b`)_")
+                msg_ja = ("うまく理解できませんでした。「ディスク」「CPU」「スキャン」「ヘルプ」などとどうぞ。\n\n"
+                          "_(Ollama AIがオフラインです。自由な質問には `ollama run qwen2.5:3b` が必要です)_")
+                payload = json.dumps({"type": "info", "content": msg_ja if lang == "ja" else msg_en})
             code = f"onChatResponse({payload})"
             if _target:
                 try: _target.evaluate_js(code)
@@ -1909,7 +1921,7 @@ button{font-family:var(--font)}
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 .sidebar{width:var(--nav-w);background:var(--nav-bg);
   border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
-.nav-section{flex:1;padding:8px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-section{padding:8px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
 .nav-item{display:flex;align-items:center;gap:10px;padding:0 12px;height:38px;width:100%;
   border:none;background:transparent;color:var(--fg3);cursor:pointer;
   border-radius:var(--r-lg);transition:background .12s,color .12s;text-align:left;
@@ -2272,7 +2284,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
 
 /* ── Assistant page — design-system card look ─────────────────────────────── */
 #page-assistant{padding:0}
-.ai-panel{display:flex;flex-direction:column;height:calc(100vh - 148px);min-height:420px;
+.ai-panel{display:flex;flex-direction:column;flex:1;min-height:300px;
   background:#12161C;border:1px solid #262D37;border-radius:14px;overflow:hidden;
   font-family:'IBM Plex Sans','Segoe UI Variable Text','Segoe UI',system-ui,sans-serif}
 .ai-header{height:48px;box-sizing:border-box;padding:0 6px 0 16px;
@@ -2580,24 +2592,29 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
       <stop offset="0%" stop-color="#3B82F6"/><stop offset="100%" stop-color="#60A5FA"/>
     </linearGradient>
     <!-- ── Reusable logo symbol ── -->
-    <symbol id="pcha-logo" viewBox="0 0 24 28">
+    <symbol id="pcha-logo" viewBox="0 0 24 24">
       <defs>
-        <linearGradient id="logo-grad" x1="0" y1="0" x2="24" y2="28" gradientUnits="userSpaceOnUse">
+        <linearGradient id="logo-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stop-color="#00E0C0"/>
           <stop offset="100%" stop-color="#0098CC"/>
         </linearGradient>
       </defs>
-      <path d="M12 1L2 5.5v8c0 7.2 4.3 12.2 10 13.5 5.7-1.3 10-6.3 10-13.5v-8L12 1z"
-            fill="url(#logo-grad)"/>
-      <path d="M4.5 13.5h3.6l1.9-3.8 2.1 7 1.9-3.7h4"
-            stroke="white" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M5.9 17.1A8 8 0 1 1 18.1 17.1" fill="none"
+            stroke="#2DD4C0" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M6 12H9.3L10.8 8.8L12.8 15.2L14.2 12H16.7" fill="none"
+            stroke="#8AF0FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="16.9" cy="12" r="1.35" fill="#ffffff"/>
     </symbol>
   </defs>
 </svg>
 
 <!-- Title bar -->
 <div class="titlebar">
-  <span class="status-pulse idle" id="status-pulse" title="System status" style="margin-right:4px"></span>
+  <div style="display:flex;align-items:center;gap:8px;flex:1">
+    <svg width="19" height="19" aria-hidden="true"><use href="#pcha-logo"/></svg>
+    <span style="font-size:13px;font-weight:700;color:var(--fg);letter-spacing:.01em">Helix</span>
+    <span class="status-pulse idle" id="status-pulse" title="System status" style="margin-left:2px"></span>
+  </div>
   <div class="tb-right">
     <!-- hidden for JS compat -->
     <button id="btn-theme" onclick="toggleTheme()" style="display:none"></button>
@@ -2618,10 +2635,6 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
 <!-- App body -->
 <div class="app-body">
   <nav class="sidebar">
-    <div class="nav-brand">
-      <svg width="22" height="25" aria-label="Helix"><use href="#pcha-logo"/></svg>
-      <span class="nav-brand-name">Helix</span>
-    </div>
     <!-- Search / Ctrl+K -->
     <button class="nav-search-btn" onclick="openCmdPalette()">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="width:14px;height:14px"><circle cx="7" cy="7" r="5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
@@ -2851,6 +2864,11 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
     <div class="page" id="page-storage">
       <div class="page-hdr"><div><div class="page-title"><span class="en">Storage</span><span class="ja">ストレージ</span></div><div class="page-sub"><span class="en">Disk usage and reclaimable files</span><span class="ja">ディスク使用状況と解放可能なファイル</span></div></div>
         <div class="page-actions"><button class="btn btn-primary btn-sm" id="btn-cleanup" style="display:none" onclick="showCleanupDialog()">🧹 <span class="en">Clean Up</span><span class="ja">クリーンアップ</span></button></div></div>
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('storage','files',this)"><span class="en">Files</span><span class="ja">ファイル</span></button>
+        <button class="tab-btn" onclick="switchTab('storage','organize',this)"><span class="en">Organize</span><span class="ja">整理</span></button>
+      </div>
+      <div class="tab-panel active" id="storage-tab-files" style="flex:1;overflow-y:auto">
       <div id="storage-idle" class="idle-screen" style="padding:16px 0"><span style="font-size:12px;color:var(--fg3)"><span class="en">Run a scan to see storage details</span><span class="ja">スキャンでストレージ詳細を確認</span></span></div>
       <div id="storage-results" style="display:none" class="fade-in">
         <div id="analysis-storage"></div>
@@ -2990,6 +3008,8 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
           </div>
         </div>
       </div>
+      </div>
+      <div class="tab-panel" id="storage-tab-organize" style="flex:1;overflow-y:auto"></div>
     </div>
 
 
@@ -3312,9 +3332,9 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <header class="ai-header">
           <div class="ai-header-left">
             <div class="ai-icon" aria-hidden="true">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>
+              <svg width="16" height="16" aria-hidden="true"><use href="#pcha-logo"/></svg>
             </div>
-            <div class="ai-title-text"><span class="en">PC Health Assistant</span><span class="ja">PCヘルスアシスタント</span></div>
+            <div class="ai-title-text"><span class="en">Helix Assistant</span><span class="ja">Helixアシスタント</span></div>
           </div>
           <div class="ai-header-right">
             <div class="ai-status-pill checking" id="ai-status-pill">
@@ -3330,11 +3350,11 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <div id="chat-messages" class="ai-msgs">
           <div class="chat-msg chat-assistant">
             <div class="chat-avatar">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>
+              <svg width="15" height="15" aria-hidden="true"><use href="#pcha-logo"/></svg>
             </div>
             <div class="chat-bubble">
-              <span class="en">Hi! I'm your PC Health Assistant. Try: "run a scan", "how much disk space?", "go to monitor", or "help".</span>
-              <span class="ja">PCヘルスアシスタントです。「スキャンして」「ディスク空き容量は？」「モニターを開いて」などどうぞ。</span>
+              <span class="en">Hi! I'm Helix, your PC health assistant. Try: "run a scan", "disk space", "cpu usage", or "help".</span>
+              <span class="ja">Helixです。「スキャン」「ディスク」「CPU」「ヘルプ」などとどうぞ。</span>
             </div>
           </div>
         </div>
@@ -3619,11 +3639,10 @@ function showPage(name){
   const pg=document.getElementById('page-'+name); if(pg) pg.classList.add('active');
   const nav=document.querySelector(`[data-page="${name}"]`); if(nav) nav.classList.add('active');
   if(name==='history') loadHistory();
-  if(name==='storage') loadRecycleBin();
+  if(name==='storage'){ loadRecycleBin(); _initStoragePage(); }
   if(name==='sysinfo') loadSysInfo();
   if(name==='organize') orgLoadHistory();
-  if(name==='monitor'||name==='performance'){ startMonPolling(); }
-  else if(_monTimer){ clearInterval(_monTimer); _monTimer=null; }
+  if(name==='monitor'||name==='performance'){ startGlobalPoll(); _globalPoll(); }
   if(name==='performance') _initPerfPage();
   if(name==='problems') _initProblemsPage();
 }
@@ -4882,7 +4901,8 @@ async function orgApply(catName,idx){
   if(btn){ btn.disabled=false; btn.innerHTML=`<span class="en">Done</span><span class="ja">完了</span>`; }
 
   if(r.moved>0){
-    showToast(`${lang==='ja'?`${r.moved}ファイルを ${catName} に移動`:`Moved ${r.moved} files to ${catName}/`}`,r.failed?'info':'success');
+    const dest=r.target_dir||(_orgFolder+'\\'+catName);
+    showToast(`${lang==='ja'?`${r.moved}件を移動 → ${dest}`:`Moved ${r.moved} file${r.moved!==1?'s':''} → ${dest}`}`,r.failed?'info':'success');
     setTimeout(()=>{ orgScan(); orgLoadHistory(); },500);
   } else {
     showToast(r.errors&&r.errors[0]||'No files moved','error');
@@ -4982,18 +5002,22 @@ function updateLivePills(m){
   }
 }
 
+// Single consolidated metrics poll: updates sidebar pills always, and the live
+// gauges only when the Performance → Live tab is visible. One bridge call per tick.
 function _globalPoll(){
-  if(!window.pywebview) return;
+  if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.get_monitor_data) return;
   window.pywebview.api.get_monitor_data().then(d=>{
     if(!d) return;
     updateLivePills(d.metrics||{});
-    if(document.getElementById('page-monitor').classList.contains('active')) updateMonGauges(d);
-  });
+    const perf=document.getElementById('page-performance');
+    const live=document.getElementById('perf-tab-live');
+    if(perf&&perf.classList.contains('active')&&live&&live.classList.contains('active')) updateMonGauges(d);
+  }).catch(()=>{});
 }
 function startGlobalPoll(){
   if(_globalMonTimer) return;
   _globalPoll();
-  _globalMonTimer=setInterval(_globalPoll,4000);
+  _globalMonTimer=setInterval(_globalPoll,3000);
 }
 
 function drawSparkline(canvasId,data,color){
@@ -5088,67 +5112,64 @@ function renderMonAlerts(alerts){
   }).join('');
 }
 
-function pollMonitor(){
-  if(!window.pywebview) return;
-  window.pywebview.api.get_monitor_data().then(d=>{ if(d) updateMonGauges(d); });
-}
-
-function startMonPolling(){
-  pollMonitor();
-  if(_monTimer) clearInterval(_monTimer);
-  _monTimer=setInterval(pollMonitor,3000);
-}
-
-// ── Sidebar live widget — always poll every 5s regardless of page ──────
-let _sbTimer=null;
-function _startSidebarPolling(){
-  if(_sbTimer) return;
-  _sbTimer=setInterval(()=>{
-    if(!window.pywebview) return;
-    window.pywebview.api.get_monitor_data().then(d=>{ if(d) updateLivePills(d); });
-  },5000);
-  if(window.pywebview) window.pywebview.api.get_monitor_data().then(d=>{ if(d) updateLivePills(d); });
-}
+// All metric updates now flow through the single _globalPoll timer.
+// These remain as thin wrappers so existing callers keep working.
+function pollMonitor(){ _globalPoll(); }
+function startMonPolling(){ startGlobalPoll(); _globalPoll(); }
+function _startSidebarPolling(){ startGlobalPoll(); }
 
 // ── Tab switching ───────────────────────────────────────────────────────
 function switchTab(group,panel,btn){
-  const prefix=group==='perf'?'perf-tab-':'prob-tab-';
+  const prefix=group+'-tab-';
   document.querySelectorAll(`[id^="${prefix}"]`).forEach(p=>p.classList.remove('active'));
-  document.getElementById(prefix+panel).classList.add('active');
+  const target=document.getElementById(prefix+panel); if(target) target.classList.add('active');
   const bar=btn.closest('.tab-bar'); if(bar) bar.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   if(group==='perf'&&panel==='sysinfo') loadSysInfo();
   if(group==='perf'&&panel==='startup') _populatePerfStartup();
   if(group==='prob'&&panel==='events') loadEvents();
+  if(group==='storage'&&panel==='organize') orgLoadHistory();
 }
 
-// ── Performance page init: mirror content from legacy pages ─────────────
+// ── Mirror helper: MOVE (not copy) a legacy page into a tab panel ────────
+// Removes the .page class so showPage() cycling never hides/shows it again.
+// Because we move (not clone), all original IDs remain unique in the DOM —
+// getElementById/querySelector calls in loadEvents, loadSysInfo, etc. work
+// on the live visible element without any changes to those functions.
+function _mirrorIntoTab(srcId, tabId){
+  const src=document.getElementById(srcId);
+  const tab=document.getElementById(tabId);
+  if(!src||!tab||tab.childElementCount) return;
+  src.classList.remove('page');
+  src.style.cssText='display:block;width:100%;height:auto;overflow:visible;padding:16px 0 0 0';
+  tab.appendChild(src);
+}
+
+// ── Performance page init ─────────────────────────────────────────────────
 let _perfInited=false;
 function _initPerfPage(){
   if(_perfInited) return; _perfInited=true;
-  // Mirror monitor page into Live tab
-  const mon=document.getElementById('page-monitor');
-  const liveTab=document.getElementById('perf-tab-live');
-  if(mon&&liveTab&&!liveTab.childElementCount){
-    liveTab.innerHTML=mon.innerHTML;
-  }
+  _mirrorIntoTab('page-monitor',  'perf-tab-live');
+  _mirrorIntoTab('page-startup',  'perf-tab-startup');
+  _mirrorIntoTab('page-sysinfo',  'perf-tab-sysinfo');
 }
 function _populatePerfStartup(){
-  const su=document.getElementById('page-startup');
-  const tab=document.getElementById('perf-tab-startup');
-  if(su&&tab&&!tab.childElementCount) tab.innerHTML=su.innerHTML;
+  // no-op after _mirrorIntoTab handles it; kept for switchTab compatibility
 }
 
-// ── Problems page init: mirror fix + events ─────────────────────────────
+// ── Problems page init ────────────────────────────────────────────────────
 let _probInited=false;
 function _initProblemsPage(){
   if(_probInited) return; _probInited=true;
-  const fix=document.getElementById('page-troubleshoot');
-  const fixTab=document.getElementById('prob-tab-fix');
-  if(fix&&fixTab&&!fixTab.childElementCount) fixTab.innerHTML=fix.innerHTML;
-  const evt=document.getElementById('page-events');
-  const evtTab=document.getElementById('prob-tab-events');
-  if(evt&&evtTab&&!evtTab.childElementCount) evtTab.innerHTML=evt.innerHTML;
+  _mirrorIntoTab('page-troubleshoot', 'prob-tab-fix');
+  _mirrorIntoTab('page-events',       'prob-tab-events');
+}
+
+// ── Storage page init ─────────────────────────────────────────────────────
+let _storageInited=false;
+function _initStoragePage(){
+  if(_storageInited) return; _storageInited=true;
+  _mirrorIntoTab('page-organize', 'storage-tab-organize');
 }
 
 // ── Event Log ──────────────────────────────────────────────────────────
@@ -5641,7 +5662,7 @@ function onPlanStep(data){
   const box=document.getElementById('chat-messages');
   if(box) box.scrollTop=box.scrollHeight;
 }
-const _AI_AVATAR='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>';
+const _AI_AVATAR='<svg width="15" height="15" aria-hidden="true"><use href="#pcha-logo"/></svg>';
 const _USR_AVATAR='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
 function appendChatMsg(text,role,extraClass,id,isHtml){
   extraClass=extraClass||''; id=id||('cm-'+Date.now()); isHtml=isHtml||false;

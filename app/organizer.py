@@ -218,6 +218,36 @@ def organize_category(folder: str, category: str, file_paths: list) -> dict:
     except Exception:
         pass
 
+    # Write human-readable index so the folder is self-documenting
+    readme_path = os.path.join(folder, "organize-README.md")
+    try:
+        full_log = []
+        if os.path.exists(log_path):
+            with open(log_path, "r", encoding="utf-8") as f:
+                full_log = json.load(f)
+        by_cat: dict = {}
+        for session in full_log:
+            cat = session.get("category", "Other")
+            by_cat.setdefault(cat, [])
+            for m in session.get("moves", []):
+                src_dir = os.path.basename(os.path.dirname(m["from"])) or os.path.dirname(m["from"])
+                by_cat[cat].append(f"- {m['name']}  ← {src_dir}  ({session['timestamp'][:10]})")
+        lines = [
+            "# File Organization Index",
+            f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "",
+            "Files moved by Helix organizer, grouped by category.",
+            "",
+        ]
+        for cat, entries in sorted(by_cat.items()):
+            lines.append(f"## {cat}/")
+            lines.extend(entries)
+            lines.append("")
+        with open(readme_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+    except Exception:
+        pass
+
     return {
         "moved": moved,
         "failed": failed,

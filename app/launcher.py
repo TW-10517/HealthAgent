@@ -1,4 +1,4 @@
-"""PC Health Agent — Floating desktop launcher with segment-wheel radial menu."""
+"""Helix — Floating desktop launcher with segment-wheel radial menu."""
 import ctypes
 import ctypes.wintypes as wt
 import json
@@ -117,89 +117,105 @@ def _get_font(size: int = 7):
 # ── Pillow rendering ───────────────────────────────────────────────────────
 
 def _render_frame(anim_t: float, hover_idx: int) -> bytes:
-    """Render the segment wheel to raw BGRA bytes (WHEEL_SIZE × WHEEL_SIZE)."""
-    from PIL import Image, ImageDraw
+    """Render the segment wheel to raw BGRA bytes (WHEEL_SIZE × WHEEL_SIZE).
+    Renders at 2× resolution and downsamples with LANCZOS for smooth anti-aliasing."""
+    from PIL import Image, ImageDraw, ImageFilter
 
-    W  = WHEEL_SIZE
+    S  = 2                    # supersampling scale
+    W  = WHEEL_SIZE * S       # canvas at 2× (300×300)
     img  = Image.new("RGBA", (W, W), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     cx = cy = W // 2
 
-    # Animated outer radius (segments grow outward)
+    # Scaled geometry
+    c_r   = CENTER_R * S
+    in_r  = INNER_R  * S
+    ou_r  = OUTER_R  * S
+
     t      = max(0.0, min(1.0, anim_t))
-    outer  = INNER_R + int((OUTER_R - INNER_R) * t)
-    seg_a  = int(255 * min(t * 1.8, 1.0))   # segment opacity ramps up fast
+    outer  = in_r + int((ou_r - in_r) * t)
+    seg_a  = int(255 * min(t * 1.8, 1.0))
 
     if t > 0.02:
-        # ── Draw pie segments ────────────────────────────────────────────
+        # ── Segments ──────────────────────────────────────────────────────
         for i, (sid, angle_c, accent, icon_fn, label) in enumerate(SEGMENTS):
             start = angle_c - 30 + SEG_GAP / 2
             end   = angle_c + 30 - SEG_GAP / 2
             is_hover = (i == hover_idx)
-
             if is_hover:
-                fill = (*accent, seg_a)
+                # Brighter fill for hovered
+                r, g, b = accent
+                fill = (min(r + 40, 255), min(g + 40, 255), min(b + 40, 255), seg_a)
             else:
-                fill = (16, 24, 40, seg_a)
-
+                fill = (18, 28, 46, seg_a)
             bbox = [cx - outer, cy - outer, cx + outer, cy + outer]
             draw.pieslice(bbox, start=start, end=end, fill=fill)
 
-        # Punch out the center hole so the button can sit cleanly on top
-        hole_r = INNER_R + 1
-        draw.ellipse(
-            [cx - hole_r, cy - hole_r, cx + hole_r, cy + hole_r],
-            fill=(0, 0, 0, 0),
-        )
+        # Thin inner border ring on segments
+        border_r = outer - 2
+        draw.ellipse([cx - border_r, cy - border_r, cx + border_r, cy + border_r],
+                     outline=(45, 65, 90, seg_a), width=2)
 
-        # ── Icons (always shown when expanded) + label for hovered segment only
+        # Punch center hole
+        hole_r = in_r + 2
+        draw.ellipse([cx - hole_r, cy - hole_r, cx + hole_r, cy + hole_r],
+                     fill=(0, 0, 0, 0))
+
+        # ── Icons + labels ─────────────────────────────────────────────────
         icon_t = max(0.0, (t - 0.4) * 1.7)
         icon_a = int(255 * min(icon_t, 1.0))
         if icon_a > 0:
-            fnt_label = _get_font(8)
-            mid_r = (INNER_R + outer) / 2
+            fnt_label = _get_font(16)    # 16px at 2× → ~8px after downsample
+            mid_r = (in_r + outer) / 2
 
             for i, (sid, angle_c, accent, icon_fn, label) in enumerate(SEGMENTS):
                 is_hover = (i == hover_idx)
                 ico_col = (255, 255, 255, icon_a) if is_hover else (*accent, icon_a)
-
                 rad = math.radians(angle_c)
                 ix  = cx + mid_r * math.cos(rad)
                 iy  = cy + mid_r * math.sin(rad)
-
-                _draw_icon(draw, icon_fn, int(ix), int(iy), ico_col)
-
-                # Label only for the currently hovered segment
+                _draw_icon(draw, icon_fn, int(ix), int(iy), ico_col, scale=S)
                 if is_hover and icon_a > 80:
                     try:
                         bb = draw.textbbox((0, 0), label, font=fnt_label)
                         tw, th = bb[2] - bb[0], bb[3] - bb[1]
                     except Exception:
-                        tw, th = len(label) * 5, 9
-                    lx = max(2, min(int(ix) - tw // 2, W - tw - 2))
-                    ly = max(2, min(int(iy) + 8, W - th - 2))
+                        tw, th = len(label) * 10, 16
+                    lx = max(4, min(int(ix) - tw // 2, W - tw - 4))
+                    ly = max(4, min(int(iy) + 16, W - th - 4))
+                    # Drop shadow for label
+                    draw.text((lx + 1, ly + 1), label,
+                              fill=(0, 0, 0, icon_a // 2), font=fnt_label)
                     draw.text((lx, ly), label,
                               fill=(255, 255, 255, icon_a), font=fnt_label)
 
-    # ── Center button ─────────────────────────────────────────────────────
-    # Button fill — teal gradient approximated by two concentric circles
+    # ── Center button — clean solid button with subtle depth ─────────────
+    # Drop shadow (soft offset ellipse, fully transparent at edges)
     draw.ellipse(
-        [cx - CENTER_R, cy - CENTER_R, cx + CENTER_R, cy + CENTER_R],
-        fill=(0, 168, 134, 255),
+        [cx - c_r + 2, cy - c_r + 6, cx + c_r + 2, cy + c_r + 6],
+        fill=(0, 0, 0, 50),
     )
+    # Outer border ring (dark teal)
     draw.ellipse(
-        [cx - CENTER_R + 5, cy - CENTER_R + 5, cx + CENTER_R - 5, cy + CENTER_R - 5],
-        fill=(0, 212, 170, 255),
+        [cx - c_r, cy - c_r, cx + c_r, cy + c_r],
+        fill=(0, 90, 72, 255),
+    )
+    # Button face (1 layer, flat teal — no inner circles)
+    draw.ellipse(
+        [cx - c_r + 4, cy - c_r + 4, cx + c_r - 4, cy + c_r - 4],
+        fill=(0, 200, 160, 255),
+    )
+    # Single subtle highlight arc at top-left (low opacity, narrow)
+    draw.arc(
+        [cx - c_r + 6, cy - c_r + 6, cx + c_r - 6, cy + c_r - 6],
+        start=210, end=310, fill=(255, 255, 255, 70), width=4,
     )
 
-    # Border ring
-    draw.ellipse(
-        [cx - CENTER_R, cy - CENTER_R, cx + CENTER_R, cy + CENTER_R],
-        outline=(0, 230, 190, 255), width=2,
-    )
+    # Shield polygon (scaled)
+    _draw_shield(draw, cx, cy, scale=S)
 
-    # Shield polygon
-    _draw_shield(draw, cx, cy)
+    # Downsample 2× → final size for smooth anti-aliasing
+    img = img.resize((WHEEL_SIZE, WHEEL_SIZE), Image.LANCZOS)
 
     # Convert RGBA → BGRA (Win32 DIB format)
     r, g, b, a = img.split()
@@ -207,8 +223,8 @@ def _render_frame(anim_t: float, hover_idx: int) -> bytes:
     return bgra.tobytes()
 
 
-def _draw_shield(draw, cx: int, cy: int):
-    sr = 11
+def _draw_shield(draw, cx: int, cy: int, scale: int = 1):
+    sr = 11 * scale
     shield = [
         (cx,                  cy - sr),
         (cx + sr,             cy - sr // 2),
@@ -219,44 +235,45 @@ def _draw_shield(draw, cx: int, cy: int):
         (cx - sr,             cy + sr // 4),
         (cx - sr,             cy - sr // 2),
     ]
-    draw.polygon(shield, fill=(0, 90, 72, 255))
-    draw.line([(cx - 5, cy + 2), (cx - 1, cy + 6)], fill=(255, 255, 255, 255), width=2)
-    draw.line([(cx - 1, cy + 6), (cx + 6, cy - 2)], fill=(255, 255, 255, 255), width=2)
+    draw.polygon(shield, fill=(0, 80, 62, 220))
+    s = scale
+    draw.line([(cx - 5*s, cy + 2*s), (cx - 1*s, cy + 6*s)], fill=(255, 255, 255, 240), width=2*s)
+    draw.line([(cx - 1*s, cy + 6*s), (cx + 6*s, cy - 2*s)], fill=(255, 255, 255, 240), width=2*s)
 
 
-def _draw_icon(draw, icon_fn: str, cx: int, cy: int, color: tuple):
+def _draw_icon(draw, icon_fn: str, cx: int, cy: int, color: tuple, scale: int = 1):
     """Draw a small monochrome icon in the segment."""
+    s  = scale
     iy = cy
 
     if icon_fn == "icon_open":
-        pts = [(cx - 5, iy - 5), (cx - 5, iy + 5), (cx + 6, iy)]
+        pts = [(cx - 5*s, iy - 5*s), (cx - 5*s, iy + 5*s), (cx + 6*s, iy)]
         draw.polygon(pts, fill=color)
 
     elif icon_fn == "icon_chat":
         draw.rounded_rectangle(
-            [cx - 6, iy - 5, cx + 6, iy + 2],
-            radius=2, outline=color, width=2,
+            [cx - 6*s, iy - 5*s, cx + 6*s, iy + 2*s],
+            radius=2*s, outline=color, width=2*s,
         )
-        draw.polygon([(cx - 4, iy + 2), (cx - 4, iy + 6), (cx, iy + 2)], fill=color)
+        draw.polygon([(cx - 4*s, iy + 2*s), (cx - 4*s, iy + 6*s), (cx, iy + 2*s)], fill=color)
         for dx in (-3, 0, 3):
-            draw.ellipse([cx + dx - 1, iy - 2, cx + dx + 2, iy + 1], fill=color)
+            draw.ellipse([cx + dx*s - s, iy - 2*s, cx + dx*s + 2*s, iy + s], fill=color)
 
     elif icon_fn == "icon_scan":
-        draw.ellipse([cx - 6, iy - 6, cx + 1, iy + 1], outline=color, width=2)
-        draw.line([(cx, iy + 1), (cx + 5, iy + 6)], fill=color, width=2)
+        draw.ellipse([cx - 6*s, iy - 6*s, cx + s, iy + s], outline=color, width=2*s)
+        draw.line([(cx, iy + s), (cx + 5*s, iy + 6*s)], fill=color, width=2*s)
 
     elif icon_fn == "icon_hide":
-        draw.line([(cx - 5, iy - 2), (cx,     iy + 3)], fill=color, width=2)
-        draw.line([(cx,     iy + 3), (cx + 5, iy - 2)], fill=color, width=2)
+        draw.line([(cx - 5*s, iy - 2*s), (cx,       iy + 3*s)], fill=color, width=2*s)
+        draw.line([(cx,       iy + 3*s), (cx + 5*s, iy - 2*s)], fill=color, width=2*s)
 
     elif icon_fn == "icon_mon":
-        # Mini bar-chart: 3 vertical bars of increasing height
         for bx, bh in [(-5, 3), (-1, 6), (3, 4)]:
-            draw.rectangle([cx + bx, iy + 5 - bh, cx + bx + 2, iy + 5], fill=color)
+            draw.rectangle([cx + bx*s, iy + 5*s - bh*s, cx + bx*s + 2*s, iy + 5*s], fill=color)
 
     elif icon_fn == "icon_exit":
-        draw.line([(cx - 5, iy - 5), (cx + 5, iy + 5)], fill=color, width=2)
-        draw.line([(cx + 5, iy - 5), (cx - 5, iy + 5)], fill=color, width=2)
+        draw.line([(cx - 5*s, iy - 5*s), (cx + 5*s, iy + 5*s)], fill=color, width=2*s)
+        draw.line([(cx + 5*s, iy - 5*s), (cx - 5*s, iy + 5*s)], fill=color, width=2*s)
 
 
 # ── GDI helpers ───────────────────────────────────────────────────────────
@@ -352,12 +369,16 @@ def _set_startup(enabled: bool):
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
         app_name = "PCHealthAgent"
         if enabled:
-            # Use pythonw.exe so no console window appears at login
-            exe_path = sys.executable.replace("python.exe", "pythonw.exe")
-            if not Path(exe_path).exists():
-                exe_path = sys.executable
-            script = str(Path(__file__).parent / "desktop_app.py")
-            cmd    = f'"{exe_path}" "{script}"'
+            if getattr(sys, "frozen", False):
+                # Running as a packaged .exe — launch the exe directly
+                cmd = f'"{sys.executable}"'
+            else:
+                # Use pythonw.exe so no console window appears at login
+                exe_path = sys.executable.replace("python.exe", "pythonw.exe")
+                if not Path(exe_path).exists():
+                    exe_path = sys.executable
+                script = str(Path(__file__).parent / "desktop_app.py")
+                cmd    = f'"{exe_path}" "{script}"'
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0,
                                 winreg.KEY_SET_VALUE) as key:
                 winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, cmd)

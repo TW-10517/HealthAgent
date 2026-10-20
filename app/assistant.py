@@ -27,6 +27,24 @@ _INTENTS = [
     # assistant nav: require end-of-string or "page" after "ai" so "show ai suggestions" doesn't match
     (r'(go to|navigate to|take me to|open|show)\s+(the\s+)?(assistant|chat)\b', 'nav', {'page': 'assistant'}),
     (r'(go to|navigate to|take me to|open|show)\s+ai\s*(page|tab|assistant)?\s*$', 'nav', {'page': 'assistant'}),
+    # Greetings
+    (r'^(hi|hello|hey|greetings|good\s+(morning|afternoon|evening)|yo|sup|howdy|hiya)[\s!?.]*$', 'greet', {}),
+    (r'^(thank(s| you)|thx|cheers|ok|okay|got it|cool|great|nice|perfect)[\s!.]*$', 'greet', {}),
+    # Japanese greetings / common phrases
+    (r'^(こんにちは|こんばんは|おはよう|ありがとう|よろしく|はじめまして|よし|わかった|了解|オッケー)[\s!。]*$', 'greet', {}),
+    # Bare health queries — no required verb prefix
+    (r'^(disk|storage|space|ディスク|ストレージ)[\s!?。]*$', 'query_disk', {}),
+    (r'disk\s*(space|usage|used|free|info)', 'query_disk', {}),
+    (r'^(cpu|processor|プロセッサ|CPU)[\s!?。]*$', 'query_cpu', {}),
+    (r'cpu\s*(usage|load|percent|speed|use)', 'query_cpu', {}),
+    (r'^(ram|memory|メモリ)[\s!?。]*$', 'query_ram', {}),
+    (r'(ram|memory)\s*(usage|used|free|info)', 'query_ram', {}),
+    # Japanese intent patterns for common queries
+    (r'(ディスク|ストレージ|空き容量|残り容量)', 'query_disk', {}),
+    (r'(cpu使用率|cpu|プロセッサ)', 'query_cpu', {}),
+    (r'(メモリ|ram|メモリ使用率)', 'query_ram', {}),
+    (r'(スキャン|スキャンして|診断)', 'scan', {'no_dupes': False}),
+    (r'(ヘルプ|使い方|コマンド)', 'help', {}),
     # Scan control
     (r'(run|start|do|begin|scan)\s+(a\s+)?(full scan|full|scan)$', 'scan', {'no_dupes': False}),
     (r'(run|start|do|begin)\s+(a\s+)?(quick scan|quick|fast scan)', 'scan', {'no_dupes': True}),
@@ -295,7 +313,7 @@ def ollama_chat(message: str, context: str = "", lang: str = "en",
             OLLAMA_URL, data=payload,
             headers={"Content-Type": "application/json"}, method="POST",
         )
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with urllib.request.urlopen(req, timeout=8) as r:
             return json.loads(r.read().decode())["response"].strip()
     except Exception:
         return None
