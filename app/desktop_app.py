@@ -781,8 +781,16 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
         return True
 
     def open_chat_popup(self):
-        import chat_popup
-        chat_popup.open_popup()
+        # Chat lives inside the main window on the Assistant page — no separate
+        # WebView2 renderer. Show the main window and navigate to that page.
+        try:
+            if self._window:
+                self._window.show()
+                try: self._window.restore()
+                except Exception: pass
+                self._window.evaluate_js("showPage('assistant')")
+        except Exception:
+            pass
         return True
 
     def get_chat_float_enabled(self):
@@ -5993,26 +6001,8 @@ def run():
     )
     api.set_window(window)
 
-    # Create the floating chat popup window (hidden at startup)
-    popup_api = chat_popup.ChatPopupAPI(api)
-    popup_window = webview.create_window(
-        title            = "PC Health Assistant",
-        html             = chat_popup.CHAT_POPUP_HTML,
-        js_api           = popup_api,
-        width            = 380,
-        height           = 560,
-        resizable        = True,
-        background_color = "#070C18",
-        hidden           = True,
-    )
-    popup_api.set_popup_window(popup_window)
-
-    # pywebview hidden=True is unreliable on some versions — force-hide after load
-    def _force_hide_popup():
-        time.sleep(1.5)
-        try: popup_window.hide()
-        except Exception: pass
-    threading.Thread(target=_force_hide_popup, daemon=True).start()
+    # Chat popup was collapsed into the main window's Assistant page — one
+    # fewer WebView2 renderer. See AgentAPI.open_chat_popup.
 
     # Create the gaming-style monitor HUD window (hidden at startup)
     hud_api = monitor_hud.MonitorHudAPI(api)
@@ -6056,7 +6046,6 @@ def run():
     _tray_icon = [None]
 
     def _quit_all():
-        chat_popup.stop_chat_system()
         fl = launcher.get_launcher()
         if fl:
             fl.stop()
@@ -6093,7 +6082,11 @@ def run():
                 if fl: fl.show()
                 window.evaluate_js("showPage('assistant')")
             def on_quick_chat(_i, _):
-                chat_popup.open_popup()
+                window.show()
+                fl = launcher.get_launcher()
+                if fl: fl.show()
+                try: window.evaluate_js("showPage('assistant')")
+                except Exception: pass
             def on_quit(_i, _): _quit_all()
             menu = pystray.Menu(
                 pystray.MenuItem("Open PC Health Agent", on_open, default=True),
@@ -6130,7 +6123,12 @@ def run():
         _quit_all()
 
     def on_chat_from_launcher():
-        chat_popup.open_popup()
+        try:
+            window.show()
+            window.restore()
+            window.evaluate_js("showPage('assistant')")
+        except Exception:
+            pass
 
     def on_monitor_from_launcher():
         monitor_hud.toggle_hud()
@@ -6139,8 +6137,7 @@ def run():
                             on_chat_cb=on_chat_from_launcher,
                             on_monitor_cb=on_monitor_from_launcher)
 
-    # Start the chat popup system (accessed via launcher)
-    chat_popup.start_chat_system(api, popup_window)
+    # Chat popup system removed — assistant lives on page-assistant in the main window.
 
     # Start the monitor HUD system (accessed via launcher HUD segment)
     monitor_hud.start_hud_system(api, hud_window)
