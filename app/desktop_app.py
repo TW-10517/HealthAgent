@@ -5523,9 +5523,12 @@ async function executeActionDirect(actionId){
 }
 
 window.addEventListener('pywebviewready',()=>{loadSettings();loadHistory();setTimeout(loadInsights,500);
-  // Eagerly mirror all legacy sub-pages into their tab panels so Performance /
-  // Storage / Problems render immediately on first click (no lazy-init race).
-  try{ _initPerfPage(); _initStoragePage(); _initProblemsPage(); }catch(e){}
+  // Mirror legacy sub-pages into their tab panels AFTER the first paint, in
+  // small steps, so WebView2 stays responsive (dragging / resizing / clicks).
+  // _mirrorIntoTab is idempotent, so showPage() may call them again later.
+  setTimeout(_initPerfPage,     1500);
+  setTimeout(_initStoragePage,  1700);
+  setTimeout(_initProblemsPage, 1900);
   setTimeout(startGlobalPoll, 800); setTimeout(_startSidebarPolling, 1200);
   document.querySelectorAll('.kpi.clickable').forEach(el=>el.addEventListener('click',addRipple));
   const saved=localStorage.getItem('orgFolder');
