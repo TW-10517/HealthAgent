@@ -3,18 +3,35 @@ import sys, os, threading, json, time, ctypes
 from pathlib import Path
 from datetime import datetime
 
-# ── Suppress console windows for all child processes ────────────────────────
-# This is a --windowed build with no console of its own, so every child that
-# is a console program (powershell, cmd, powercfg, …) would otherwise flash
-# its own black window for a second. Force CREATE_NO_WINDOW on every Popen
-# (subprocess.run builds a Popen too) unless the caller already set flags.
+# ── Suppress console windows for OUR console-tool children ──────────────────
+# This is a --windowed build with no console of its own, so our powershell /
+# cmd / powercfg / wmic / … calls would otherwise flash a black window for a
+# second each. Patch subprocess.Popen to add CREATE_NO_WINDOW ONLY when the
+# executable is one of those known console tools — never for pywebview's own
+# WebView2 / helper spawns, which are GUI processes and must stay untouched.
 import subprocess as _subprocess
 if os.name == "nt":
     _CREATE_NO_WINDOW = 0x08000000
+    _CONSOLE_EXES = frozenset((
+        "powershell", "powershell.exe", "pwsh", "pwsh.exe",
+        "cmd", "cmd.exe", "powercfg", "powercfg.exe",
+        "wmic", "wmic.exe", "netsh", "netsh.exe",
+        "tasklist", "tasklist.exe", "taskkill", "taskkill.exe",
+        "reg", "reg.exe", "sc", "sc.exe",
+        "ipconfig", "ipconfig.exe", "systeminfo", "systeminfo.exe",
+    ))
     _ORIG_POPEN_INIT = _subprocess.Popen.__init__
     def _popen_no_window(self, *args, **kwargs):
-        if not kwargs.get("creationflags"):
-            kwargs["creationflags"] = _CREATE_NO_WINDOW
+        exe = None
+        a = kwargs.get("args") or (args[0] if args else None)
+        if isinstance(a, (list, tuple)) and a:
+            exe = str(a[0])
+        elif isinstance(a, str):
+            exe = a.split(None, 1)[0] if a else None
+        if exe:
+            base = os.path.basename(exe).lower()
+            if base in _CONSOLE_EXES and not kwargs.get("creationflags"):
+                kwargs["creationflags"] = _CREATE_NO_WINDOW
         return _ORIG_POPEN_INIT(self, *args, **kwargs)
     _subprocess.Popen.__init__ = _popen_no_window
 
@@ -2083,11 +2100,12 @@ button{font-family:var(--font)}
 
 /* ── Toast ───────────────────────────────────────────────────────────────── */
 #toast{position:fixed;bottom:40px;left:50%;transform:translateX(-50%) translateY(20px);
-  background:rgba(12,18,36,.9);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.08);
+  background:rgba(12,18,36,.9);border:1px solid rgba(255,255,255,.08);
   border-radius:100px;box-shadow:0 8px 32px rgba(0,0,0,.5);padding:10px 22px;font-size:12px;
-  color:var(--fg);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;
+  color:var(--fg);opacity:0;visibility:hidden;transition:opacity .25s,transform .25s,visibility 0s .25s;pointer-events:none;
   z-index:300;white-space:nowrap}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+#toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);pointer-events:auto;
+  backdrop-filter:blur(16px);transition:opacity .25s,transform .25s,visibility 0s}
 #toast.toast-success{border-color:rgba(52,211,153,.3);box-shadow:0 0 20px rgba(52,211,153,.1),0 8px 32px rgba(0,0,0,.5)}
 #toast.toast-error{border-color:rgba(248,113,113,.3);box-shadow:0 0 20px rgba(248,113,113,.1),0 8px 32px rgba(0,0,0,.5)}
 #toast.toast-info{border-color:rgba(0,212,170,.3);box-shadow:0 0 20px rgba(0,212,170,.1),0 8px 32px rgba(0,0,0,.5)}
@@ -4160,12 +4178,12 @@ function closeGuide(){ document.getElementById('guide-modal').style.display='non
 const _OB_STEPS=4;
 let _obStep=0;
 function _initOnboarding(){
-  if(localStorage.getItem('pcha_onboarded')==='1') return;
-  document.getElementById('onboard-overlay').classList.add('open');
-  const dots=document.getElementById('ob-dots');
-  dots.innerHTML=Array.from({length:_OB_STEPS},(_,i)=>`<div class="ob-dot${i===0?' active':''}" id="ob-d-${i}"></div>`).join('');
-  _obStep=0;
-  _updateOnboard();
+  // Suppressed: the Feature Guide button (?) in the titlebar replaces this
+  // flow. Hard-dismiss the overlay in case anything else opened it and set
+  // the onboarded flag so nothing re-opens it.
+  try{ localStorage.setItem('pcha_onboarded','1'); }catch(_){ }
+  const ov=document.getElementById('onboard-overlay');
+  if(ov) ov.classList.remove('open');
 }
 function _updateOnboard(){
   document.querySelectorAll('.ob-step').forEach((s,i)=>s.classList.toggle('active',i===_obStep));
@@ -5523,12 +5541,6 @@ async function executeActionDirect(actionId){
 }
 
 window.addEventListener('pywebviewready',()=>{loadSettings();loadHistory();setTimeout(loadInsights,500);
-  // Mirror legacy sub-pages into their tab panels AFTER the first paint, in
-  // small steps, so WebView2 stays responsive (dragging / resizing / clicks).
-  // _mirrorIntoTab is idempotent, so showPage() may call them again later.
-  setTimeout(_initPerfPage,     1500);
-  setTimeout(_initStoragePage,  1700);
-  setTimeout(_initProblemsPage, 1900);
   setTimeout(startGlobalPoll, 800); setTimeout(_startSidebarPolling, 1200);
   document.querySelectorAll('.kpi.clickable').forEach(el=>el.addEventListener('click',addRipple));
   const saved=localStorage.getItem('orgFolder');
@@ -5539,6 +5551,7 @@ window.addEventListener('pywebviewready',()=>{loadSettings();loadHistory();setTi
   setTimeout(_pollAiStatus, 4000);
 });
 
+let _aiPollTries = 0;
 async function _pollAiStatus(){
   if(!window.pywebview) return;
   const r = await window.pywebview.api.get_ai_status();
@@ -5559,8 +5572,14 @@ async function _pollAiStatus(){
     pill.title = lang==='ja'
       ? 'Ollamaが起動していません。AIアドバイス機能は制限されます。'
       : 'Ollama is not running. AI suggestions will be limited.';
+  } else if(_aiPollTries < 3){
+    _aiPollTries++;
+    setTimeout(_pollAiStatus, 3000);
   } else {
-    setTimeout(_pollAiStatus, 2000);
+    // Give up gracefully — show offline so the pill stops looking busy.
+    pill.className='ai-status-pill offline';
+    dot.style.background='';
+    lbl.innerHTML='<span class="en">AI Offline</span><span class="ja">AIオフライン</span>';
   }
 }
 
@@ -6021,7 +6040,13 @@ def run():
         monitor_hud._set_topmost(monitor_hud.HUD_TITLE)
         monitor_hud._position_top_right(monitor_hud.HUD_TITLE,
                                          monitor_hud.HUD_W, monitor_hud.HUD_H)
+        try: hud_window.evaluate_js("_hudPollStart()")
+        except Exception: pass
     hud_window.events.shown += _hud_on_shown
+    def _hud_on_hidden():
+        try: hud_window.evaluate_js("_hudPollStop()")
+        except Exception: pass
+    hud_window.events.closing += _hud_on_hidden
 
     def on_shown():
         time.sleep(1.0)

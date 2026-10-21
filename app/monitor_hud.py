@@ -386,10 +386,11 @@ async function refresh(){
   }
 }
 
-window.addEventListener('pywebviewready',()=>{
-  setInterval(refresh,1000);
-  refresh();
-});
+// Polling is started/stopped by Python via _hudPollStart() / _hudPollStop()
+// so a hidden HUD window never calls get_stats and keeps the main process idle.
+let _hudTimer=null;
+function _hudPollStart(){ if(_hudTimer) return; refresh(); _hudTimer=setInterval(refresh,1000); }
+function _hudPollStop(){  if(_hudTimer){ clearInterval(_hudTimer); _hudTimer=null; } }
 </script>
 </body>
 </html>"""
