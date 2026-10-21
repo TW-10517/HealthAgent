@@ -195,24 +195,24 @@ def _render_frame(anim_t: float, hover_idx: int) -> bytes:
         [cx - c_r + 2, cy - c_r + 6, cx + c_r + 2, cy + c_r + 6],
         fill=(0, 0, 0, 50),
     )
-    # Outer border ring (dark teal)
+    # Outer border ring (brand teal)
     draw.ellipse(
         [cx - c_r, cy - c_r, cx + c_r, cy + c_r],
-        fill=(0, 90, 72, 255),
+        fill=(45, 212, 192, 255),
     )
-    # Button face (1 layer, flat teal — no inner circles)
+    # Button face — dark navy tile, matching the app's "Orbit Pulse" logo
     draw.ellipse(
         [cx - c_r + 4, cy - c_r + 4, cx + c_r - 4, cy + c_r - 4],
-        fill=(0, 200, 160, 255),
+        fill=(13, 20, 34, 255),
     )
     # Single subtle highlight arc at top-left (low opacity, narrow)
     draw.arc(
         [cx - c_r + 6, cy - c_r + 6, cx + c_r - 6, cy + c_r - 6],
-        start=210, end=310, fill=(255, 255, 255, 70), width=4,
+        start=210, end=310, fill=(255, 255, 255, 40), width=4,
     )
 
-    # Shield polygon (scaled)
-    _draw_shield(draw, cx, cy, scale=S)
+    # Orbit Pulse mark (gauge arc + heartbeat pulse + end dot), scaled to button
+    _draw_pulse_mark(draw, cx, cy, c_r)
 
     # Downsample 2× → final size for smooth anti-aliasing
     img = img.resize((WHEEL_SIZE, WHEEL_SIZE), Image.LANCZOS)
@@ -223,22 +223,37 @@ def _render_frame(anim_t: float, hover_idx: int) -> bytes:
     return bgra.tobytes()
 
 
-def _draw_shield(draw, cx: int, cy: int, scale: int = 1):
-    sr = 11 * scale
-    shield = [
-        (cx,                  cy - sr),
-        (cx + sr,             cy - sr // 2),
-        (cx + sr,             cy + sr // 4),
-        (cx + int(sr * 0.7),  cy + int(sr * 0.7)),
-        (cx,                  cy + sr),
-        (cx - int(sr * 0.7),  cy + int(sr * 0.7)),
-        (cx - sr,             cy + sr // 4),
-        (cx - sr,             cy - sr // 2),
+def _draw_pulse_mark(draw, cx: int, cy: int, c_r: int):
+    """Orbit Pulse mark — teal gauge arc + cyan heartbeat pulse + white end dot.
+    Matches the SVG logo in desktop_app.py (viewBox 0 0 24 24)."""
+    # Fit the 24x24 logo inside the button face (leave ~3px padding).
+    r = max(6, c_r - 6)
+    # Gauge arc: 220°, open at the top (matches SVG path M5.9 17.1 A 1 1 … 18.1 17.1).
+    draw.arc(
+        [cx - r, cy - r, cx + r, cy + r],
+        start=140, end=400,
+        fill=(45, 212, 192, 255),
+        width=max(2, r // 4),
+    )
+    # Heartbeat pulse (SVG: M6 12 H9.3 L10.8 8.8 L12.8 15.2 L14.2 12 H16.7).
+    k = r / 10.0  # SVG units -> px scale (radius ≈ 10 in SVG)
+    pts = [
+        (cx + (6   - 12) * k, cy + (12  - 12) * k),
+        (cx + (9.3 - 12) * k, cy + (12  - 12) * k),
+        (cx + (10.8- 12) * k, cy + (8.8 - 12) * k),
+        (cx + (12.8- 12) * k, cy + (15.2- 12) * k),
+        (cx + (14.2- 12) * k, cy + (12  - 12) * k),
+        (cx + (16.7- 12) * k, cy + (12  - 12) * k),
     ]
-    draw.polygon(shield, fill=(0, 80, 62, 220))
-    s = scale
-    draw.line([(cx - 5*s, cy + 2*s), (cx - 1*s, cy + 6*s)], fill=(255, 255, 255, 240), width=2*s)
-    draw.line([(cx - 1*s, cy + 6*s), (cx + 6*s, cy - 2*s)], fill=(255, 255, 255, 240), width=2*s)
+    pw = max(2, int(r // 5))
+    for i in range(len(pts) - 1):
+        draw.line([pts[i], pts[i+1]], fill=(138, 240, 255, 255), width=pw)
+    # End dot (SVG cx16.9 cy12 r1.35).
+    dot_r = max(2, int(r * 0.14))
+    dcx = int(cx + (16.9 - 12) * k)
+    dcy = int(cy + (12   - 12) * k)
+    draw.ellipse([dcx - dot_r, dcy - dot_r, dcx + dot_r, dcy + dot_r],
+                 fill=(255, 255, 255, 255))
 
 
 def _draw_icon(draw, icon_fn: str, cx: int, cy: int, color: tuple, scale: int = 1):
