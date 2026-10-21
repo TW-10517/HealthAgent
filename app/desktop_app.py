@@ -2696,6 +2696,9 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
     <!-- hidden for JS compat -->
     <button id="btn-theme" onclick="toggleTheme()" style="display:none"></button>
     <div style="display:none"><button id="btn-en" onclick="setLang('en')">EN</button><button id="btn-ja" onclick="setLang('ja')">日本語</button></div>
+    <button class="btn btn-ghost btn-sm" id="btn-guide" onclick="openGuide()" title="Feature guide / 機能ガイド" style="width:30px;padding:0;justify-content:center">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 11v-.2c0-.9.6-1.3 1.2-1.7.6-.4 1-.9 1-1.7a2.2 2.2 0 0 0-4.3-.6"/><circle cx="8" cy="12.6" r=".2" fill="currentColor"/></svg>
+    </button>
     <button class="btn btn-secondary btn-sm" id="btn-fast" onclick="startScan(true)" title="Quick scan (no duplicate check)">
       ⚡ <span class="en">Quick Scan</span><span class="ja">クイック</span>
     </button>
@@ -3655,6 +3658,22 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
   </div>
 </div>
 
+<!-- ── Feature guide / tutorial modal ─────────────────────────────────────── -->
+<div id="guide-modal" onclick="if(event.target===this)closeGuide()"
+     style="position:fixed;inset:0;z-index:320;display:none;align-items:center;justify-content:center;background:rgba(5,9,18,.72);backdrop-filter:blur(6px);padding:24px">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);width:min(680px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <svg width="24" height="24" aria-hidden="true"><use href="#pcha-logo"/></svg>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--fg)"><span class="en">Helix — Feature Guide</span><span class="ja">Helix — 機能ガイド</span></div>
+        <div style="font-size:12px;color:var(--fg3)"><span class="en">What each part of the app does</span><span class="ja">各機能の使い方</span></div>
+      </div>
+      <button class="btn btn-ghost" style="width:30px;height:30px;padding:0;justify-content:center;border-radius:8px" onclick="closeGuide()">✕</button>
+    </div>
+    <div id="guide-body" style="overflow-y:auto;padding:12px 22px 22px"></div>
+  </div>
+</div>
+
 <!-- ── Onboarding overlay ────────────────────────────────────────────────── -->
 <div id="onboard-overlay">
   <div id="onboard-box">
@@ -4087,6 +4106,55 @@ function _cmdExec(idx){
 // ── Keyboard shortcuts overlay ────────────────────────────────────────────
 function openShortcuts(){document.getElementById('shortcuts-modal').classList.add('open');}
 function closeShortcuts(){document.getElementById('shortcuts-modal').classList.remove('open');}
+
+// ── Feature guide / tutorial ───────────────────────────────────────────────
+const _GUIDE=[
+  {t:['Getting started','はじめに'],items:[
+    ['🔍',['Full Scan','フルスキャン'],['Analyses disk space, temp &amp; cache, startup apps and duplicate files (~30–60s). Top-right button or Ctrl+Shift+S.','ディスク・一時/キャッシュ・起動アプリ・重複ファイルを分析（約30〜60秒）。右上ボタンまたはCtrl+Shift+S。']],
+    ['⚡',['Quick Scan','クイックスキャン'],['Same as Full Scan but skips duplicate hashing, so it finishes faster. Ctrl+Shift+Q.','フルスキャンと同じですが重複チェックを省くため高速です。Ctrl+Shift+Q。']],
+    ['💯',['Health Score (Overview)','ヘルス スコア（概要）'],['A 0–100 score plus the issues that need attention — click any issue to jump straight to the page that fixes it.','0〜100のスコアと要対応の問題を表示。問題をクリックすると対処ページに移動します。']],
+  ]},
+  {t:['Performance','パフォーマンス'],items:[
+    ['📈',['Live','ライブ'],['Real-time CPU, RAM, Disk, Battery and temperature gauges with CPU/RAM history and the top processes. Refreshes every 3 seconds.','CPU・メモリ・ディスク・バッテリー・温度のリアルタイム計測、CPU/メモリ履歴、上位プロセスを表示。3秒ごとに更新。']],
+    ['🚀',['Startup apps','起動アプリ'],['Everything that launches when Windows starts, split into Personal and IT-managed entries.','Windows起動時に実行されるアプリを「個人」「IT管理」に分けて表示。']],
+    ['🖥️',['System info','システム情報'],['Your CPU, RAM, GPU, disk and OS hardware details.','CPU・メモリ・GPU・ディスク・OSなどのハードウェア情報。']],
+  ]},
+  {t:['Storage','ストレージ'],items:[
+    ['🗂️',['Files','ファイル'],['Disk usage, reclaimable space, temp/cache breakdown, duplicates, file-type breakdown, folder-size map and Downloads age.','ディスク使用量・解放可能容量・一時/キャッシュ内訳・重複・種別内訳・フォルダサイズマップ・ダウンロード経過日数。']],
+    ['📄',['Large / Old files','大きい/古いファイル'],['Finds big or stale files. Use 📂 to reveal a file in Explorer, or 🗑 to send it to the Recycle Bin — always reversible.','大きい・古いファイルを検索。📂でエクスプローラー表示、🗑でごみ箱へ移動（復元可能）。']],
+    ['🧹',['Organize','整理'],['Sorts a folder’s files into category subfolders (Images, Documents…). It never deletes — only moves — and logs every move. Use Quick Folders or Browse.','フォルダ内のファイルを種別サブフォルダ（画像・文書など）に整理。削除はせず移動のみで、全移動を記録。クイックフォルダまたは参照から。']],
+  ]},
+  {t:['Security &amp; Problems','セキュリティと問題'],items:[
+    ['🛡️',['Security','セキュリティ'],['Browser cache sizes, active network connections and a sensitive-file radar. Read-only — nothing leaves your PC.','ブラウザキャッシュ・ネットワーク接続・機密ファイルの確認。読み取り専用で外部送信なし。']],
+    ['🔧',['Problems ▸ Fix','問題 ▸ 修復'],['Runs diagnostics and offers safe, reversible fixes for common issues.','診断を実行し、一般的な問題に対して安全で元に戻せる修復を提案。']],
+    ['📋',['Problems ▸ Event log','問題 ▸ イベントログ'],['Recent Windows errors and warnings, grouped and summarised.','最近のWindowsエラー・警告をまとめて表示。']],
+  ]},
+  {t:['Assistant, History &amp; extras','アシスタント・履歴・その他'],items:[
+    ['💬',['Assistant','アシスタント'],['Type plain requests: “check my cpu”, “find resume.docx”, “open edge”, “go to storage”, “run a scan”. Commands work offline; free-form AI answers need Ollama running locally.','自然な言葉で入力：「CPUを確認」「resume.docxを探す」「edgeを開く」「ストレージへ」「スキャン実行」。コマンドはオフライン動作。自由な質問にはローカルのOllamaが必要。']],
+    ['🕑',['History','履歴'],['Your past scans and health-score trend over time.','過去のスキャンとヘルススコアの推移。']],
+    ['⌨️',['Command palette / shortcuts','コマンドパレット/ショートカット'],['Press Ctrl+K to jump to any page or action; press ? for the full keyboard-shortcut list.','Ctrl+Kで任意のページ/操作へ、?でショートカット一覧。']],
+    ['⚙️',['Settings','設定'],['Language (EN/日本語), light/dark theme, tray behaviour, notifications, floating launcher and background health alerts.','言語・テーマ・トレイ動作・通知・フローティングランチャー・バックグラウンド警告。']],
+  ]},
+];
+let _guideBuilt=false;
+function _buildGuide(){
+  const box=document.getElementById('guide-body'); if(!box) return;
+  let h='<div style="display:flex;gap:8px;align-items:center;background:rgba(45,212,192,.08);border:1px solid rgba(45,212,192,.25);border-radius:10px;padding:10px 14px;margin:10px 0 16px;font-size:12.5px;color:var(--fg2)">🔒 <span><span class="en">Everything runs locally on this PC — no cloud, no telemetry, no uploads.</span><span class="ja">すべてこのPC上で動作します。クラウド・テレメトリ・アップロードは一切ありません。</span></span></div>';
+  _GUIDE.forEach(function(sec){
+    h+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--brand);margin:16px 0 8px"><span class="en">'+sec.t[0]+'</span><span class="ja">'+sec.t[1]+'</span></div>';
+    sec.items.forEach(function(it){
+      h+='<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">'
+        +'<div style="font-size:18px;line-height:1.2;width:24px;text-align:center;flex-shrink:0">'+it[0]+'</div>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:13.5px;font-weight:600;color:var(--fg);margin-bottom:2px"><span class="en">'+it[1][0]+'</span><span class="ja">'+it[1][1]+'</span></div>'
+        +'<div style="font-size:12.5px;line-height:1.55;color:var(--fg2)"><span class="en">'+it[2][0]+'</span><span class="ja">'+it[2][1]+'</span></div>'
+        +'</div></div>';
+    });
+  });
+  box.innerHTML=h; _guideBuilt=true;
+}
+function openGuide(){ if(!_guideBuilt) _buildGuide(); document.getElementById('guide-modal').style.display='flex'; }
+function closeGuide(){ document.getElementById('guide-modal').style.display='none'; }
 
 // ── Onboarding ────────────────────────────────────────────────────────────
 const _OB_STEPS=4;
@@ -5508,6 +5576,7 @@ document.addEventListener('keydown',function(e){
   // Escape — close any open overlay
   if(e.key==='Escape'){
     if(document.getElementById('cmd-palette-backdrop').classList.contains('open')){closeCmdPalette();return;}
+    if(document.getElementById('guide-modal').style.display==='flex'){closeGuide();return;}
     if(document.getElementById('shortcuts-modal').classList.contains('open')){closeShortcuts();return;}
     if(document.getElementById('onboard-overlay').classList.contains('open')){finishOnboarding();return;}
   }

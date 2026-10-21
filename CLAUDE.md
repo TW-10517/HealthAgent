@@ -278,6 +278,13 @@ The Organize page supports **any folder** (not just Downloads):
 
 First-launch 4-step modal (guarded by `localStorage('pcha_onboarded')`). Steps: welcome → first scan → assistant → shortcuts. `_initOnboarding()` called 1.2s after `pywebviewready`. `finishOnboarding()` sets the flag.
 
+## Feature guide (tutorial)
+
+Titlebar **?** button (`#btn-guide`) → `openGuide()` opens `#guide-modal`, a bilingual
+feature tutorial built once from the `_GUIDE` array by `_buildGuide()` (sections →
+icon/name/description rows). Closed by ✕, click-outside, or `Esc`. To document a new
+feature, add an entry to `_GUIDE` — no other wiring needed.
+
 ## Command palette
 
 `openCmdPalette()` — `Ctrl+K`. Fuzzy-filters `_CMD_ITEMS` array (18 entries: pages + actions). Keyboard-navigable (`↑↓ Enter Esc`). `_cmdExec(idx)` closes palette and fires the action. Placeholder text is bilingual (updated by `setLang()`).
