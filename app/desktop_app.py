@@ -975,6 +975,67 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
+    def delete_to_recycle_bin(self, path: str) -> dict:
+        """Send a single file to the Recycle Bin (reversible). Refuses protected
+        and IT-managed paths. Never deletes permanently — always undoable."""
+        try:
+            import scanner as _sc
+            p = os.path.abspath(path)
+            if not os.path.exists(p):
+                return {"ok": False, "msg": "File no longer exists."}
+            if os.path.isdir(p):
+                return {"ok": False, "msg": "Folders are not deleted here — only files."}
+            if _sc.is_protected(p):
+                return {"ok": False, "msg": "Protected location — refused."}
+            low = os.path.basename(p).lower()
+            if any(k in low for k in self._CLOSE_BLOCKED):
+                return {"ok": False, "msg": "IT-managed file — refused."}
+
+            # SHFileOperationW with FOF_ALLOWUNDO sends to the Recycle Bin.
+            import ctypes
+            from ctypes import wintypes
+            FO_DELETE = 0x0003
+            FOF_ALLOWUNDO = 0x0040
+            FOF_NOCONFIRMATION = 0x0010
+            FOF_SILENT = 0x0004
+            FOF_NOERRORUI = 0x0400
+
+            class SHFILEOPSTRUCTW(ctypes.Structure):
+                _fields_ = [
+                    ("hwnd", wintypes.HWND),
+                    ("wFunc", wintypes.UINT),
+                    ("pFrom", wintypes.LPCWSTR),
+                    ("pTo", wintypes.LPCWSTR),
+                    ("fFlags", ctypes.c_uint16),
+                    ("fAnyOperationsAborted", wintypes.BOOL),
+                    ("hNameMappings", wintypes.LPVOID),
+                    ("lpszProgressTitle", wintypes.LPCWSTR),
+                ]
+
+            op = SHFILEOPSTRUCTW()
+            op.hwnd = None
+            op.wFunc = FO_DELETE
+            op.pFrom = p + "\x00\x00"            # must be double-null terminated
+            op.pTo = None
+            op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI
+            ret = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
+            if ret == 0 and not op.fAnyOperationsAborted:
+                return {"ok": True, "msg": f"Moved to Recycle Bin: {os.path.basename(p)}"}
+            return {"ok": False, "msg": f"Delete failed (code {ret:#x})."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def reveal_in_explorer(self, path: str) -> dict:
+        """Open Explorer with the file selected (reveal), not the file itself."""
+        try:
+            p = os.path.abspath(path)
+            if not os.path.exists(p):
+                return {"ok": False, "msg": "File no longer exists."}
+            _subprocess.Popen(["explorer", "/select,", p])
+            return {"ok": True, "msg": "Opened in Explorer."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
     # ── Extra storage queries (lazy-loaded on demand) ─────────────────────────
     def get_large_files(self, min_mb: int = 10) -> dict:
         import sys_executor as sx
@@ -1403,14 +1464,15 @@ ForEach-Object{
                     f"({d['disk']['pct_free']}% free)."}
         elif action_id == "query_ram":
             try:
-                snap = mon_mod.get_snapshot()
-                if snap:
-                    used = snap.get("ram_used_gb", "—")
-                    return {"type": "data", "content":
-                            f"RAM: {snap['ram_pct']}% used ({used} GB used)."}
+                import psutil as _pu
+                vm = _pu.virtual_memory()
+                used_gb = vm.used / (1 << 30)
+                total_gb = vm.total / (1 << 30)
+                return {"type": "data", "content":
+                        f"RAM: {vm.percent:.0f}% used ({used_gb:.1f} / {total_gb:.0f} GB)."}
             except Exception:
                 pass
-            return {"type": "info", "content": "Monitor data not available yet — visit the Monitor page."}
+            return {"type": "info", "content": "Monitor data not available yet — visit the Performance page."}
         elif action_id == "query_cpu":
             try:
                 import psutil as _pu
@@ -2997,7 +3059,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
           <div id="st-lf-loading" style="display:none;text-align:center;padding:20px"><div class="spinner" style="margin:0 auto"></div><div style="margin-top:10px;font-size:13px;color:var(--fg2)"><span class="en">Scanning…</span><span class="ja">スキャン中…</span></div></div>
           <div id="st-lf-results" style="display:none">
             <div class="table-wrap"><table class="data-table">
-              <thead><tr><th><span class="en">File</span><span class="ja">ファイル</span></th><th><span class="en">Size</span><span class="ja">サイズ</span></th><th><span class="en">Location</span><span class="ja">場所</span></th></tr></thead>
+              <thead><tr><th><span class="en">File</span><span class="ja">ファイル</span></th><th><span class="en">Size</span><span class="ja">サイズ</span></th><th><span class="en">Location</span><span class="ja">場所</span></th><th style="text-align:right"><span class="en">Actions</span><span class="ja">操作</span></th></tr></thead>
               <tbody id="st-lf-body"></tbody>
             </table></div>
           </div>
@@ -3017,7 +3079,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
           <div id="st-of-loading" style="display:none;text-align:center;padding:20px"><div class="spinner" style="margin:0 auto"></div><div style="margin-top:10px;font-size:13px;color:var(--fg2)"><span class="en">Scanning…</span><span class="ja">スキャン中…</span></div></div>
           <div id="st-of-results" style="display:none">
             <div class="table-wrap"><table class="data-table">
-              <thead><tr><th><span class="en">File</span><span class="ja">ファイル</span></th><th><span class="en">Size</span><span class="ja">サイズ</span></th><th><span class="en">Age</span><span class="ja">経過日数</span></th><th><span class="en">Location</span><span class="ja">場所</span></th></tr></thead>
+              <thead><tr><th><span class="en">File</span><span class="ja">ファイル</span></th><th><span class="en">Size</span><span class="ja">サイズ</span></th><th><span class="en">Age</span><span class="ja">経過日数</span></th><th><span class="en">Location</span><span class="ja">場所</span></th><th style="text-align:right"><span class="en">Actions</span><span class="ja">操作</span></th></tr></thead>
               <tbody id="st-of-body"></tbody>
             </table></div>
           </div>
@@ -5528,7 +5590,8 @@ function showLargeResults(r){
     const dir = f.path.replace(/[^\\]+$/,'').replace(/\\$/,'');
     return '<tr><td><button class="fr-btn" style="width:100%;justify-content:flex-start;padding:4px 0;background:transparent;border:none;cursor:pointer;color:var(--fg);font-size:13px" onclick="openPath(\''+safePath+'\')">📄 '+esc(f.name)+'</button></td>'
       +'<td style="font-weight:700;font-family:var(--mono);color:var(--warn)">'+f.size_mb+' MB</td>'
-      +'<td style="font-size:12px;color:var(--fg3);word-break:break-all">'+esc(dir)+'</td></tr>';
+      +'<td style="font-size:12px;color:var(--fg3);word-break:break-all">'+esc(dir)+'</td>'
+      +'<td style="text-align:right;white-space:nowrap">'+_fileActionBtns(safePath)+'</td></tr>';
   }).join('');
   document.getElementById('st-lf-results').style.display='';
 }
@@ -5560,9 +5623,39 @@ function showOldResults(r){
     return '<tr><td><button class="fr-btn" style="width:100%;justify-content:flex-start;padding:4px 0;background:transparent;border:none;cursor:pointer;color:var(--fg);font-size:13px" onclick="openPath(\''+safePath+'\')">📄 '+esc(f.name)+'</button></td>'
       +'<td style="font-weight:700;font-family:var(--mono)">'+f.size_mb+' MB</td>'
       +'<td style="font-weight:700;font-family:var(--mono);color:'+ageColor+'">'+f.days_old+'d</td>'
-      +'<td style="font-size:12px;color:var(--fg3);word-break:break-all">'+esc(dir)+'</td></tr>';
+      +'<td style="font-size:12px;color:var(--fg3);word-break:break-all">'+esc(dir)+'</td>'
+      +'<td style="text-align:right;white-space:nowrap">'+_fileActionBtns(safePath)+'</td></tr>';
   }).join('');
   document.getElementById('st-of-results').style.display='';
+}
+
+/* ── Per-file actions (Large / Old files) ────────────────────────────────── */
+function _fileActionBtns(safePath){
+  const rb="background:transparent;border:1px solid var(--border2);border-radius:6px;cursor:pointer;color:var(--fg2);padding:3px 7px;font-size:12px;margin-left:4px";
+  return '<button title="Reveal in Explorer" style="'+rb+'" onclick="revealFile(\''+safePath+'\')">📂</button>'
+       + '<button title="Delete to Recycle Bin" style="'+rb+';color:var(--error)" onclick="deleteFile(\''+safePath+'\',this)">🗑</button>';
+}
+function revealFile(path){
+  if(!window.pywebview) return;
+  window.pywebview.api.reveal_in_explorer(path).then(function(r){
+    if(!r.ok) showToast(r.msg||'Could not reveal file','error');
+  });
+}
+function deleteFile(path,btn){
+  if(!window.pywebview) return;
+  const name=path.replace(/\\\\/g,'\\').replace(/^.*\\/,'');
+  if(!confirm('Move to Recycle Bin?\n\n'+name+'\n\n(You can restore it from the Recycle Bin.)')) return;
+  if(btn) btn.disabled=true;
+  window.pywebview.api.delete_to_recycle_bin(path).then(function(r){
+    if(r.ok){
+      const tr=btn&&btn.closest('tr'); if(tr) tr.remove();
+      showToast(r.msg||'Moved to Recycle Bin','success');
+      if(typeof loadRecycleBin==='function') loadRecycleBin();
+    } else {
+      if(btn) btn.disabled=false;
+      showToast(r.msg||'Delete failed','error');
+    }
+  }).catch(function(){ if(btn) btn.disabled=false; showToast('Delete failed','error'); });
 }
 
 /* ── Privacy & Security ──────────────────────────────────────────────────── */

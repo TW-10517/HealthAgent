@@ -1,16 +1,20 @@
-# PC Health Agent
+# Helix (PC Health Agent)
 
 Local-first Windows 11 desktop utility for PC health scanning and safe maintenance.
 Built with Python + pywebview (Edge WebView2). No cloud APIs, no telemetry.
 
+Product name is **Helix** (window title, exe, "Orbit Pulse" logo via `_create_shield_icon`).
+The repo/package id remains `PCHealthAgent`.
+
 **Project root**: `C:\Users\10517\Documents\Code\PCHealthAgent`
+**GitHub**: `https://github.com/TW-10517/HealthAgent.git` (branch `main`)
 
 ## Architecture
 
 ```
 PCHealthAgent/
 ├── app/
-│   ├── desktop_app.py    # Main app: AgentAPI class + embedded SPA (~5800+ lines)
+│   ├── desktop_app.py    # Main app: AgentAPI class + embedded SPA (~6000 lines)
 │   ├── assistant.py      # NL assistant engine: intent registry + Ollama fallback
 │   ├── sys_executor.py   # Read-only system query engine (files, processes, network, sysinfo)
 │   ├── action_planner.py # Multi-step chat: split_steps(), build_plan(), is_multi_step()
@@ -61,16 +65,17 @@ PCHealthAgent/
 ## Key patterns
 
 - **SPA in pywebview**: All HTML/CSS/JS is embedded in `desktop_app.py` as `APP_HTML` string. Python↔JS bridge via `class AgentAPI` exposed as `window.pywebview.api`.
-- **Page navigation**: `showPage(name)` shows/hides `.page` divs. Nav items use `data-page` attributes. Wire new pages in both `showPage()` and as a nav button + page div.
+- **Page navigation**: `showPage(name)` shows/hides `.page` divs. Nav items use `data-page` attributes. Wire new pages in both `showPage()` and as a nav button + page div. Legacy sub-page names (`monitor`, `startup`, `sysinfo`, `organize`, `events`, `troubleshoot`) are physically **moved** into tab panels at runtime, so `showPage()` holds a `_SUBPAGE` redirect map that routes each to its container page + tab (via `_activateTab(group,panel)`) instead of blanking the screen. Any KPI tile / finding / command-palette entry targeting those names goes through the redirect.
 - **Bilingual**: All SPA text uses `<span class="en">…</span><span class="ja">…</span>` pattern. `setLang()` toggles via `data-lang` on `<html>`. chat_popup.py uses a JS `_T = {en:{…}, ja:{…}}` dict instead (separate window, no DOM spans).
 - **Theme**: Flat dark design, teal brand `#2DD4B0`. No glass blur or glows. Light mode via `:root[data-theme="light"]` overrides. Toggle in Settings page, persisted in `localStorage('pcha_theme')`.
-- **Metrics polling**: Monitor page polls `get_monitor_data()` every 3s. Background `monitor.py` thread collects samples into `deque(maxlen=60)`.
+- **Metrics polling**: A single `_globalPoll` timer (3s) drives the sidebar live pills always, and the Performance ▸ Live gauges only when that page+tab is active. Background `monitor.py` thread collects samples into `deque(maxlen=60)`. `monitor.py` reads CPU/RAM/battery via **psutil** (not per-call PowerShell — that cut `collect_metrics()` from ~9.4s to ~0.002s); CPU meter is primed at import; thermal-zone temp is the one PowerShell read, cached 30s (`_TEMP_TTL`).
 - **Scan**: Daemon thread (`_do_scan`). Progress overlay inside `#page-overview`. Statusbar shows scan% on all pages. `data["score"]` is always written back into `_last_scan_data` after scan.
 - **Assistant**: `chat()` intent registry → Ollama async fallback. Chat history (last 20) passed to Ollama for context. Multi-step detection via `action_planner.py`.
 - **Analysis panels**: Each data page has `<div id="analysis-[page]">` rendered by `render*Analysis()` JS functions from live data. No extra backend needed.
 - **Health watch**: Daemon thread `_start_health_watch()` checks psutil every 15 min; fires Windows notification if disk < threshold or RAM > threshold.
 - **Ollama status**: `_check_ollama_status()` daemon pings Ollama 3s after startup; result exposed via `get_ai_status()`. Status pill on Assistant page turns green/red.
 - **Subprocess encoding**: All `subprocess.run()` calls use `encoding='utf-8', errors='replace'` to prevent `UnicodeDecodeError` on Japanese Windows (cp932 default).
+- **Subprocess no-window**: `desktop_app.py` patches `subprocess.Popen.__init__` at import to force `CREATE_NO_WINDOW` (0x08000000) on every child unless the caller set `creationflags`. The `--windowed` exe has no console, so without this every powershell/cmd/powercfg call flashes a black window. One patch covers every module (they share the `subprocess` module object). New subprocess calls need nothing extra.
 
 ## Security constraints (MUST follow)
 
@@ -97,14 +102,30 @@ python main.py             # CLI scan only
 
 Restart shortcut:
 ```powershell
-Stop-Process -Name python -Force -ErrorAction SilentlyContinue
+Stop-Process -Name python,pythonw,Helix -Force -ErrorAction SilentlyContinue
 Start-Sleep 1
 Start-Process python -ArgumentList "desktop_app.py" -WorkingDirectory "C:\Users\10517\Documents\Code\PCHealthAgent\app" -WindowStyle Hidden
 ```
 
+## Packaging (Helix.exe)
+
+PyInstaller onefile windowed build → `dist/Helix.exe` (~30 MB). Requires the
+WebView2 runtime on the target (ships with Win11).
+
+```powershell
+python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
+  --icon "C:/Users/10517/Documents/Code/PCHealthAgent/app_icon.ico" `
+  --collect-all webview --collect-all clr_loader --collect-all pythonnet --collect-all proxy_tools `
+  --hidden-import clr --hidden-import bottle --hidden-import pystray._win32 `
+  --distpath "<root>/dist" --workpath "<scratchpad>/build" --specpath "<scratchpad>/build" desktop_app.py
+```
+
+- **Frozen-aware paths**: when `getattr(sys,"frozen",False)`, `BASE` = `%LOCALAPPDATA%\PCHealthAgent` (else repo parent). `launcher.py` startup entry uses `sys.executable` directly when frozen.
+- `dist/`, `build/`, `*.spec`, `app_icon.ico` are gitignored — the exe is **not** committed. Rebuild and redistribute the exe after any source change testers run.
+
 ## Editing tips
 
-- `desktop_app.py` is ~5800+ lines. Use `Grep` with `head_limit` to find sections. Never read the whole file.
+- `desktop_app.py` is ~6000 lines. Use `Grep` with `head_limit` to find sections. Never read the whole file.
 - CSS: search `<style>` — starts around line **1834** (preceded by Google Fonts `<link>`).
 - JS: search `<script>` — starts after all page HTML (~line 3600+).
 - Page HTML blocks: marked with `<!-- ══ PAGE: Name ══` comments.
@@ -130,7 +151,7 @@ Start-Process python -ArgumentList "desktop_app.py" -WorkingDirectory "C:\Users\
 | Settings    | settings    | Language, theme, tray, notifications, launcher, health watch |
 
 ### Legacy pages (still in DOM, not in sidebar nav)
-`monitor`, `startup`, `insights`, `organize`, `events`, `troubleshoot`, `sysinfo` — content mirrored into Performance/Problems tabs at first visit via `_initPerfPage()` and `_initProblemsPage()`.
+`monitor`, `startup`, `insights`, `organize`, `events`, `troubleshoot`, `sysinfo` — content **moved** (not cloned, so IDs stay unique) into Performance/Storage/Problems tabs at first visit via `_initPerfPage()`, `_initStoragePage()`, `_initProblemsPage()` (each calls `_mirrorIntoTab`). Because the page is moved out of `.page`, `showPage('<legacy>')` would blank the screen — the `_SUBPAGE` redirect in `showPage()` handles this (see Key patterns). `insights` is the exception: still a standalone `.page`.
 
 ## Keyboard shortcuts (global)
 
