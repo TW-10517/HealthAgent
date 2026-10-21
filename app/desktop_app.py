@@ -5314,16 +5314,20 @@ function switchTab(group,panel,btn){
 function _mirrorIntoTab(srcId, tabId){
   const src=document.getElementById(srcId);
   const tab=document.getElementById(tabId);
-  if(!src||!tab||tab.childElementCount) return;
+  if(!src||!tab) return;
+  // Already mirrored? (src is now a direct child of tab — nothing to do.)
+  if(src.parentNode===tab) return;
+  // Otherwise strip any whitespace nodes the tab panel may hold, then move.
+  while(tab.firstChild) tab.removeChild(tab.firstChild);
   src.classList.remove('page');
   src.style.cssText='display:block;width:100%;height:auto;overflow:visible;padding:16px 0 0 0';
   tab.appendChild(src);
 }
 
 // ── Performance page init ─────────────────────────────────────────────────
-let _perfInited=false;
+// _mirrorIntoTab is idempotent (no-op once src is already inside tab), so
+// these can be called more than once safely.
 function _initPerfPage(){
-  if(_perfInited) return; _perfInited=true;
   _mirrorIntoTab('page-monitor',  'perf-tab-live');
   _mirrorIntoTab('page-startup',  'perf-tab-startup');
   _mirrorIntoTab('page-sysinfo',  'perf-tab-sysinfo');
@@ -5333,17 +5337,13 @@ function _populatePerfStartup(){
 }
 
 // ── Problems page init ────────────────────────────────────────────────────
-let _probInited=false;
 function _initProblemsPage(){
-  if(_probInited) return; _probInited=true;
   _mirrorIntoTab('page-troubleshoot', 'prob-tab-fix');
   _mirrorIntoTab('page-events',       'prob-tab-events');
 }
 
 // ── Storage page init ─────────────────────────────────────────────────────
-let _storageInited=false;
 function _initStoragePage(){
-  if(_storageInited) return; _storageInited=true;
   _mirrorIntoTab('page-organize', 'storage-tab-organize');
 }
 
@@ -5523,6 +5523,9 @@ async function executeActionDirect(actionId){
 }
 
 window.addEventListener('pywebviewready',()=>{loadSettings();loadHistory();setTimeout(loadInsights,500);
+  // Eagerly mirror all legacy sub-pages into their tab panels so Performance /
+  // Storage / Problems render immediately on first click (no lazy-init race).
+  try{ _initPerfPage(); _initStoragePage(); _initProblemsPage(); }catch(e){}
   setTimeout(startGlobalPoll, 800); setTimeout(_startSidebarPolling, 1200);
   document.querySelectorAll('.kpi.clickable').forEach(el=>el.addEventListener('click',addRipple));
   const saved=localStorage.getItem('orgFolder');
