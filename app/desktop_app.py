@@ -172,14 +172,33 @@ class AgentAPI:
     def _check_ollama_status(self):
         import urllib.request, time as _t
         _t.sleep(3)
+        self._probe_ollama()
+
+    def _probe_ollama(self) -> bool:
+        import urllib.request, time as _t
         try:
             urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=4)
             self._ollama_online = True
         except Exception:
             self._ollama_online = False
+        self._ollama_probed_at = _t.time()
+        return self._ollama_online
+
+    _OLLAMA_PROBE_CACHE_S = 20   # cache a probe result for 20 s to avoid spam
 
     def get_ai_status(self) -> dict:
+        """Return current Ollama status, re-probing on a cadence so that
+        starting Ollama after Helix is launched is detected automatically.
+        """
+        import time as _t
         online = getattr(self, '_ollama_online', None)
+        probed_at = getattr(self, '_ollama_probed_at', 0.0)
+        now = _t.time()
+        # Re-probe when we have no result yet, when the last probe is stale,
+        # OR when we last saw offline (so recovery is fast).
+        if online is None or (now - probed_at) > self._OLLAMA_PROBE_CACHE_S or online is False:
+            self._probe_ollama()
+            online = self._ollama_online
         if online is None:
             return {"status": "checking"}
         return {"status": "online" if online else "offline"}
@@ -5686,36 +5705,42 @@ window.addEventListener('pywebviewready',()=>{loadSettings();loadHistory();setTi
   setTimeout(_pollAiStatus, 4000);
 });
 
-let _aiPollTries = 0;
+// Poll Ollama status forever. First few probes are quick so the pill flips
+// to Ready/Offline right after launch; after that we check every 30 s so
+// Helix recovers automatically when Ollama is started later.
+const _AI_POLL_FAST_MS = 3000;
+const _AI_POLL_SLOW_MS = 30000;
+let _aiFastPolls = 0;
 async function _pollAiStatus(){
-  if(!window.pywebview) return;
-  const r = await window.pywebview.api.get_ai_status();
+  if(!window.pywebview){ setTimeout(_pollAiStatus, _AI_POLL_SLOW_MS); return; }
+  let r;
+  try { r = await window.pywebview.api.get_ai_status(); } catch(_){ r = {status:'checking'}; }
   const pill = document.getElementById('ai-status-pill');
   const lang = document.documentElement.getAttribute('data-lang');
-  if(!pill) return;
-  const dot = pill.querySelector('.ai-status-dot');
-  const lbl = pill.querySelector('span:not(.ai-status-dot)');
-  if(r.status==='online'){
-    pill.className='ai-status-pill';
-    dot.style.background='';
-    lbl.innerHTML='<span class="en">AI Ready</span><span class="ja">AI準備完了</span>';
-    pill.title='';
-  } else if(r.status==='offline'){
-    pill.className='ai-status-pill offline';
-    dot.style.background='';
-    lbl.innerHTML='<span class="en">AI Offline</span><span class="ja">AIオフライン</span>';
-    pill.title = lang==='ja'
-      ? 'Ollamaが起動していません。AIアドバイス機能は制限されます。'
-      : 'Ollama is not running. AI suggestions will be limited.';
-  } else if(_aiPollTries < 3){
-    _aiPollTries++;
-    setTimeout(_pollAiStatus, 3000);
-  } else {
-    // Give up gracefully — show offline so the pill stops looking busy.
-    pill.className='ai-status-pill offline';
-    dot.style.background='';
-    lbl.innerHTML='<span class="en">AI Offline</span><span class="ja">AIオフライン</span>';
+  if(pill){
+    const dot = pill.querySelector('.ai-status-dot');
+    const lbl = pill.querySelector('span:not(.ai-status-dot)');
+    if(r.status==='online'){
+      pill.className='ai-status-pill';
+      if(dot) dot.style.background='';
+      if(lbl) lbl.innerHTML='<span class="en">AI Ready</span><span class="ja">AI準備完了</span>';
+      pill.title='';
+    } else if(r.status==='offline'){
+      pill.className='ai-status-pill offline';
+      if(dot) dot.style.background='';
+      if(lbl) lbl.innerHTML='<span class="en">AI Offline</span><span class="ja">AIオフライン</span>';
+      pill.title = lang==='ja'
+        ? 'Ollamaが起動していません。起動すると自動で検出します。'
+        : 'Ollama is not running. Helix will detect it automatically when it starts.';
+    } else {
+      pill.className='ai-status-pill checking';
+      if(lbl) lbl.innerHTML='<span class="en">AI Checking…</span><span class="ja">AI確認中…</span>';
+    }
   }
+  // First 3 checks fast (so the pill resolves quickly), then slow forever.
+  _aiFastPolls++;
+  const nextDelay = (_aiFastPolls < 3) ? _AI_POLL_FAST_MS : _AI_POLL_SLOW_MS;
+  setTimeout(_pollAiStatus, nextDelay);
 }
 
 // ── Global keyboard handler ───────────────────────────────────────────────

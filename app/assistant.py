@@ -305,7 +305,9 @@ def ollama_chat(message: str, context: str = "", lang: str = "en",
             OLLAMA_URL, data=payload,
             headers={"Content-Type": "application/json"}, method="POST",
         )
-        with urllib.request.urlopen(req, timeout=8) as r:
+        # 30 s accommodates cold-start model loading. If Ollama cannot answer
+        # in 30 s it is genuinely wedged, and None lets the caller fall back.
+        with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read().decode())["response"].strip()
     except Exception:
         return None
