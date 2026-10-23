@@ -1580,6 +1580,99 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
                  ("cpu_pct","ram_pct","ram_used_mb","disk_free_gb","proc_count")}
         return {"ok": True, "before": before, "after": after, "delta": delta}
 
+    _BROWSER_CACHES = {
+        "edge":    [r"Microsoft\Edge\User Data\Default\Cache",
+                    r"Microsoft\Edge\User Data\Default\Code Cache"],
+        "chrome":  [r"Google\Chrome\User Data\Default\Cache",
+                    r"Google\Chrome\User Data\Default\Code Cache"],
+        "firefox": [r"Mozilla\Firefox\Profiles"],
+        "brave":   [r"BraveSoftware\Brave-Browser\User Data\Default\Cache"],
+    }
+
+    def scan_browser_cache(self) -> dict:
+        """Measure cache size per detected browser. No deletes."""
+        local = os.environ.get("LOCALAPPDATA", "")
+        roaming = os.environ.get("APPDATA", "")
+        results = {}
+        for browser, paths in self._BROWSER_CACHES.items():
+            total = 0
+            found = False
+            for rel in paths:
+                for root in (local, roaming):
+                    if not root: continue
+                    p = os.path.join(root, rel)
+                    if not os.path.isdir(p): continue
+                    found = True
+                    for dirpath, _, files in os.walk(p):
+                        for fn in files:
+                            try:
+                                total += os.path.getsize(os.path.join(dirpath, fn))
+                            except OSError:
+                                pass
+            if found:
+                results[browser] = {"size_bytes": total,
+                                    "size_fmt": fmt_size(total)}
+        return {"ok": True, "browsers": results}
+
+    def clean_browser_cache(self, browser: str, confirm_token: str = "") -> dict:
+        """Two-call confirm. Only deletes files inside the browser cache dirs,
+        never the profile itself. Refuses if the browser process is running."""
+        import uuid, psutil
+        browser = (browser or "").strip().lower()
+        if browser not in self._BROWSER_CACHES:
+            return {"ok": False, "msg": "Unknown browser."}
+
+        proc_map = {"edge": "msedge.exe", "chrome": "chrome.exe",
+                    "firefox": "firefox.exe", "brave": "brave.exe"}
+        target_proc = proc_map[browser]
+        running = any(p.info.get("name","").lower() == target_proc
+                      for p in psutil.process_iter(attrs=["name"]))
+        if running:
+            return {"ok": False, "msg": f"{browser.title()} is running — close it first."}
+
+        local = os.environ.get("LOCALAPPDATA", "")
+        roaming = os.environ.get("APPDATA", "")
+        targets = []
+        for rel in self._BROWSER_CACHES[browser]:
+            for root in (local, roaming):
+                if not root: continue
+                p = os.path.join(root, rel)
+                if os.path.isdir(p):
+                    targets.append(p)
+        if not targets:
+            return {"ok": False, "msg": "No cache directory found."}
+
+        if not confirm_token or confirm_token not in self._pending_confirmations:
+            tok = str(uuid.uuid4())
+            self._pending_confirmations[tok] = ("clean_cache", browser, targets)
+            size = 0
+            for t in targets:
+                for dp, _, files in os.walk(t):
+                    for fn in files:
+                        try: size += os.path.getsize(os.path.join(dp, fn))
+                        except OSError: pass
+            return {"needs_confirm": True, "token": tok,
+                    "msg": f"Delete {fmt_size(size)} of {browser} cache?",
+                    "size_bytes": size, "paths": targets}
+
+        _, bro, paths = self._pending_confirmations.pop(confirm_token)
+        if bro != browser:
+            return {"ok": False, "msg": "Token mismatch."}
+        import shutil as _sh
+        removed = 0
+        for t in paths:
+            for entry in os.listdir(t):
+                full = os.path.join(t, entry)
+                try:
+                    if os.path.isdir(full):
+                        _sh.rmtree(full, ignore_errors=True)
+                    else:
+                        os.remove(full)
+                    removed += 1
+                except Exception:
+                    pass
+        return {"ok": True, "msg": f"Cleared {removed} cache entries for {browser}."}
+
     def generate_battery_report(self) -> dict:
         """Run `powercfg /batteryreport` and return the output HTML path.
         No admin needed. On desktops without a battery, powercfg emits an
