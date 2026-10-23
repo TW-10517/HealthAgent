@@ -155,6 +155,7 @@ _DEFAULTS = {
     "health_watch_ram_pct": "92",
     "protected_apps_defaults": "true",
     "protected_apps_extra": "",
+    "ai_enabled": "true",
     "version": "1.0.0",
 }
 

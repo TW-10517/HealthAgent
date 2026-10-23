@@ -266,6 +266,12 @@ def ollama_chat(message: str, context: str = "", lang: str = "en",
     """Ask Ollama about PC health. Returns response string or None if unavailable."""
     import urllib.request
     import urllib.error
+    try:
+        import db
+        if (db.get_setting("ai_enabled") or "true").lower() == "false":
+            return None
+    except Exception:
+        pass
 
     # Load persistent app/machine knowledge cache
     try:

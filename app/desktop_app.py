@@ -164,6 +164,8 @@ class AgentAPI:
         starting Ollama after Helix is launched is detected automatically.
         """
         import time as _t
+        if (db.get_setting("ai_enabled") or "true").lower() == "false":
+            return {"status": "disabled"}
         online = getattr(self, '_ollama_online', None)
         probed_at = getattr(self, '_ollama_probed_at', 0.0)
         now = _t.time()
@@ -400,7 +402,8 @@ class AgentAPI:
         allowed = {"language","theme","tray_on_close","show_notifications",
                     "history_retention_days","scan_on_startup",
                     "health_watch_enabled","health_watch_disk_gb","health_watch_ram_pct",
-                    "protected_apps_defaults","protected_apps_extra"}
+                    "protected_apps_defaults","protected_apps_extra","ai_enabled",
+                    "onboarded_mode"}
         filtered = {k: v for k, v in settings.items() if k in allowed}
         db.set_settings(filtered)
         return {"ok": True}
