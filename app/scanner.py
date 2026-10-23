@@ -16,9 +16,33 @@ PROTECTED = [
 ]
 PROTECTED = [p for p in PROTECTED if p]
 
+def _normalize_for_match(path: str) -> str:
+    """Case-fold, resolve symlinks/junctions, and append a trailing separator
+    so that `C:\\Windows2\\foo` does not match `C:\\Windows` by prefix.
+    """
+    if not path:
+        return ""
+    try:
+        p = os.path.realpath(path)
+    except (OSError, ValueError):
+        p = path
+    p = os.path.normcase(os.path.normpath(p))
+    if not p.endswith(os.sep):
+        p = p + os.sep
+    return p
+
+
 def is_protected(path: str) -> bool:
-    p = path.lower()
-    return any(p.startswith(x.lower()) for x in PROTECTED if x)
+    if not path:
+        return False
+    pn = _normalize_for_match(path)
+    if not pn:
+        return False
+    for root in PROTECTED:
+        rn = _normalize_for_match(root)
+        if rn and pn.startswith(rn):
+            return True
+    return False
 
 def fmt_size(b: int) -> str:
     if b >= 1 << 30: return f"{b/(1<<30):.1f} GB"
