@@ -1470,6 +1470,53 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
+    def create_restore_point(self, description: str = "Helix pre-maintenance") -> dict:
+        """Request a Windows System Restore point. Requires System Protection
+        enabled on C: and admin elevation; returns a readable error otherwise.
+        Rate-limited by Windows to once every ~24h unless registry override.
+        """
+        desc = (description or "Helix").replace('"', '').replace("'", "")[:60]
+        ps = (
+            "try {"
+            f"Checkpoint-Computer -Description \"{desc}\" "
+            "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction Stop;"
+            "'ok'"
+            "} catch { $_.Exception.Message }"
+        )
+        try:
+            r = run_hidden.run(
+                ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps],
+                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60,
+            )
+            out = (r.stdout or "").strip()
+            if out == "ok":
+                return {"ok": True, "msg": f"Restore point '{desc}' created."}
+            return {"ok": False, "msg": out or (r.stderr or "").strip() or "Unknown error."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def list_restore_points(self) -> dict:
+        """Return existing restore points (ID, date, description)."""
+        import json as _json
+        ps = (
+            "Get-ComputerRestorePoint -ErrorAction SilentlyContinue | "
+            "Select-Object SequenceNumber,Description,"
+            "@{N='Date';E={$_.ConvertToDateTime($_.CreationTime).ToString('yyyy-MM-dd HH:mm')}} | "
+            "ConvertTo-Json -Depth 2"
+        )
+        try:
+            r = run_hidden.run(
+                ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps],
+                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=20,
+            )
+            raw = _json.loads(r.stdout or "[]")
+            if isinstance(raw, dict): raw = [raw]
+            items = [{"id": x.get("SequenceNumber"), "desc": x.get("Description",""),
+                      "date": x.get("Date","")} for x in (raw or [])]
+            return {"ok": True, "items": items}
+        except Exception as e:
+            return {"ok": False, "items": [], "error": str(e)}
+
     def get_smart_info(self) -> dict:
         """Return basic drive health via WMI SMART status."""
         import subprocess, json as _json
