@@ -1580,6 +1580,55 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
                  ("cpu_pct","ram_pct","ram_used_mb","disk_free_gb","proc_count")}
         return {"ok": True, "before": before, "after": after, "delta": delta}
 
+    def generate_battery_report(self) -> dict:
+        """Run `powercfg /batteryreport` and return the output HTML path.
+        No admin needed. On desktops without a battery, powercfg emits an
+        error message and we surface it verbatim."""
+        out_dir = LOGS / "battery"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        out_path = out_dir / f"battery-report-{stamp}.html"
+        try:
+            r = run_hidden.run(
+                ["powercfg", "/batteryreport", "/output", str(out_path)],
+                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30,
+            )
+            if out_path.exists():
+                return {"ok": True, "path": str(out_path),
+                        "msg": "Battery report saved."}
+            msg = ((r.stdout or "") + " " + (r.stderr or "")).strip()
+            return {"ok": False, "msg": msg or "powercfg produced no file."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def get_battery_capacity(self) -> dict:
+        """Return design vs full-charge capacity + wear % from WMI."""
+        ps = (
+            "$s=Get-WmiObject -Class BatteryStaticData -Namespace root\\WMI "
+            "-ErrorAction SilentlyContinue;"
+            "$f=Get-WmiObject -Class BatteryFullChargedCapacity -Namespace root\\WMI "
+            "-ErrorAction SilentlyContinue;"
+            "if($s -and $f){"
+            "$design=[int]($s | Select-Object -First 1).DesignedCapacity;"
+            "$full=[int]($f | Select-Object -First 1).FullChargedCapacity;"
+            "$wear=if($design -gt 0){[math]::Round((1-($full/$design))*100,1)}else{0};"
+            "@{design=$design;full=$full;wear=$wear} | ConvertTo-Json"
+            "}"
+        )
+        import json as _json
+        try:
+            r = run_hidden.run(
+                ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps],
+                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10,
+            )
+            d = _json.loads(r.stdout or "{}")
+            if not d:
+                return {"ok": False, "msg": "No battery data (desktop or WMI unavailable)."}
+            return {"ok": True, "design_mwh": d.get("design"), "full_mwh": d.get("full"),
+                    "wear_pct": d.get("wear")}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
     def boost_preview(self) -> dict:
         """List candidate memory-hog processes that Boost could offer to close.
         Does NOT close anything. Caller must confirm per-process via close_app.
