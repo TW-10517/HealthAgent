@@ -290,7 +290,15 @@ function tickClock(){
     [t.getHours(),t.getMinutes(),t.getSeconds()]
       .map(n=>String(n).padStart(2,'0')).join(':');
 }
-setInterval(tickClock,1000);tickClock();
+// Clock ticks only when the HUD window is visible — avoids running a 1Hz
+// JS timer inside a hidden WebView2 process at all times.
+let _clockTimer=null;
+function _clockStart(){ if(_clockTimer) return; tickClock(); _clockTimer=setInterval(tickClock,1000); }
+function _clockStop(){ if(_clockTimer){ clearInterval(_clockTimer); _clockTimer=null; } }
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) _clockStop(); else _clockStart();
+});
+if(!document.hidden) _clockStart();
 
 // Drag — calls Python to trigger Win32 native drag
 const dragHandle=document.getElementById('drag-handle');
@@ -386,11 +394,22 @@ async function refresh(){
   }
 }
 
-// Polling is started/stopped by Python via _hudPollStart() / _hudPollStop()
-// so a hidden HUD window never calls get_stats and keeps the main process idle.
+// Polling is started/stopped by Python via _hudPollStart() / _hudPollStop(),
+// AND auto-stopped whenever the HUD window becomes hidden (pywebview's
+// hide() does not fire a 'closing' event, so the Python hook alone is not
+// enough — the hidden window would otherwise keep calling get_stats, which
+// iterates every process on the system every second).
 let _hudTimer=null;
-function _hudPollStart(){ if(_hudTimer) return; refresh(); _hudTimer=setInterval(refresh,1000); }
+function _hudPollStart(){
+  if(document.hidden) return;
+  if(_hudTimer) return;
+  refresh();
+  _hudTimer=setInterval(refresh,1000);
+}
 function _hudPollStop(){  if(_hudTimer){ clearInterval(_hudTimer); _hudTimer=null; } }
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) _hudPollStop(); else _hudPollStart();
+});
 </script>
 </body>
 </html>"""

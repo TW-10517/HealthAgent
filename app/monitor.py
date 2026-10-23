@@ -102,49 +102,6 @@ def _collect_temperature() -> dict:
     return val
 
 
-_gpu_cache = {"value": {"has_gpu": False}, "ts": 0.0}
-_GPU_TTL = 5.0
-
-
-def _collect_gpu() -> dict:
-    """Aggregate GPU engine utilisation from Performance Counters.
-
-    Reads \\GPU Engine(*)\\Utilization Percentage via typeperf. Values are
-    per-engine; we sum them per adapter and clamp to 100%. Cached for
-    _GPU_TTL seconds so the typeperf process does not run on every poll.
-    """
-    now = time.time()
-    if now - _gpu_cache["ts"] < _GPU_TTL:
-        return _gpu_cache["value"]
-    val = {"has_gpu": False}
-    try:
-        r = run_hidden.run(
-            ["typeperf", "-sc", "1", r"\GPU Engine(*engtype_3D)\Utilization Percentage"],
-            capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=4,
-            creationflags=0x08000000,
-        )
-        total = 0.0
-        for line in (r.stdout or "").splitlines():
-            parts = line.split(",")
-            if len(parts) < 2:
-                continue
-            for raw in parts[1:]:
-                try:
-                    v = float(raw.strip().strip('"'))
-                    if 0 <= v <= 100:
-                        total += v
-                except ValueError:
-                    pass
-            break
-        if total > 0:
-            val = {"has_gpu": True, "gpu_pct": round(min(total, 100))}
-    except Exception:
-        pass
-    _gpu_cache["value"] = val
-    _gpu_cache["ts"] = now
-    return val
-
-
 def collect_metrics() -> dict:
     """Collect all available metrics in one call."""
     m = {"ts": datetime.now().strftime("%H:%M:%S")}
@@ -152,7 +109,6 @@ def collect_metrics() -> dict:
     m.update(_collect_disk())
     m.update(_collect_battery())
     m.update(_collect_temperature())
-    m.update(_collect_gpu())
     return m
 
 
@@ -222,24 +178,45 @@ def get_thresholds() -> dict:
 
 
 # ── Background worker ───────────────────────────────────────────────────────
+# Idle-aware: when nothing has called request_samples() in the last
+# _IDLE_TIMEOUT seconds, the worker sleeps a long interval instead of
+# polling. Pages that need live data call request_samples() each refresh;
+# the sidebar pills do this on their 3s tick when the window is visible.
 
-def _worker(interval: float):
+_IDLE_TIMEOUT = 15.0        # go dormant 15s after last UI request
+_ACTIVE_INTERVAL = 3.0
+_IDLE_INTERVAL = 30.0
+_last_request_ts = 0.0
+
+
+def request_samples():
+    """UI calls this each time it displays a sample. Keeps worker in
+    active-poll mode. Without recent calls, worker goes dormant."""
+    global _last_request_ts
+    _last_request_ts = time.time()
+
+
+def _worker():
     global _running
     while _running:
         try:
-            m = collect_metrics()
-            record_sample(m)
+            idle = (time.time() - _last_request_ts) > _IDLE_TIMEOUT
+            if not idle:
+                m = collect_metrics()
+                record_sample(m)
         except Exception:
             pass
-        time.sleep(interval)
+        time.sleep(_IDLE_INTERVAL if (time.time() - _last_request_ts) > _IDLE_TIMEOUT
+                   else _ACTIVE_INTERVAL)
 
 
 def start_monitoring(interval: float = 3.0):
-    global _running, _thread
+    global _running, _thread, _ACTIVE_INTERVAL
+    _ACTIVE_INTERVAL = interval
     if _running:
         return
     _running = True
-    _thread = threading.Thread(target=_worker, args=(interval,), daemon=True)
+    _thread = threading.Thread(target=_worker, daemon=True)
     _thread.start()
 
 

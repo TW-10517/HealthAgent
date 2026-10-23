@@ -838,6 +838,7 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
         return {"ok": True}
 
     def get_monitor_data(self):
+        mon.request_samples()
         m = mon.collect_metrics()
         mon.record_sample(m)
         alerts = mon.check_alerts(m)
@@ -5859,6 +5860,7 @@ function updateLivePills(m){
 // Single consolidated metrics poll: updates sidebar pills always, and the live
 // gauges only when the Performance → Live tab is visible. One bridge call per tick.
 function _globalPoll(){
+  if(document.hidden) return;   // skip when minimised / tray-hidden
   if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.get_monitor_data) return;
   window.pywebview.api.get_monitor_data().then(d=>{
     if(!d) return;
