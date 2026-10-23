@@ -33,6 +33,33 @@ db.migrate_from_txt(str(LOGS / "scan-history.txt"))
 
 APP_VERSION = "1.0.0"
 
+# ── Error log ────────────────────────────────────────────────────────────────
+# A single rolling error.log under LOGS captures uncaught exceptions on both
+# the Python side (sys.excepthook) and background threads
+# (threading.excepthook, 3.8+). Readers: the About page and bug reports.
+import logging as _logging
+_ERROR_LOG = LOGS / "error.log"
+_logging.basicConfig(
+    filename=str(_ERROR_LOG), level=_logging.ERROR, encoding="utf-8",
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+def _install_crash_handler():
+    import traceback as _tb
+    _log = _logging.getLogger("helix")
+    def _hook(exc_type, exc, tb):
+        if issubclass(exc_type, KeyboardInterrupt):
+            return
+        _log.error("Unhandled: %s", "".join(_tb.format_exception(exc_type, exc, tb)))
+    sys.excepthook = _hook
+    def _thread_hook(args):
+        _log.error("Unhandled in %s: %s", args.thread.name,
+                   "".join(_tb.format_exception(args.exc_type, args.exc_value, args.exc_traceback)))
+    try:
+        threading.excepthook = _thread_hook
+    except Exception:
+        pass
+_install_crash_handler()
+
 def _create_shield_icon(size=64):
     # Helix "Orbit Pulse" mark: a glowing teal gauge arc with a heart-rate
     # pulse and end dot, on a dark rounded tile. Supersampled 4x + neon glow.
@@ -458,6 +485,33 @@ class AgentAPI:
         s = db.get_all_settings()
         s["version"] = APP_VERSION
         return s
+
+    def get_about(self) -> dict:
+        """Return app version + where data lives + error log size for About."""
+        try:
+            errsz = _ERROR_LOG.stat().st_size if _ERROR_LOG.exists() else 0
+        except Exception:
+            errsz = 0
+        return {
+            "version":    APP_VERSION,
+            "base":       str(BASE),
+            "logs":       str(LOGS),
+            "reports":    str(REPORTS),
+            "db":         str(BASE / "data" / "pchealthagent.db"),
+            "error_log":  str(_ERROR_LOG),
+            "error_log_bytes": errsz,
+            "frozen":     bool(getattr(sys, "frozen", False)),
+            "python":     sys.version.split()[0],
+        }
+
+    def open_error_log(self) -> dict:
+        try:
+            if not _ERROR_LOG.exists():
+                _ERROR_LOG.touch()
+            os.startfile(str(_ERROR_LOG))
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
 
     def save_settings(self, settings: dict):
         allowed = {"language","theme","tray_on_close","show_notifications",
