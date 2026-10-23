@@ -1470,6 +1470,35 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
+    def boost_preview(self) -> dict:
+        """List candidate memory-hog processes that Boost could offer to close.
+        Does NOT close anything. Caller must confirm per-process via close_app.
+        """
+        import psutil
+        import protected
+        from thresholds import PROCESS_RAM_HIGH_MB
+        blocked = protected.get_protected_keywords()
+        self_pid = os.getpid()
+        self_names = {"python.exe", "pythonw.exe", "helix.exe"}
+        candidates = []
+        for p in psutil.process_iter(attrs=["pid", "name", "memory_info"]):
+            try:
+                info = p.info
+                name = (info.get("name") or "").lower()
+                if not name or info["pid"] == self_pid or name in self_names:
+                    continue
+                if any(b in name for b in blocked):
+                    continue
+                mem_mb = info["memory_info"].rss // (1024 * 1024)
+                if mem_mb >= PROCESS_RAM_HIGH_MB:
+                    candidates.append({"pid": info["pid"], "name": info.get("name", ""),
+                                       "mem_mb": int(mem_mb)})
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        candidates.sort(key=lambda x: x["mem_mb"], reverse=True)
+        return {"ok": True, "candidates": candidates[:10],
+                "note": "Boost never closes anything automatically — review the list first."}
+
     # ── Startup entries: disable / re-enable with undo ───────────────────────
     _STARTUP_HIVES = {
         "HKCU": r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
