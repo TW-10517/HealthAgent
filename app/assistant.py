@@ -246,17 +246,9 @@ def find_and_launch(app_name: str) -> tuple[str, bool]:
         except Exception as e:
             return f"Found {name_raw} but couldn't open it: {e}", False
 
-    # 4. Last resort: ask Windows shell to resolve the name
-    words_count = len(name_lower.split())
-    if words_count <= 3:
-        try:
-            subprocess.Popen(["cmd", "/c", "start", "", name_raw],
-                             shell=False,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return f"Trying to open {name_raw}…", True
-        except Exception:
-            pass
-
+    # No shell fallback — passing arbitrary chat text to cmd/start is an
+    # injection sink. If the whitelist, PATH search, and Start Menu .lnk
+    # scan all missed, we stop and ask the user to be more specific.
     return f"I couldn't find **{name_raw}** on this PC. Try saying the exact app name.", False
 
 

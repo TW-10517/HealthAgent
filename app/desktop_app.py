@@ -803,10 +803,27 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
         return True
 
     # ── Safe file / folder opener (called from JS) ────────────────────────────
-    _BLOCKED_EXTS = {
-        '.exe', '.bat', '.cmd', '.com', '.ps1', '.vbs', '.js', '.wsf',
-        '.jar', '.msi', '.scr', '.pif', '.hta', '.cpl', '.inf',
-    }
+    # Allowlist: only data/document types can be opened via the chat. Anything
+    # not listed here (including .lnk, .url, .reg, .msc, .vbe, .chm, .exe, .bat,
+    # scripts, installers, control panel items) is treated as unsafe and shown
+    # in Explorer instead of executed.
+    _ALLOWED_EXTS = frozenset({
+        # Documents
+        '.pdf', '.txt', '.md', '.rtf', '.odt', '.epub', '.tex', '.log',
+        '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.csv', '.tsv',
+        '.ods', '.odp', '.pages', '.numbers', '.key',
+        # Images
+        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.webp', '.ico',
+        '.tif', '.tiff', '.heic', '.heif', '.raw',
+        # Audio / video
+        '.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.opus',
+        '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.webm', '.m4v',
+        # Archives (opened in default viewer — not extracted/executed)
+        '.zip', '.7z', '.rar', '.tar', '.gz',
+        # Data / text source
+        '.json', '.xml', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf',
+        '.html', '.htm', '.css', '.sql',
+    })
 
     def open_path(self, path: str) -> dict:
         """Open a file with its default app or a folder in Explorer. Read-only intent.
@@ -832,13 +849,16 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
 
         if os.path.isfile(path):
             ext = os.path.splitext(path)[1].lower()
-            if ext in self._BLOCKED_EXTS:
-                # Open containing folder instead of running the executable
+            if ext not in self._ALLOWED_EXTS:
+                # Only known-safe document/media types open directly. Everything
+                # else (scripts, installers, shortcuts, registry files, control
+                # panel items, help files, raw binaries) is revealed in Explorer
+                # so the user can decide what to do with it.
                 subprocess.Popen(
                     ["explorer.exe", "/select,", path],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
-                return {"ok": True, "msg": f"Executable files cannot be run from chat — showed it in Explorer instead."}
+                return {"ok": True, "msg": f"That file type ({ext or 'unknown'}) can't be opened from chat — showed it in Explorer instead."}
             try:
                 os.startfile(path)
                 return {"ok": True, "msg": "Opened."}
@@ -887,33 +907,34 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
         "paint": "mspaint.exe",   "snipping tool": "snippingtool.exe",
     }
 
-    def close_app(self, name: str) -> dict:
+    def close_app(self, name: str, confirm_token: str = "") -> dict:
         """Gracefully close an application by sending WM_CLOSE to its windows.
         Never force-terminates. Blocks security tools and critical system processes.
+        Uses EXACT exe-name match. When multiple distinct processes match, the
+        caller must confirm by passing a token returned from a prior call.
         """
-        import ctypes
+        import ctypes, uuid
         from ctypes import wintypes
 
         name_lower = name.strip().lower()
 
-        # Security: block IT-managed / critical processes
         if any(b in name_lower for b in self._CLOSE_BLOCKED):
             return {"ok": False, "msg": f"**{name}** is a protected process — it cannot be closed from here."}
 
         target_exe = self._CLOSE_EXE_MAP.get(name_lower)
         if not target_exe:
-            # Build exe name from bare word
             target_exe = (name_lower if name_lower.endswith(".exe")
                           else name_lower.replace(" ", "") + ".exe")
+        target_exe = target_exe.lower()
 
-        WM_CLOSE = 0x0010
+        # Enumerate matching visible windows WITHOUT closing anything yet, so
+        # we can confirm when more than one process matches.
         PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-        closed: list[str] = []
-
+        matches: list[tuple[int, int, str]] = []  # (hwnd, pid, exe)
         EnumWinProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
 
         @EnumWinProc
-        def _cb(hwnd, _):
+        def _collect(hwnd, _):
             if not ctypes.windll.user32.IsWindowVisible(hwnd):
                 return True
             pid = wintypes.DWORD(0)
@@ -928,22 +949,47 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
                 ctypes.windll.kernel32.QueryFullProcessImageNameW(hp, 0, buf, ctypes.byref(sz))
                 import os as _os
                 exe = _os.path.basename(buf.value).lower()
-                if target_exe in exe or name_lower in exe:
-                    ctypes.windll.user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)
-                    closed.append(exe)
+                if exe == target_exe:
+                    matches.append((hwnd, pid.value, exe))
             finally:
                 ctypes.windll.kernel32.CloseHandle(hp)
             return True
 
         try:
-            ctypes.windll.user32.EnumWindows(_cb, 0)
+            ctypes.windll.user32.EnumWindows(_collect, 0)
         except Exception as e:
             return {"ok": False, "msg": f"Error: {e}"}
 
-        if closed:
-            n = len(closed)
-            return {"ok": True, "msg": f"Sent close signal to {n} window{'s' if n > 1 else ''} of **{name}**."}
-        return {"ok": False, "msg": f"No visible windows found for **{name}**. It may not be running."}
+        if not matches:
+            return {"ok": False, "msg": f"No visible windows found for **{name}**. It may not be running."}
+
+        distinct_pids = {pid for _, pid, _ in matches}
+
+        # More than one DISTINCT process → require confirmation.
+        if len(distinct_pids) > 1 and not confirm_token:
+            token = uuid.uuid4().hex[:12]
+            hwnds = [h for h, _, _ in matches]
+            def _do_close():
+                WM_CLOSE = 0x0010
+                for h in hwnds:
+                    ctypes.windll.user32.PostMessageW(h, WM_CLOSE, 0, 0)
+                return {"ok": True, "msg": f"Closed {len(hwnds)} windows of **{name}**."}
+            self._pending_confirmations[token] = _do_close
+            return {
+                "ok": False,
+                "needs_confirm": True,
+                "token": token,
+                "msg": f"**{name}** has {len(distinct_pids)} separate processes "
+                       f"with {len(hwnds)} visible windows. Close all of them?",
+                "window_count": len(hwnds),
+                "process_count": len(distinct_pids),
+            }
+
+        WM_CLOSE = 0x0010
+        for hwnd, _, _ in matches:
+            ctypes.windll.user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)
+        n = len(matches)
+        return {"ok": True, "msg": f"Sent close signal to {n} window{'s' if n > 1 else ''} of **{name}**."}
 
     def confirm_action(self, token: str) -> dict:
         """Execute a previously queued confirmation action (e.g. from JS confirm dialog)."""
