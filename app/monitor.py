@@ -102,6 +102,49 @@ def _collect_temperature() -> dict:
     return val
 
 
+_gpu_cache = {"value": {"has_gpu": False}, "ts": 0.0}
+_GPU_TTL = 5.0
+
+
+def _collect_gpu() -> dict:
+    """Aggregate GPU engine utilisation from Performance Counters.
+
+    Reads \\GPU Engine(*)\\Utilization Percentage via typeperf. Values are
+    per-engine; we sum them per adapter and clamp to 100%. Cached for
+    _GPU_TTL seconds so the typeperf process does not run on every poll.
+    """
+    now = time.time()
+    if now - _gpu_cache["ts"] < _GPU_TTL:
+        return _gpu_cache["value"]
+    val = {"has_gpu": False}
+    try:
+        r = run_hidden.run(
+            ["typeperf", "-sc", "1", r"\GPU Engine(*engtype_3D)\Utilization Percentage"],
+            capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=4,
+            creationflags=0x08000000,
+        )
+        total = 0.0
+        for line in (r.stdout or "").splitlines():
+            parts = line.split(",")
+            if len(parts) < 2:
+                continue
+            for raw in parts[1:]:
+                try:
+                    v = float(raw.strip().strip('"'))
+                    if 0 <= v <= 100:
+                        total += v
+                except ValueError:
+                    pass
+            break
+        if total > 0:
+            val = {"has_gpu": True, "gpu_pct": round(min(total, 100))}
+    except Exception:
+        pass
+    _gpu_cache["value"] = val
+    _gpu_cache["ts"] = now
+    return val
+
+
 def collect_metrics() -> dict:
     """Collect all available metrics in one call."""
     m = {"ts": datetime.now().strftime("%H:%M:%S")}
@@ -109,6 +152,7 @@ def collect_metrics() -> dict:
     m.update(_collect_disk())
     m.update(_collect_battery())
     m.update(_collect_temperature())
+    m.update(_collect_gpu())
     return m
 
 
