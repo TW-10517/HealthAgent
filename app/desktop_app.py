@@ -1580,6 +1580,60 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
                  ("cpu_pct","ram_pct","ram_used_mb","disk_free_gb","proc_count")}
         return {"ok": True, "before": before, "after": after, "delta": delta}
 
+    # ── Per-app profiles (saved setting bundles) ─────────────────────────────
+    _PROFILE_KEYS = ("ai_enabled", "protected_apps_defaults", "protected_apps_extra",
+                     "schedule_enabled", "schedule_cadence", "schedule_actions",
+                     "health_watch_enabled", "health_watch_disk_gb",
+                     "health_watch_ram_pct", "theme", "scan_on_startup")
+
+    def _load_profiles(self) -> dict:
+        import json as _json
+        try:
+            return _json.loads(db.get_setting("profiles_json") or "{}") or {}
+        except Exception:
+            return {}
+
+    def _save_profiles(self, data: dict):
+        import json as _json
+        db.set_setting("profiles_json",
+                       _json.dumps(data, ensure_ascii=False))
+
+    def list_profiles(self) -> dict:
+        return {"profiles": sorted(self._load_profiles().keys()),
+                "active": db.get_setting("active_profile") or ""}
+
+    def save_profile(self, name: str) -> dict:
+        name = (name or "").strip()
+        if not name or len(name) > 40:
+            return {"ok": False, "msg": "Name must be 1-40 chars."}
+        s = db.get_all_settings()
+        snap = {k: s.get(k, "") for k in self._PROFILE_KEYS}
+        profiles = self._load_profiles()
+        profiles[name] = snap
+        self._save_profiles(profiles)
+        db.set_setting("active_profile", name)
+        return {"ok": True, "name": name, "snapshot": snap}
+
+    def apply_profile(self, name: str) -> dict:
+        profiles = self._load_profiles()
+        snap = profiles.get(name)
+        if not snap:
+            return {"ok": False, "msg": "No such profile."}
+        filtered = {k: v for k, v in snap.items() if k in self._PROFILE_KEYS}
+        db.set_settings(filtered)
+        db.set_setting("active_profile", name)
+        return {"ok": True, "applied": filtered}
+
+    def delete_profile(self, name: str) -> dict:
+        profiles = self._load_profiles()
+        if name not in profiles:
+            return {"ok": False, "msg": "No such profile."}
+        del profiles[name]
+        self._save_profiles(profiles)
+        if db.get_setting("active_profile") == name:
+            db.set_setting("active_profile", "")
+        return {"ok": True}
+
     _BROWSER_CACHES = {
         "edge":    [r"Microsoft\Edge\User Data\Default\Cache",
                     r"Microsoft\Edge\User Data\Default\Code Cache"],

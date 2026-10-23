@@ -161,6 +161,8 @@ _DEFAULTS = {
     "schedule_cadence": "weekly",
     "schedule_last_run": "",
     "schedule_actions": "quick_scan,temp_cleanup",
+    "profiles_json": "",
+    "active_profile": "",
     "version": "1.0.0",
 }
 
