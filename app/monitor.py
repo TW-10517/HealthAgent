@@ -1,7 +1,7 @@
 """PC Health Agent — Real-time system monitor with ring-buffer history."""
 import os
 import shutil
-import subprocess
+import run_hidden
 import threading
 import time
 from collections import deque
@@ -82,7 +82,7 @@ def _collect_temperature() -> dict:
         return _temp_cache["value"]
     val = {"has_temp": False}
     try:
-        r = subprocess.run(
+        r = run_hidden.run(
             ["powershell", "-NoProfile", "-Command",
              "$t=Get-CimInstance -Namespace root/WMI -ClassName MSAcpi_ThermalZoneTemperature "
              "-ErrorAction SilentlyContinue;"

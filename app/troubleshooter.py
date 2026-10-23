@@ -354,6 +354,7 @@ def execute_action(action_id: str) -> dict:
         return {"ok": False, "error": "Unknown action."}
 
     import subprocess as sp
+    import run_hidden
 
     try:
         if action_id == "open_task_manager":
@@ -369,13 +370,13 @@ def execute_action(action_id: str) -> dict:
             return {"ok": True, "action": "opened_event_viewer"}
 
         elif action_id == "check_updates":
-            sp.Popen(["powershell", "-NoProfile", "-Command",
-                       "Start-Process ms-settings:windowsupdate"])
+            run_hidden.popen(["powershell", "-NoProfile", "-Command",
+                              "Start-Process ms-settings:windowsupdate"])
             return {"ok": True, "action": "opened_windows_update"}
 
         elif action_id == "run_sfc":
-            sp.Popen(["powershell", "-NoProfile", "-Command",
-                       "Start-Process cmd -ArgumentList '/k sfc /scannow' -Verb RunAs"])
+            run_hidden.popen(["powershell", "-NoProfile", "-Command",
+                              "Start-Process cmd -ArgumentList '/k sfc /scannow' -Verb RunAs"])
             return {"ok": True, "action": "launched_sfc",
                     "note": "Admin prompt will appear. SFC takes 5-15 minutes."}
 

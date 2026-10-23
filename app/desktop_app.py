@@ -3,37 +3,9 @@ import sys, os, threading, json, time, ctypes
 from pathlib import Path
 from datetime import datetime
 
-# ── Suppress console windows for OUR console-tool children ──────────────────
-# This is a --windowed build with no console of its own, so our powershell /
-# cmd / powercfg / wmic / … calls would otherwise flash a black window for a
-# second each. Patch subprocess.Popen to add CREATE_NO_WINDOW ONLY when the
-# executable is one of those known console tools — never for pywebview's own
-# WebView2 / helper spawns, which are GUI processes and must stay untouched.
-import subprocess as _subprocess
-if os.name == "nt":
-    _CREATE_NO_WINDOW = 0x08000000
-    _CONSOLE_EXES = frozenset((
-        "powershell", "powershell.exe", "pwsh", "pwsh.exe",
-        "cmd", "cmd.exe", "powercfg", "powercfg.exe",
-        "wmic", "wmic.exe", "netsh", "netsh.exe",
-        "tasklist", "tasklist.exe", "taskkill", "taskkill.exe",
-        "reg", "reg.exe", "sc", "sc.exe",
-        "ipconfig", "ipconfig.exe", "systeminfo", "systeminfo.exe",
-    ))
-    _ORIG_POPEN_INIT = _subprocess.Popen.__init__
-    def _popen_no_window(self, *args, **kwargs):
-        exe = None
-        a = kwargs.get("args") or (args[0] if args else None)
-        if isinstance(a, (list, tuple)) and a:
-            exe = str(a[0])
-        elif isinstance(a, str):
-            exe = a.split(None, 1)[0] if a else None
-        if exe:
-            base = os.path.basename(exe).lower()
-            if base in _CONSOLE_EXES and not kwargs.get("creationflags"):
-                kwargs["creationflags"] = _CREATE_NO_WINDOW
-        return _ORIG_POPEN_INIT(self, *args, **kwargs)
-    _subprocess.Popen.__init__ = _popen_no_window
+# Console-tool spawns go through run_hidden.run / run_hidden.popen so this
+# --windowed build does not flash a black console for every powershell call.
+# GUI launches (taskmgr, calc, chrome, …) use plain subprocess.
 
 if getattr(sys, "frozen", False):
     # Packaged .exe: keep writable data under %LOCALAPPDATA%\PCHealthAgent
@@ -47,6 +19,7 @@ REPORTS.mkdir(parents=True, exist_ok=True)
 LOGS.mkdir(parents=True, exist_ok=True)
 
 sys.path.insert(0, str(Path(__file__).parent))
+import run_hidden
 from scanner import run_full_scan, fmt_size, get_system_info, cleanup_temp_files, scan_disk
 from report_gen import generate
 from suggestions import run_all_checks, get_ai_summary
@@ -439,7 +412,8 @@ class AgentAPI:
         """Return detailed hardware/OS info via PowerShell WMI queries."""
         if self._hw_cache:
             return self._hw_cache
-        import subprocess as sp, json as _json
+        import json as _json
+        sp = run_hidden
         ps = r"""
 $ErrorActionPreference='SilentlyContinue'
 $cpu  = Get-CimInstance Win32_Processor | Select-Object -First 1 Name,NumberOfCores,NumberOfLogicalProcessors,MaxClockSpeed
@@ -1182,7 +1156,8 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
             p = os.path.abspath(path)
             if not os.path.exists(p):
                 return {"ok": False, "msg": "File no longer exists."}
-            _subprocess.Popen(["explorer", "/select,", p])
+            import subprocess as _sp
+            _sp.Popen(["explorer", "/select,", p])
             return {"ok": True, "msg": "Opened in Explorer."}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
@@ -1341,7 +1316,7 @@ Get-ScheduledTask | Where-Object {
 } | ConvertTo-Json -Depth 2
 """
         try:
-            r = subprocess.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",ps],
+            r = run_hidden.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",ps],
                                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15)
             raw = _json.loads(r.stdout or "[]")
             if isinstance(raw, dict): raw = [raw]
@@ -1372,7 +1347,7 @@ $paths | ForEach-Object {{
 Sort-Object InstallDate -Descending | Select-Object -First 50 | ConvertTo-Json -Depth 2
 """
         try:
-            r = subprocess.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",ps],
+            r = run_hidden.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",ps],
                                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15)
             raw = _json.loads(r.stdout or "[]")
             if isinstance(raw, dict): raw = [raw]
@@ -1401,7 +1376,7 @@ try{$pending=($searcher.Search("IsInstalled=0 and IsHidden=0")).Updates.Count}ca
 } | ConvertTo-Json
 """
         try:
-            r = subprocess.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",ps],
+            r = run_hidden.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",ps],
                                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=25)
             d = _json.loads(r.stdout or "{}")
             return {"ok": True, "last_update": d.get("LastUpdate","Unknown"),
@@ -1427,7 +1402,7 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
   } | ConvertTo-Json -Depth 2
 """
         try:
-            r = subprocess.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",ps],
+            r = run_hidden.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",ps],
                                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=20)
             raw = _json.loads(r.stdout or "[]")
             if isinstance(raw, dict): raw = [raw]
@@ -1440,7 +1415,7 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
         """Return available power plans and the active one."""
         import subprocess, re as _re
         try:
-            r = subprocess.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",
+            r = run_hidden.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",
                                 "powercfg /list"],
                                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10)
             plans = []
@@ -1462,7 +1437,7 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
         if not _re.fullmatch(r'[0-9a-f-]{36}', guid.lower()):
             return {"ok": False, "msg": "Invalid GUID format."}
         try:
-            subprocess.run(["powercfg", "/setactive", guid],
+            run_hidden.run(["powercfg", "/setactive", guid],
                            capture_output=True, timeout=10, check=True)
             return {"ok": True, "msg": "Power plan changed."}
         except Exception as e:
@@ -1480,7 +1455,7 @@ ForEach-Object{
 } | ConvertTo-Json -Depth 2
 """
         try:
-            r = subprocess.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",ps],
+            r = run_hidden.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",ps],
                                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15)
             raw = _json.loads(r.stdout or "[]")
             if isinstance(raw, dict): raw = [raw]

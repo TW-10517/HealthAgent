@@ -1,5 +1,5 @@
 """PC Health Agent — Windows Event Log analyzer."""
-import subprocess
+import run_hidden
 import json
 from datetime import datetime, timedelta
 
@@ -101,7 +101,7 @@ def get_events(hours: int = 24, max_level: int = 3, max_results: int = 100) -> l
     )
 
     try:
-        r = subprocess.run(
+        r = run_hidden.run(
             ["powershell", "-NoProfile", "-Command", ps_cmd],
             capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15
         )
@@ -160,7 +160,7 @@ def get_crash_events(hours: int = 168) -> list:
     )
 
     try:
-        r = subprocess.run(
+        r = run_hidden.run(
             ["powershell", "-NoProfile", "-Command", ps_cmd],
             capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15
         )

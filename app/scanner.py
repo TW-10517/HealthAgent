@@ -1,5 +1,6 @@
 """PC Health Agent — scanner module. stdlib only, no pip required."""
-import os, sys, hashlib, winreg, subprocess, shutil
+import os, sys, hashlib, winreg, shutil
+import run_hidden
 from pathlib import Path
 from datetime import datetime
 
@@ -135,7 +136,7 @@ def scan_startup():
 # ── Top processes ─────────────────────────────────────────────────────────────
 def scan_processes():
     try:
-        result = subprocess.run(
+        result = run_hidden.run(
             ["powershell", "-NoProfile", "-Command",
              "Get-Process | Sort-Object WorkingSet64 -Desc | Select-Object -First 10 | "
              "ForEach-Object { $_.ProcessName + '|' + [math]::Round($_.WorkingSet64/1MB,0) }"],
@@ -152,7 +153,7 @@ def scan_processes():
 
 def scan_total_ram():
     try:
-        result = subprocess.run(
+        result = run_hidden.run(
             ["powershell", "-NoProfile", "-Command",
              "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory"],
             capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10
@@ -278,7 +279,7 @@ def get_system_info() -> dict:
         "os": "", "cpu": "", "ram_gb": 0, "disk_total_gb": 0, "disk_free_gb": 0,
     }
     try:
-        r = subprocess.run(
+        r = run_hidden.run(
             ["powershell", "-NoProfile", "-Command",
              "(Get-CimInstance Win32_OperatingSystem).Caption"],
             capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=8)
@@ -286,7 +287,7 @@ def get_system_info() -> dict:
     except Exception:
         info["os"] = "Windows"
     try:
-        r = subprocess.run(
+        r = run_hidden.run(
             ["powershell", "-NoProfile", "-Command",
              "(Get-CimInstance Win32_Processor).Name"],
             capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=8)

@@ -6,7 +6,7 @@ All checks are local, read-only, and respect the protected-path list from scanne
 import os
 import json
 import shutil
-import subprocess
+import run_hidden
 import winreg
 import urllib.request
 import urllib.error
@@ -262,7 +262,7 @@ def check_startup_apps() -> dict | None:
 
 def check_disk_health() -> dict | None:
     try:
-        r = subprocess.run(
+        r = run_hidden.run(
             ["powershell", "-NoProfile", "-Command",
              "Get-PhysicalDisk | Select-Object MediaType,HealthStatus,OperationalStatus "
              "| ForEach-Object { $_.MediaType + '|' + $_.HealthStatus + '|' + $_.OperationalStatus }"],
@@ -293,7 +293,7 @@ def check_disk_health() -> dict | None:
 
 def check_battery_health() -> dict | None:
     try:
-        r = subprocess.run(
+        r = run_hidden.run(
             ["powershell", "-NoProfile", "-Command",
              "Get-CimInstance Win32_Battery | ForEach-Object { "
              "$_.EstimatedChargeRemaining.ToString() + '|' + $_.Status }"],

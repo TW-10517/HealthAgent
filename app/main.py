@@ -18,7 +18,7 @@ def progress(done, total):
 
 def send_toast(title: str, body: str):
     try:
-        import subprocess
+        import run_hidden
         script = (
             f'[Windows.UI.Notifications.ToastNotificationManager,'
             f'Windows.UI.Notifications,ContentType=WindowsRuntime]|Out-Null;'
@@ -32,7 +32,7 @@ def send_toast(title: str, body: str):
             f'[Windows.UI.Notifications.ToastNotificationManager]::'
             f'CreateToastNotifier("PC Health Agent").Show($n)'
         )
-        subprocess.run(
+        run_hidden.run(
             ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", script],
             timeout=10, capture_output=True
         )
