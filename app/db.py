@@ -156,6 +156,7 @@ _DEFAULTS = {
     "protected_apps_defaults": "true",
     "protected_apps_extra": "",
     "ai_enabled": "true",
+    "onboarded_mode": "",
     "version": "1.0.0",
 }
 

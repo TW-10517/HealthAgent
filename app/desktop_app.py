@@ -408,6 +408,24 @@ class AgentAPI:
         db.set_settings(filtered)
         return {"ok": True}
 
+    def get_first_run_mode(self):
+        return {"mode": db.get_setting("onboarded_mode") or ""}
+
+    def apply_first_run_mode(self, mode: str):
+        """One-shot: set defaults for 'work', 'personal' or 'minimal' PCs."""
+        mode = (mode or "").strip().lower()
+        presets = {
+            "work":     {"ai_enabled": "true",  "protected_apps_defaults": "true"},
+            "personal": {"ai_enabled": "true",  "protected_apps_defaults": "false"},
+            "minimal":  {"ai_enabled": "false", "protected_apps_defaults": "false"},
+        }
+        if mode not in presets:
+            return {"ok": False, "msg": "Unknown mode."}
+        settings = dict(presets[mode])
+        settings["onboarded_mode"] = mode
+        db.set_settings(settings)
+        return {"ok": True, "mode": mode, "applied": settings}
+
     def get_protected_apps(self):
         import protected
         return protected.get_config()
