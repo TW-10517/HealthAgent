@@ -13,6 +13,13 @@ import urllib.error
 from pathlib import Path
 from datetime import datetime, timedelta
 from scanner import is_protected, fmt_size, dir_size, PROTECTED, IT_PATTERN
+from thresholds import (
+    DISK_PCT_WARN, DISK_PCT_CRIT, TEMP_SIZE_WARN, TEMP_SIZE_CRIT,
+    STARTUP_COUNT_WARN, STARTUP_COUNT_CRIT,
+    OLD_DOWNLOADS_DAYS, OLD_DOWNLOADS_SIZE_MIN, OLD_DOWNLOADS_SIZE_WARN,
+    LARGE_FILE_MIN_MB, LARGE_FILE_TOP_N,
+    EMPTY_FOLDER_COUNT_MIN, FOLDER_USAGE_MIN,
+)
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 OLLAMA_MODEL = "qwen2.5:3b"
@@ -52,10 +59,12 @@ def check_storage() -> dict | None:
     pct_free = 100 - pct_used
     free_gb = round(usage.free / (1 << 30), 1)
 
-    if pct_free >= 20:
+    if pct_free >= DISK_PCT_WARN:
         return None
 
-    sev = "critical" if pct_free < 5 else "error" if pct_free < 10 else "warning"
+    sev = ("critical" if pct_free < DISK_PCT_CRIT / 2
+           else "error" if pct_free < DISK_PCT_CRIT
+           else "warning")
     return {
         "id": "storage_full",
         "category": "storage",
@@ -71,7 +80,7 @@ def check_storage() -> dict | None:
 
 # ── 2. Empty folders ────────────────────────────────────────────────────────
 
-def check_empty_folders(roots=None, max_depth=5) -> dict | None:
+def check_empty_folders(roots=None, max_depth=5, min_count: int = EMPTY_FOLDER_COUNT_MIN) -> dict | None:
     roots = roots or SCAN_ROOTS
     empty = []
 
@@ -98,7 +107,7 @@ def check_empty_folders(roots=None, max_depth=5) -> dict | None:
         if root.exists():
             _walk(root, 0)
 
-    if len(empty) < 5:
+    if len(empty) < min_count:
         return None
 
     return {
@@ -117,7 +126,8 @@ def check_empty_folders(roots=None, max_depth=5) -> dict | None:
 
 # ── 3. Large files ──────────────────────────────────────────────────────────
 
-def check_large_files(roots=None, top_n=10, min_size_mb=200) -> dict | None:
+def check_large_files(roots=None, top_n: int = LARGE_FILE_TOP_N,
+                      min_size_mb: int = LARGE_FILE_MIN_MB) -> dict | None:
     roots = roots or SCAN_ROOTS
     min_bytes = min_size_mb * (1 << 20)
     large = []
@@ -162,7 +172,7 @@ def check_large_files(roots=None, top_n=10, min_size_mb=200) -> dict | None:
 
 # ── 4. Old downloads ────────────────────────────────────────────────────────
 
-def check_old_downloads(days=180) -> dict | None:
+def check_old_downloads(days: int = OLD_DOWNLOADS_DAYS) -> dict | None:
     dl = _DOWNLOADS
     if not dl.exists():
         return None
@@ -188,13 +198,13 @@ def check_old_downloads(days=180) -> dict | None:
     old.sort(key=lambda x: x["size"], reverse=True)
     total = sum(f["size"] for f in old)
 
-    if total < 50 * (1 << 20):
+    if total < OLD_DOWNLOADS_SIZE_MIN:
         return None
 
     return {
         "id": "old_downloads",
         "category": "cleanup",
-        "severity": "warning" if total > 1 << 30 else "info",
+        "severity": "warning" if total > OLD_DOWNLOADS_SIZE_WARN else "info",
         "en": f"Files in Downloads not opened for {days}+ days: {fmt_size(total)} ({len(old)} items)",
         "ja": f"ダウンロードの{days}日以上未使用ファイル: {fmt_size(total)} ({len(old)}件)",
         "detail_en": "Archive or delete to free space.",
@@ -231,13 +241,13 @@ def check_startup_apps() -> dict | None:
         except OSError:
             pass
 
-    if len(apps) <= 5:
+    if len(apps) <= STARTUP_COUNT_WARN:
         return None
 
     return {
         "id": "startup_apps",
         "category": "performance",
-        "severity": "warning" if len(apps) > 8 else "info",
+        "severity": "warning" if len(apps) > STARTUP_COUNT_CRIT else "info",
         "en": f"{len(apps)} personal apps start with Windows and may slow startup.",
         "ja": f"{len(apps)}個の個人アプリがWindows起動時に実行され、起動が遅くなる可能性があります。",
         "detail_en": f"e.g. {', '.join(a['name'] for a in apps[:3])}",
@@ -329,13 +339,13 @@ def check_temp_cache() -> dict | None:
         if t and os.path.isdir(t) and not is_protected(t):
             total += dir_size(t)
 
-    if total < 500 * (1 << 20):
+    if total < TEMP_SIZE_WARN:
         return None
 
     return {
         "id": "temp_cache",
         "category": "cleanup",
-        "severity": "warning" if total > 2 * (1 << 30) else "info",
+        "severity": "warning" if total > TEMP_SIZE_CRIT else "info",
         "en": f"Temporary and cache files are using {fmt_size(total)}.",
         "ja": f"一時ファイルとキャッシュが{fmt_size(total)}を使用しています。",
         "detail_en": "Safe to clean. Run a scan to review and remove.",
@@ -354,7 +364,7 @@ def check_folder_usage() -> dict | None:
     for d in user_dirs:
         if d.exists() and not is_protected(str(d)):
             sz = dir_size(str(d))
-            if sz > 100 * (1 << 20):
+            if sz > FOLDER_USAGE_MIN:
                 folders.append({"path": str(d), "name": d.name,
                                 "size": sz, "fmt": fmt_size(sz)})
 

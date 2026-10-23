@@ -14,6 +14,11 @@ import json
 from datetime import datetime
 from pathlib import Path
 from scanner import is_protected, IT_PATTERN
+from thresholds import (
+    DISK_PCT_WARN, DISK_PCT_CRIT, TEMP_SIZE_HIGH,
+    STARTUP_COUNT_WARN, PROCESS_RAM_CRIT_MB,
+    CPU_PCT_CRIT, RAM_PCT_CRIT, CPU_TEMP_WARN, CPU_TEMP_CRIT,
+)
 
 # ── Action safety classification ────────────────────────────────────────────
 
@@ -108,7 +113,7 @@ def run_diagnostics(scan_data: dict = None, metrics: dict = None,
     # ── From scan data ──
     if scan_data:
         d = scan_data.get("disk", {})
-        if d.get("pct_free", 100) < 10:
+        if d.get("pct_free", 100) < DISK_PCT_CRIT:
             issues.append(_issue(
                 id="critical_disk_space",
                 category="storage",
@@ -122,7 +127,7 @@ def run_diagnostics(scan_data: dict = None, metrics: dict = None,
                 causes_ja=["大量の一時/キャッシュファイル", "ダウンロードが多すぎる", "大きなアプリケーション"],
                 actions=["clean_temp", "organize_files", "open_disk_cleanup"],
             ))
-        elif d.get("pct_free", 100) < 20:
+        elif d.get("pct_free", 100) < DISK_PCT_WARN:
             issues.append(_issue(
                 id="low_disk_space",
                 category="storage",
@@ -138,7 +143,7 @@ def run_diagnostics(scan_data: dict = None, metrics: dict = None,
             ))
 
         total_temp = scan_data.get("total_temp", 0)
-        if total_temp > 1 << 30:  # >1GB
+        if total_temp > TEMP_SIZE_HIGH:
             from scanner import fmt_size
             issues.append(_issue(
                 id="high_temp_cache",
@@ -155,7 +160,7 @@ def run_diagnostics(scan_data: dict = None, metrics: dict = None,
             ))
 
         startup = scan_data.get("personal_apps", [])
-        if len(startup) > 6:
+        if len(startup) > STARTUP_COUNT_WARN:
             issues.append(_issue(
                 id="too_many_startup",
                 category="performance",
@@ -171,7 +176,7 @@ def run_diagnostics(scan_data: dict = None, metrics: dict = None,
             ))
 
         procs = scan_data.get("processes", [])
-        if procs and procs[0].get("mem_mb", 0) > 2000:
+        if procs and procs[0].get("mem_mb", 0) > PROCESS_RAM_CRIT_MB:
             p = procs[0]
             issues.append(_issue(
                 id="high_memory_process",
@@ -189,7 +194,7 @@ def run_diagnostics(scan_data: dict = None, metrics: dict = None,
 
     # ── From live metrics ──
     if metrics:
-        if metrics.get("cpu_pct", 0) >= 95:
+        if metrics.get("cpu_pct", 0) >= CPU_PCT_CRIT:
             issues.append(_issue(
                 id="cpu_maxed",
                 category="performance",
@@ -204,7 +209,7 @@ def run_diagnostics(scan_data: dict = None, metrics: dict = None,
                 actions=["open_task_manager"],
             ))
 
-        if metrics.get("ram_pct", 0) >= 90:
+        if metrics.get("ram_pct", 0) >= RAM_PCT_CRIT:
             used_gb = round(metrics.get("ram_used_mb", 0) / 1024, 1)
             total_gb = round(metrics.get("ram_total_mb", 0) / 1024)
             issues.append(_issue(
@@ -221,12 +226,12 @@ def run_diagnostics(scan_data: dict = None, metrics: dict = None,
                 actions=["open_task_manager"],
             ))
 
-        if metrics.get("has_temp") and metrics.get("cpu_temp_c", 0) >= 85:
+        if metrics.get("has_temp") and metrics.get("cpu_temp_c", 0) >= CPU_TEMP_WARN:
             issues.append(_issue(
                 id="high_temperature",
                 category="hardware",
                 confidence=75,
-                severity="error" if metrics["cpu_temp_c"] >= 95 else "warning",
+                severity="error" if metrics["cpu_temp_c"] >= CPU_TEMP_CRIT else "warning",
                 en=f"CPU temperature is {metrics['cpu_temp_c']}°C",
                 ja=f"CPU温度が{metrics['cpu_temp_c']}°Cです",
                 evidence_en=f"Thermal sensor reading: {metrics['cpu_temp_c']}°C.",

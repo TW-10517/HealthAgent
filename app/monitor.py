@@ -19,12 +19,8 @@ _history = deque(maxlen=MAX_HISTORY)
 _lock = threading.Lock()
 _running = False
 _thread = None
-_thresholds = {
-    "cpu_pct": 90,
-    "ram_pct": 85,
-    "disk_pct": 90,
-    "battery_pct": 15,
-}
+from thresholds import monitor_defaults, CPU_TEMP_WARN, CPU_TEMP_CRIT
+_thresholds = monitor_defaults()
 
 # ── Metric collection ──────────────────────────────────────────────────────
 
@@ -159,8 +155,8 @@ def check_alerts(m: dict) -> list:
             "en": f"Battery at {m['battery_pct']}% — plug in soon",
             "ja": f"バッテリー{m['battery_pct']}% — すぐに充電してください",
         })
-    if m.get("has_temp") and m.get("cpu_temp_c", 0) >= 85:
-        sev = "error" if m["cpu_temp_c"] >= 95 else "warning"
+    if m.get("has_temp") and m.get("cpu_temp_c", 0) >= CPU_TEMP_WARN:
+        sev = "error" if m["cpu_temp_c"] >= CPU_TEMP_CRIT else "warning"
         alerts.append({
             "type": "temp", "severity": sev,
             "en": f"CPU temperature is {m['cpu_temp_c']}°C",

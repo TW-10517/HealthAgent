@@ -235,12 +235,16 @@ def run_full_scan(include_dupes=True, progress_cb=None):
     else:
         print("  [5/5] Duplicate scan skipped.", flush=True)
 
+    from thresholds import (
+        DISK_PCT_WARN, TEMP_SIZE_WARN, DUPES_SIZE_HIGH,
+        STARTUP_COUNT_WARN, PROCESS_RAM_HIGH_MB,
+    )
     issues = sum([
-        disk["pct_free"] < 20,
-        total_temp > 500 * (1<<20),
-        total_dupes > 100 * (1<<20),
-        sum(1 for a in startup if not a["it_managed"]) > 5,
-        bool(processes and processes[0]["mem_mb"] > 1500),
+        disk["pct_free"] < DISK_PCT_WARN,
+        total_temp > TEMP_SIZE_WARN,
+        total_dupes > DUPES_SIZE_HIGH,
+        sum(1 for a in startup if not a["it_managed"]) > STARTUP_COUNT_WARN,
+        bool(processes and processes[0]["mem_mb"] > PROCESS_RAM_HIGH_MB),
     ])
 
     return {
