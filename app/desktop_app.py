@@ -1470,6 +1470,75 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
+    # ── Startup entries: disable / re-enable with undo ───────────────────────
+    _STARTUP_HIVES = {
+        "HKCU": r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+    }
+    _STARTUP_DISABLED_SUBKEY = r"SOFTWARE\PCHealthAgent\DisabledStartup"
+
+    def _startup_backup_path(self):
+        return LOGS / "startup-disabled.json"
+
+    def _load_disabled_startup(self) -> dict:
+        import json as _json
+        p = self._startup_backup_path()
+        try:
+            if p.exists():
+                return _json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+        return {}
+
+    def _save_disabled_startup(self, data: dict):
+        import json as _json
+        p = self._startup_backup_path()
+        p.write_text(_json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def disable_startup(self, name: str) -> dict:
+        """Remove an HKCU Run entry and remember its command for undo."""
+        import winreg
+        if not name or any(c in name for c in '\\/\x00'):
+            return {"ok": False, "msg": "Invalid name."}
+        subkey = self._STARTUP_HIVES["HKCU"]
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, subkey, 0,
+                                winreg.KEY_READ | winreg.KEY_WRITE) as k:
+                try:
+                    val, typ = winreg.QueryValueEx(k, name)
+                except FileNotFoundError:
+                    return {"ok": False, "msg": "Entry not found in HKCU Run."}
+                data = self._load_disabled_startup()
+                data[name] = {"hive": "HKCU", "subkey": subkey,
+                              "value": val, "type": int(typ),
+                              "disabled_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+                self._save_disabled_startup(data)
+                winreg.DeleteValue(k, name)
+            return {"ok": True, "msg": f"Disabled startup entry '{name}'."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def enable_startup(self, name: str) -> dict:
+        """Restore a previously disabled HKCU Run entry from the backup log."""
+        import winreg
+        data = self._load_disabled_startup()
+        entry = data.get(name)
+        if not entry:
+            return {"ok": False, "msg": "No undo record for that entry."}
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, entry["subkey"], 0,
+                                winreg.KEY_WRITE) as k:
+                winreg.SetValueEx(k, name, 0, entry.get("type", winreg.REG_SZ),
+                                  entry["value"])
+            data.pop(name, None)
+            self._save_disabled_startup(data)
+            return {"ok": True, "msg": f"Restored startup entry '{name}'."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def list_disabled_startup(self) -> dict:
+        data = self._load_disabled_startup()
+        return {"items": [{"name": k, **v} for k, v in data.items()]}
+
     def create_restore_point(self, description: str = "Helix pre-maintenance") -> dict:
         """Request a Windows System Restore point. Requires System Protection
         enabled on C: and admin elevation; returns a readable error otherwise.
