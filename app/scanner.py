@@ -109,7 +109,19 @@ def scan_temp():
     return items
 
 # ── Startup apps ──────────────────────────────────────────────────────────────
+# IT_PATTERN is the shipping default list of apps/processes Helix treats as
+# IT-managed (never close, never flag, never move). Users can extend this
+# through Settings; see protected.get_protected_keywords(). Scanner-local
+# code reads IT_PATTERN directly for backwards compatibility, but callers
+# that need the live user-extended set should import from protected.
 IT_PATTERN = {"eset","optima","acall","onedrive","teams","microsoftedge","securityhealth","windowsdefender"}
+
+# Critical OS processes — hardcoded, never editable. Trying to close any of
+# these from the UI must always be refused regardless of the user's own list.
+CRITICAL_PROCESSES = frozenset({
+    "system", "lsass", "csrss", "winlogon", "smss", "wininit",
+    "services", "svchost", "msmpeng", "mssenses",
+})
 
 def scan_startup():
     apps = []

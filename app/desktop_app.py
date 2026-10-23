@@ -399,10 +399,19 @@ class AgentAPI:
     def save_settings(self, settings: dict):
         allowed = {"language","theme","tray_on_close","show_notifications",
                     "history_retention_days","scan_on_startup",
-                    "health_watch_enabled","health_watch_disk_gb","health_watch_ram_pct"}
+                    "health_watch_enabled","health_watch_disk_gb","health_watch_ram_pct",
+                    "protected_apps_defaults","protected_apps_extra"}
         filtered = {k: v for k, v in settings.items() if k in allowed}
         db.set_settings(filtered)
         return {"ok": True}
+
+    def get_protected_apps(self):
+        import protected
+        return protected.get_config()
+
+    def set_protected_apps(self, defaults_on: bool = True, extras: list = None):
+        import protected
+        return {"ok": True, "config": protected.set_config(bool(defaults_on), extras or [])}
 
     # ── System info ──────────────────────────────────────────────────────────
     def get_system_info(self):
@@ -902,16 +911,9 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
         }
 
     # ── Safe app closer (Win32 WM_CLOSE — never force-terminates) ────────────
-    _CLOSE_BLOCKED = frozenset({
-        "eset", "ekrn", "egui",              # ESET
-        "optima",                             # OPTIMA Eye
-        "acall",                              # Acall
-        "onedrive",                           # OneDrive (IT-managed)
-        "microsoftedge", "msedge",            # Edge (IT-managed)
-        "mssenses", "msmpeng", "securityhealth", "windowsdefender",  # Defender
-        "system", "lsass", "csrss", "winlogon", "smss", "wininit",  # critical
-        "services", "svchost",
-    })
+    # Blocked set is now the LIVE set from protected.get_protected_keywords()
+    # (critical floor + optional shipping defaults + user extras). Looked up
+    # per-call so Settings edits take effect without a restart.
     _CLOSE_EXE_MAP = {
         "chrome": "chrome.exe",   "google chrome": "chrome.exe",
         "firefox": "firefox.exe",
@@ -943,7 +945,9 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
 
         name_lower = name.strip().lower()
 
-        if any(b in name_lower for b in self._CLOSE_BLOCKED):
+        import protected
+        _blocked = protected.get_protected_keywords()
+        if any(b in name_lower for b in _blocked):
             return {"ok": False, "msg": f"**{name}** is a protected process — it cannot be closed from here."}
 
         target_exe = self._CLOSE_EXE_MAP.get(name_lower)
@@ -1113,7 +1117,8 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
             if _sc.is_protected(p):
                 return {"ok": False, "msg": "Protected location — refused."}
             low = os.path.basename(p).lower()
-            if any(k in low for k in self._CLOSE_BLOCKED):
+            import protected
+            if any(k in low for k in protected.get_protected_keywords()):
                 return {"ok": False, "msg": "IT-managed file — refused."}
 
             # SHFileOperationW with FOF_ALLOWUNDO sends to the Recycle Bin.

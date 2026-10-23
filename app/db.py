@@ -153,6 +153,8 @@ _DEFAULTS = {
     "health_watch_enabled": "false",
     "health_watch_disk_gb": "5",
     "health_watch_ram_pct": "92",
+    "protected_apps_defaults": "true",
+    "protected_apps_extra": "",
     "version": "1.0.0",
 }
 
