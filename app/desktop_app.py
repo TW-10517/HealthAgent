@@ -134,6 +134,7 @@ class AgentAPI:
     def set_window(self, w):
         self._window = w
         self._start_health_watch()
+        self._start_schedule_watch()
         threading.Thread(target=self._check_ollama_status, daemon=True).start()
         threading.Thread(target=self._preload_hw_cache, daemon=True).start()
 
@@ -177,6 +178,66 @@ class AgentAPI:
         if online is None:
             return {"status": "checking"}
         return {"status": "online" if online else "offline"}
+
+    _CADENCE_SECONDS = {"daily": 86400, "weekly": 7*86400, "monthly": 30*86400}
+
+    def _start_schedule_watch(self):
+        """Run user-selected maintenance actions on a cadence. Only starts a
+        job if schedule_enabled='true' and schedule_last_run is older than the
+        cadence. Jobs never require elevation or external services."""
+        def _loop():
+            import time as _t
+            _t.sleep(90)
+            while True:
+                _t.sleep(600)   # recheck every 10 min
+                try:
+                    s = db.get_all_settings()
+                    if (s.get("schedule_enabled") or "false").lower() != "true":
+                        continue
+                    cadence = self._CADENCE_SECONDS.get(s.get("schedule_cadence","weekly"))
+                    if not cadence:
+                        continue
+                    last = s.get("schedule_last_run") or ""
+                    due = True
+                    if last:
+                        try:
+                            dt = datetime.strptime(last, "%Y-%m-%d %H:%M:%S")
+                            due = (datetime.now() - dt).total_seconds() >= cadence
+                        except Exception:
+                            due = True
+                    if not due:
+                        continue
+                    actions = [a.strip() for a in
+                               (s.get("schedule_actions","") or "").split(",") if a.strip()]
+                    self._run_scheduled_actions(actions)
+                    db.set_setting("schedule_last_run",
+                                   datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                except Exception:
+                    pass
+        threading.Thread(target=_loop, daemon=True).start()
+
+    def _run_scheduled_actions(self, actions: list):
+        """Execute each named maintenance job. Safe, idempotent, non-destructive."""
+        for a in actions:
+            try:
+                if a == "quick_scan":
+                    self.start_scan(no_dupes=True)
+                elif a == "temp_cleanup":
+                    cleanup_temp_files(dry_run=False)
+                elif a == "snapshot":
+                    self.capture_metrics_snapshot("scheduled")
+            except Exception:
+                pass
+
+    def run_schedule_now(self) -> dict:
+        """Fire the configured schedule right now (manual kick)."""
+        s = db.get_all_settings()
+        actions = [a.strip() for a in
+                   (s.get("schedule_actions","") or "").split(",") if a.strip()]
+        self._run_scheduled_actions(actions)
+        db.set_setting("schedule_last_run",
+                       datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        return {"ok": True, "actions": actions}
 
     def _start_health_watch(self):
         def _watch():
@@ -403,7 +464,8 @@ class AgentAPI:
                     "history_retention_days","scan_on_startup",
                     "health_watch_enabled","health_watch_disk_gb","health_watch_ram_pct",
                     "protected_apps_defaults","protected_apps_extra","ai_enabled",
-                    "onboarded_mode"}
+                    "onboarded_mode","schedule_enabled","schedule_cadence",
+                    "schedule_actions","schedule_last_run"}
         filtered = {k: v for k, v in settings.items() if k in allowed}
         db.set_settings(filtered)
         return {"ok": True}

@@ -157,6 +157,10 @@ _DEFAULTS = {
     "protected_apps_extra": "",
     "ai_enabled": "true",
     "onboarded_mode": "",
+    "schedule_enabled": "false",
+    "schedule_cadence": "weekly",
+    "schedule_last_run": "",
+    "schedule_actions": "quick_scan,temp_cleanup",
     "version": "1.0.0",
 }
 
