@@ -1470,6 +1470,47 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
+    def capture_metrics_snapshot(self, label: str = "") -> dict:
+        """Freeze a lightweight snapshot of current CPU/RAM/disk free + process
+        memory total, tagged with a user label. Used to show before/after
+        after a Boost or cleanup. Snapshots stay in memory for this session.
+        """
+        import psutil
+        import shutil as _shutil
+        vm = psutil.virtual_memory()
+        du = _shutil.disk_usage("C:\\")
+        snap = {
+            "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "label": label or "snapshot",
+            "cpu_pct": round(psutil.cpu_percent(interval=None)),
+            "ram_pct": round(vm.percent),
+            "ram_used_mb": round(vm.used / (1 << 20)),
+            "disk_free_gb": round(du.free / (1 << 30), 1),
+            "proc_count": len(psutil.pids()),
+        }
+        if not hasattr(self, "_snapshots"):
+            self._snapshots = []
+        self._snapshots.append(snap)
+        self._snapshots = self._snapshots[-20:]
+        return {"ok": True, "snapshot": snap}
+
+    def compare_snapshots(self, before_label: str = "", after_label: str = "") -> dict:
+        """Return a delta of the two most recent snapshots matching the labels
+        (or just the last two if labels are omitted)."""
+        snaps = getattr(self, "_snapshots", [])
+        if len(snaps) < 2:
+            return {"ok": False, "msg": "Need at least two snapshots."}
+        if before_label and after_label:
+            before = next((s for s in reversed(snaps) if s["label"] == before_label), None)
+            after  = next((s for s in reversed(snaps) if s["label"] == after_label),  None)
+        else:
+            before, after = snaps[-2], snaps[-1]
+        if not before or not after:
+            return {"ok": False, "msg": "Snapshot not found."}
+        delta = {k: after[k] - before[k] for k in
+                 ("cpu_pct","ram_pct","ram_used_mb","disk_free_gb","proc_count")}
+        return {"ok": True, "before": before, "after": after, "delta": delta}
+
     def boost_preview(self) -> dict:
         """List candidate memory-hog processes that Boost could offer to close.
         Does NOT close anything. Caller must confirm per-process via close_app.
