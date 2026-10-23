@@ -19,8 +19,10 @@ _STEP_SEP = re.compile(
     r'|,?\s+then\s+'
     r'|,?\s+and\s+then\s+'
     r'|;\s+'
-    # "X and <action>" — split only when the next word is an action verb
-    r'|\s+and\s+(?=(?:open|close|quit|find|search|locate|go|navigate|show|list|start|stop'
+    # "X and <action>" — split only when the next word is an action verb AND
+    # the preceding verb is not one of the "find … and open/show" idioms.
+    r'|(?<!\bfind)(?<!\bsearch)(?<!\blocate)\s+and\s+'
+    r'(?=(?:open|close|quit|find|search|locate|go|navigate|show|list|start|stop'
     r'|minimize|launch|run|check|scan|do|begin|cancel|get|load|view|read|display)\b)'
     r')\s*',
     re.IGNORECASE,

@@ -114,7 +114,13 @@ def scan_temp():
 # through Settings; see protected.get_protected_keywords(). Scanner-local
 # code reads IT_PATTERN directly for backwards compatibility, but callers
 # that need the live user-extended set should import from protected.
-IT_PATTERN = {"eset","optima","acall","onedrive","teams","microsoftedge","securityhealth","windowsdefender"}
+IT_PATTERN = {
+    "eset", "ekrn", "egui",                   # ESET + its process names
+    "optima", "acall",
+    "onedrive", "teams",
+    "microsoftedge", "msedge",                # Edge + its process name
+    "securityhealth", "windowsdefender",
+}
 
 # Critical OS processes — hardcoded, never editable. Trying to close any of
 # these from the UI must always be refused regardless of the user's own list.
