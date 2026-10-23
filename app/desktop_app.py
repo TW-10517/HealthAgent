@@ -738,6 +738,13 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
             "pictures":  _try(home / "Pictures", onedrive / "Pictures"),
         }
 
+    def undo_organize(self, folder: str):
+        import organizer as _org
+        try:
+            return _org.undo_last_session(os.path.normpath(folder))
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
     def get_organize_history(self, folder: str):
         import json as _json
         import organizer as _org

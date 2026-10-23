@@ -280,6 +280,69 @@ def organize_category(folder: str, category: str, file_paths: list) -> dict:
     }
 
 
+# ── Undo last session ──────────────────────────────────────────────────────
+
+def undo_last_session(folder: str) -> dict:
+    """Reverse the most recent organize session for `folder`. Moves each file
+    back from `to` to `from`, in reverse order. Skips moves whose destination
+    has since been deleted or replaced. Writes an 'undo' entry to the log so
+    the history shows the reversal."""
+    log_path = _log_path_for(folder)
+    if not os.path.exists(log_path):
+        return {"ok": False, "msg": "No history for this folder."}
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            sessions = json.load(f)
+    except Exception as e:
+        return {"ok": False, "msg": f"Could not read history: {e}"}
+    if not isinstance(sessions, list) or not sessions:
+        return {"ok": False, "msg": "No sessions to undo."}
+
+    last = sessions[-1]
+    if last.get("category") == "__undo__":
+        return {"ok": False, "msg": "Last session is already an undo."}
+
+    restored, missing, failed = 0, 0, []
+    reversed_moves = []
+    for mv in reversed(last.get("moves", [])):
+        src, dst = mv.get("to"), mv.get("from")
+        if not src or not dst:
+            continue
+        if not os.path.exists(src):
+            missing += 1
+            continue
+        try:
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            # Collision-safe: if dst already exists, append suffix
+            final = dst
+            if os.path.exists(final):
+                base, ext = os.path.splitext(dst)
+                n = 1
+                while os.path.exists(f"{base} (restored {n}){ext}"):
+                    n += 1
+                final = f"{base} (restored {n}){ext}"
+            shutil.move(src, final)
+            restored += 1
+            reversed_moves.append({"from": src, "to": final,
+                                   "name": os.path.basename(final)})
+        except Exception as e:
+            failed.append(f"{os.path.basename(src)}: {e}")
+
+    sessions.append({
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "category": "__undo__",
+        "undoes": last.get("category"),
+        "moves": reversed_moves,
+    })
+    try:
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(sessions, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+    return {"ok": True, "restored": restored, "missing": missing,
+            "failed": failed, "category": last.get("category")}
+
+
 # ── AI summary of organization plan ────────────────────────────────────────
 
 def get_organize_summary(scan_result: dict, lang: str = "en") -> dict:
