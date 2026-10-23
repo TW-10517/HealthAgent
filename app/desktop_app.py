@@ -528,13 +528,45 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
             return {"error": str(e)}
 
     # ── Cleanup ──────────────────────────────────────────────────────────────
-    def cleanup_files(self, paths: list):
-        results = cleanup_temp_files(paths)
-        total_freed = sum(r["freed"] for r in results)
+    def cleanup_files(self, paths: list, confirm_token: str = ""):
+        """Hard-delete temp/cache files.
+        First call: queue + return a token with the count. Second call with
+        the token: delete. This is irreversible, so confirmation is mandatory.
+        """
+        import uuid
+        paths = [p for p in (paths or []) if isinstance(p, str) and p.strip()]
+        if not paths:
+            return {"results": [], "totalFreed": 0, "totalFreedFmt": "0 B"}
+
+        def _do_cleanup():
+            results = cleanup_temp_files(paths)
+            total_freed = sum(r["freed"] for r in results)
+            return {
+                "results": results,
+                "totalFreed": total_freed,
+                "totalFreedFmt": fmt_size(total_freed),
+            }
+
+        if confirm_token:
+            fn = self._pending_confirmations.pop(confirm_token, None)
+            if not fn:
+                return {"needs_confirm": False, "ok": False,
+                        "msg": "Confirmation expired. Reselect the items and try again.",
+                        "results": [], "totalFreed": 0, "totalFreedFmt": "0 B"}
+            try:
+                return fn()
+            except Exception as e:
+                return {"ok": False, "msg": str(e), "results": [],
+                        "totalFreed": 0, "totalFreedFmt": "0 B"}
+
+        token = uuid.uuid4().hex[:12]
+        self._pending_confirmations[token] = _do_cleanup
         return {
-            "results": results,
-            "totalFreed": total_freed,
-            "totalFreedFmt": fmt_size(total_freed),
+            "needs_confirm": True,
+            "token": token,
+            "count": len(paths),
+            "msg": f"Permanently delete {len(paths)} item(s)? "
+                   f"These files cannot be recovered from the Recycle Bin.",
         }
 
     def get_disk_info(self):
@@ -1026,10 +1058,15 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
             pass
         return {"ok": True, "items": 0, "size_mb": 0, "size_str": "0 MB"}
 
-    def empty_recycle_bin(self) -> dict:
-        """Empty the Windows Recycle Bin (no force-kill of any process)."""
-        try:
-            import ctypes
+    def empty_recycle_bin(self, confirm_token: str = "") -> dict:
+        """Empty the Windows Recycle Bin.
+        First call returns a confirmation token with the current item count +
+        size; second call with that token performs the delete. Prevents
+        accidental one-click wipes.
+        """
+        import ctypes, uuid
+
+        def _do_empty():
             SHERB_NOCONFIRMATION = 0x1
             SHERB_NOPROGRESSUI   = 0x2
             SHERB_NOSOUND        = 0x4
@@ -1039,12 +1076,36 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
             )
             if ret == 0:
                 return {"ok": True, "msg": "Recycle Bin emptied."}
-            # 0x80070057 = already empty
             if ret in (0x80070057, -2147418113):
                 return {"ok": True, "msg": "Recycle Bin is already empty."}
             return {"ok": False, "msg": f"SHEmptyRecycleBin returned {ret:#x}."}
-        except Exception as e:
-            return {"ok": False, "msg": str(e)}
+
+        if confirm_token:
+            fn = self._pending_confirmations.pop(confirm_token, None)
+            if not fn:
+                return {"ok": False, "msg": "Confirmation expired. Try again."}
+            try:
+                return fn()
+            except Exception as e:
+                return {"ok": False, "msg": str(e)}
+
+        info = self.get_recycle_bin()
+        items = info.get("items", 0)
+        size_str = info.get("size_str", "0 MB")
+        if items == 0:
+            return _do_empty()  # nothing to lose, run inline
+
+        token = uuid.uuid4().hex[:12]
+        self._pending_confirmations[token] = _do_empty
+        return {
+            "ok": False,
+            "needs_confirm": True,
+            "token": token,
+            "items": items,
+            "size_str": size_str,
+            "msg": f"Permanently delete {items} item(s) ({size_str}) from the Recycle Bin? "
+                   f"This cannot be undone.",
+        }
 
     def delete_to_recycle_bin(self, path: str) -> dict:
         """Send a single file to the Recycle Bin (reversible). Refuses protected
@@ -4669,9 +4730,29 @@ function closeCleanupDialog(){document.getElementById('cleanup-dialog').classLis
 function doCleanup(){
   const paths=[...document.querySelectorAll('#cleanup-body input:checked')].map(c=>c.dataset.path);
   if(!paths.length){showToast('Nothing selected','info');return;}
-  document.getElementById('btn-do-cleanup').disabled=true;
-  document.getElementById('btn-do-cleanup').innerHTML='<div class="spinner"></div> Cleaning…';
-  window.pywebview.api.cleanup_files(paths).then(res=>{closeCleanupDialog();document.getElementById('btn-do-cleanup').disabled=false;document.getElementById('btn-do-cleanup').innerHTML='🗑 <span class="en">Delete Selected</span><span class="ja">選択を削除</span>';const ok=res.results.filter(r=>r.status==='deleted').length;const fail=res.results.filter(r=>r.status==='failed').length;showToast(`Cleaned ${ok} item(s), freed ${res.totalFreedFmt}${fail?' · '+fail+' failed':''}`,fail?'error':'success');});
+  const btn=document.getElementById('btn-do-cleanup');
+  const resetBtn=()=>{btn.disabled=false;btn.innerHTML='🗑 <span class="en">Delete Selected</span><span class="ja">選択を削除</span>';};
+  const runWithToken=(token)=>{
+    btn.disabled=true;btn.innerHTML='<div class="spinner"></div> Cleaning…';
+    window.pywebview.api.cleanup_files(paths,token).then(res=>{
+      closeCleanupDialog();resetBtn();
+      const ok=(res.results||[]).filter(r=>r.status==='deleted').length;
+      const fail=(res.results||[]).filter(r=>r.status==='failed').length;
+      showToast(`Cleaned ${ok} item(s), freed ${res.totalFreedFmt||'0 B'}${fail?' · '+fail+' failed':''}`,fail?'error':'success');
+    });
+  };
+  // First call returns a confirmation token; user must OK the delete count.
+  window.pywebview.api.cleanup_files(paths).then(res=>{
+    if(res && res.needs_confirm){
+      if(!confirm(res.msg)) return;
+      runWithToken(res.token);
+      return;
+    }
+    // Fallback: backend ran inline (shouldn't normally happen for non-empty paths)
+    closeCleanupDialog();resetBtn();
+    const ok=(res.results||[]).filter(r=>r.status==='deleted').length;
+    showToast(`Cleaned ${ok} item(s), freed ${res.totalFreedFmt||'0 B'}`,'success');
+  });
 }
 
 function saveSetting(key,val){
@@ -5705,10 +5786,20 @@ function loadRecycleBin(){
 }
 function emptyRecycleBin(){
   if(!window.pywebview) return;
-  if(!confirm('Empty the Recycle Bin? This cannot be undone.')) return;
+  // First call: backend returns a token + the item count/size for the prompt.
   window.pywebview.api.empty_recycle_bin().then(function(r){
     const msg = document.getElementById('st-rb-msg');
-    if(msg){ msg.style.display=''; msg.textContent = r.msg; msg.style.color = r.ok ? 'var(--success)' : 'var(--error)'; }
+    if(r && r.needs_confirm){
+      if(!confirm(r.msg)) return;
+      window.pywebview.api.empty_recycle_bin(r.token).then(function(r2){
+        if(msg){ msg.style.display=''; msg.textContent = r2.msg;
+                 msg.style.color = r2.ok ? 'var(--success)' : 'var(--error)'; }
+        if(r2.ok) loadRecycleBin();
+      });
+      return;
+    }
+    if(msg){ msg.style.display=''; msg.textContent = r.msg;
+             msg.style.color = r.ok ? 'var(--success)' : 'var(--error)'; }
     if(r.ok) loadRecycleBin();
   });
 }
