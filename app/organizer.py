@@ -1,11 +1,35 @@
 """PC Health Agent — File organizer module. Categorizes and moves files into folders."""
 import os
+import sys
 import shutil
 import json
+import hashlib
 import urllib.request
 from pathlib import Path
 from datetime import datetime
 from scanner import is_protected, fmt_size
+
+
+def _logs_dir() -> Path:
+    """Central app-managed location for per-folder .organize-log.json files."""
+    if getattr(sys, "frozen", False):
+        base = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "PCHealthAgent"
+    else:
+        base = Path(__file__).parent.parent
+    d = base / "logs" / "organizer"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _log_path_for(folder: str) -> str:
+    """Return the central log path for `folder`. Falls back to legacy in-folder
+    file if that exists (so prior sessions remain readable)."""
+    legacy = os.path.join(folder, ".organize-log.json")
+    if os.path.exists(legacy):
+        return legacy
+    key = hashlib.sha1(os.path.abspath(folder).lower().encode("utf-8")).hexdigest()[:16]
+    safe = "".join(c for c in os.path.basename(folder) if c.isalnum() or c in "-_")[:40]
+    return str(_logs_dir() / f"{safe or 'folder'}-{key}.json")
 
 # ── Category definitions ────────────────────────────────────────────────────
 
@@ -202,7 +226,7 @@ def organize_category(folder: str, category: str, file_paths: list) -> dict:
             failed += 1
             errors.append(f"{os.path.basename(fp)}: {str(e)}")
 
-    log_path = os.path.join(folder, ".organize-log.json")
+    log_path = _log_path_for(folder)
     try:
         existing_log = []
         if os.path.exists(log_path):

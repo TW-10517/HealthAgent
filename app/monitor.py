@@ -93,7 +93,8 @@ def _collect_temperature() -> dict:
         if out and out != "na":
             temp_c = float(out)
             if 0 < temp_c < 120:
-                val = {"cpu_temp_c": temp_c, "has_temp": True}
+                val = {"cpu_temp_c": temp_c, "has_temp": True,
+                       "temp_source": "ACPI thermal zone"}
     except Exception:
         pass
     _temp_cache["value"] = val
@@ -159,8 +160,8 @@ def check_alerts(m: dict) -> list:
         sev = "error" if m["cpu_temp_c"] >= CPU_TEMP_CRIT else "warning"
         alerts.append({
             "type": "temp", "severity": sev,
-            "en": f"CPU temperature is {m['cpu_temp_c']}°C",
-            "ja": f"CPU温度が{m['cpu_temp_c']}°Cです",
+            "en": f"ACPI zone temperature is {m['cpu_temp_c']}°C",
+            "ja": f"ACPIゾーン温度が{m['cpu_temp_c']}°Cです",
         })
     return alerts
 

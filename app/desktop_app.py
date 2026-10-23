@@ -678,8 +678,9 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
 
     def get_organize_history(self, folder: str):
         import json as _json
+        import organizer as _org
         folder = os.path.normpath(folder)
-        log_path = os.path.join(folder, ".organize-log.json")
+        log_path = _org._log_path_for(folder)
         try:
             if not os.path.exists(log_path):
                 return {"sessions": []}
