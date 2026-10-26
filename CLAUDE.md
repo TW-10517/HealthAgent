@@ -123,7 +123,7 @@ WebView2 runtime on the target (ships with Win11).
 ```powershell
 python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
   --icon "C:/Users/10517/Documents/Code/PCHealthAgent/app_icon.ico" `
-  --add-data "web;web" `
+  --add-data "<repo>/app/web;web" `
   --collect-all webview --collect-all clr_loader --collect-all pythonnet --collect-all proxy_tools `
   --hidden-import clr --hidden-import bottle --hidden-import pystray._win32 `
   --distpath "<root>/dist" --workpath "<scratchpad>/build" --specpath "<scratchpad>/build" desktop_app.py
