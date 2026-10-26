@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "released": "2026-10-26",
+  "exe_url": "https://gethelix-ten.vercel.app/Helix.exe",
+  "zip_url": "https://gethelix-ten.vercel.app/Helix.zip",
+  "website_url": "https://gethelix-ten.vercel.app",
+  "sha256": "9c41839a0d5c3fbb8da55160982641fb2516b7e9b11e9e27405af73abe280430",
+  "size_bytes": 32058007,
+  "min_supported": "1.0.0",
+  "notes": "Initial public release of Helix. Local-first PC health utility: storage insights, performance monitor with per-core breakdown, startup/boost, privacy sweep, diagnostics, scheduling. Nothing is uploaded."
+}

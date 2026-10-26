@@ -955,7 +955,10 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.5"/><path d="M10 2v2.5M10 15.5V18M2 10h2.5M15.5 10H18M4.2 4.2l1.8 1.8M14 14l1.8 1.8M4.2 15.8l1.8-1.8M14 6l1.8-1.8"/></svg>
         <span><span class="en">Settings</span><span class="ja">設定</span><span class="es">Ajustes</span><span class="fr">Paramètres</span><span class="de">Einstellungen</span><span class="zh">设置</span><span class="hi">सेटिंग्स</span></span>
       </button>
-      <div class="nav-ver" id="nav-ver" style="margin-top:6px">v1.0.0 · Local only</div>
+      <button class="nav-ver" id="nav-ver" style="margin-top:6px;background:transparent;border:0;color:inherit;font:inherit;cursor:pointer;text-align:left;width:100%;padding:4px 2px;display:flex;align-items:center;gap:6px" onclick="checkForUpdate(true)" data-tip="Click to check for Helix updates" data-tip-ja="クリックしてHelixの更新を確認">
+        <span id="nav-ver-text">v1.0.0 · Local only</span>
+        <span id="nav-ver-dot" style="display:none;width:7px;height:7px;border-radius:50%;background:#2DD4C0;box-shadow:0 0 6px #2DD4C0"></span>
+      </button>
     </div>
   </nav>
 
@@ -1740,6 +1743,20 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
               <button class="btn btn-secondary btn-sm" onclick="openErrorLog()"><span class="en">Open error log</span><span class="ja">エラーログを開く</span> <span id="about-errsz" style="color:var(--fg3)"></span></button>
               <button class="btn btn-secondary btn-sm" onclick="window.pywebview.api.generate_battery_report().then(r=>showToast(r&&r.ok?'Battery report saved':'Battery report failed', r&&r.ok?'success':'error'))"><span class="en">Battery report</span><span class="ja">バッテリーレポート</span></button>
               <a class="btn btn-secondary btn-sm" href="https://github.com/TW-10517/HealthAgent" target="_blank" rel="noopener">GitHub</a>
+            </div>
+          </div>
+          <div id="update-row" style="margin-top:12px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <div style="flex:1;min-width:180px">
+                <div style="font-size:13px;font-weight:600;color:var(--fg)"><span class="en">Software updates</span><span class="ja">ソフトウェア更新</span></div>
+                <div id="update-status" style="font-size:12px;color:var(--fg3);margin-top:2px"><span class="en">Click to check the latest release.</span><span class="ja">最新バージョンを確認します。</span></div>
+              </div>
+              <button class="btn btn-secondary btn-sm" id="btn-check-update" onclick="checkForUpdate(true)" data-tip="Check the latest release" data-tip-ja="最新のバージョン情報を取得します"><span class="en">Check for updates</span><span class="ja">更新を確認</span></button>
+              <button class="btn btn-primary btn-sm" id="btn-get-update" style="display:none" onclick="installUpdate()" data-tip="Download the new version and relaunch Helix automatically" data-tip-ja="新バージョンをダウンロードして自動的に再起動します"><span class="en">Install update</span><span class="ja">更新をインストール</span></button>
+            </div>
+            <div id="update-progress-wrap" style="display:none;margin-top:10px">
+              <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div id="update-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#2DD4C0,#8AF0FF);transition:width .25s"></div></div>
+              <div id="update-progress-msg" style="margin-top:6px;font-size:11.5px;color:var(--fg2)">Starting…</div>
             </div>
           </div>
           <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="toggleAboutDetail()"><span class="en">Details</span><span class="ja">詳細</span></button>
@@ -3310,6 +3327,90 @@ function loadSettings(){
 }
 
 function _fmtBytes(n){ if(!n) return ''; if(n<1024) return '('+n+' B)'; if(n<1<<20) return '('+(n/1024).toFixed(1)+' KB)'; return '('+(n/(1<<20)).toFixed(1)+' MB)'; }
+
+/* ─── Update checker ─────────────────────────────────────────────── */
+let _updateInfo=null;
+function _setUpdateUI(info){
+  _updateInfo=info||null;
+  const status=document.getElementById('update-status');
+  const getBtn=document.getElementById('btn-get-update');
+  const checkBtn=document.getElementById('btn-check-update');
+  const navText=document.getElementById('nav-ver-text');
+  const navDot=document.getElementById('nav-ver-dot');
+  if(checkBtn) checkBtn.disabled=false;
+  if(!info||!info.ok){
+    if(status) status.innerHTML='<span class="en">Could not reach update server. Try again when online.</span><span class="ja">更新サーバーに接続できません。</span>';
+    if(getBtn) getBtn.style.display='none';
+    return;
+  }
+  if(info.has_update){
+    if(status) status.innerHTML='<span class="en">New version <strong>v'+info.latest+'</strong> is available. You have v'+info.current+'.</span><span class="ja">新バージョン v'+info.latest+' が利用可能です。現在 v'+info.current+'。</span>'+(info.notes?'<div style="margin-top:6px;font-size:11.5px;color:var(--fg2);line-height:1.45">'+_escHtml(info.notes)+'</div>':'');
+    if(getBtn) getBtn.style.display='';
+    if(navText) navText.textContent='v'+info.current+' · Update available';
+    if(navDot) navDot.style.display='';
+  }else{
+    if(status) status.innerHTML='<span class="en">Up to date (v'+info.current+').</span><span class="ja">最新です (v'+info.current+')。</span>';
+    if(getBtn) getBtn.style.display='none';
+    if(navText) navText.textContent='v'+info.current+' · Up to date';
+    if(navDot) navDot.style.display='none';
+  }
+}
+function _escHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function checkForUpdate(interactive){
+  if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.check_for_update) return;
+  const checkBtn=document.getElementById('btn-check-update');
+  const status=document.getElementById('update-status');
+  if(interactive){
+    if(checkBtn) checkBtn.disabled=true;
+    if(status) status.innerHTML='<span class="en">Checking…</span><span class="ja">確認中…</span>';
+  }
+  window.pywebview.api.check_for_update().then(_setUpdateUI).catch(e=>_setUpdateUI({ok:false,error:String(e)}));
+}
+let _updPollTimer=null;
+function _pollUpdateProgress(){
+  if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.get_update_progress) return;
+  window.pywebview.api.get_update_progress().then(st=>{
+    const bar=document.getElementById('update-progress-bar');
+    const msg=document.getElementById('update-progress-msg');
+    if(bar) bar.style.width=(st.pct||0)+'%';
+    if(msg) msg.textContent=st.msg||st.phase||'…';
+    if(st.phase==='installing'){
+      if(msg) msg.textContent='Restarting Helix with the new version…';
+    } else if(st.phase==='error'){
+      clearInterval(_updPollTimer); _updPollTimer=null;
+      showToast('Update failed: '+(st.msg||'unknown'),'error');
+      const wrap=document.getElementById('update-progress-wrap'); if(wrap) wrap.style.display='none';
+      const getBtn=document.getElementById('btn-get-update'); if(getBtn) getBtn.disabled=false;
+    }
+  });
+}
+function installUpdate(){
+  if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.download_and_install_update) return;
+  if(!_updateInfo||!_updateInfo.ok||!_updateInfo.has_update) return;
+  if(_updateInfo.can_install===false){
+    showToast('Auto-install only works in the packaged build. Please download manually.','warning');
+    return;
+  }
+  const ok=confirm('Install Helix v'+_updateInfo.latest+'?\n\nHelix will download the new version (~32 MB), close itself, and relaunch automatically. Any unsaved work in this session will be lost.');
+  if(!ok) return;
+  const wrap=document.getElementById('update-progress-wrap'); if(wrap) wrap.style.display='';
+  const getBtn=document.getElementById('btn-get-update'); if(getBtn){ getBtn.disabled=true; }
+  const checkBtn=document.getElementById('btn-check-update'); if(checkBtn) checkBtn.disabled=true;
+  if(_updPollTimer) clearInterval(_updPollTimer);
+  _updPollTimer=setInterval(_pollUpdateProgress, 600);
+  window.pywebview.api.download_and_install_update().then(r=>{
+    if(r&&r.ok&&r.will_restart){
+      const msg=document.getElementById('update-progress-msg');
+      if(msg) msg.textContent='Download complete. Restarting Helix…';
+    } else if(r&&!r.ok){
+      clearInterval(_updPollTimer); _updPollTimer=null;
+      showToast('Update failed: '+(r.error||'unknown'),'error');
+      if(getBtn) getBtn.disabled=false;
+      if(checkBtn) checkBtn.disabled=false;
+    }
+  });
+}
+
 function toggleAboutDetail(){
   const box=document.getElementById('about-detail');
   if(!box) return;
@@ -4430,6 +4531,7 @@ window.addEventListener('unhandledrejection', e=>{
 window.addEventListener('pywebviewready',()=>{loadSettings();loadHistory();setTimeout(loadInsights,500);
   setTimeout(startGlobalPoll, 800); setTimeout(_startSidebarPolling, 1200);
   setTimeout(_maybeShowFirstRunPicker, 1800);
+  setTimeout(()=>checkForUpdate(false), 2500);
   setTimeout(_enhanceSelects, 50);
   document.querySelectorAll('.kpi.clickable').forEach(el=>el.addEventListener('click',addRipple));
   const saved=_lsGet('orgFolder');

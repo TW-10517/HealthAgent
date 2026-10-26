@@ -9,4 +9,6 @@ APP_NAME     = "Helix"
 APP_ID       = "PCHealthAgent"
 APP_VERSION  = "1.0.0"
 GITHUB_URL   = "https://github.com/TW-10517/HealthAgent"
+WEBSITE_URL  = "https://gethelix-ten.vercel.app"
+UPDATE_MANIFEST_URL = WEBSITE_URL + "/version.json"
 WINDOW_TITLE = APP_NAME

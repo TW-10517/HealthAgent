@@ -31,7 +31,7 @@ import db
 
 db.migrate_from_txt(str(LOGS / "scan-history.txt"))
 
-from metadata import APP_VERSION, APP_NAME, APP_ID
+from metadata import APP_VERSION, APP_NAME, APP_ID, UPDATE_MANIFEST_URL, WEBSITE_URL
 
 # ── Error log ────────────────────────────────────────────────────────────────
 # A single rolling error.log under LOGS captures uncaught exceptions on both
@@ -558,6 +558,150 @@ class AgentAPI:
     def set_protected_apps(self, defaults_on: bool = True, extras: list = None):
         import protected
         return {"ok": True, "config": protected.set_config(bool(defaults_on), extras or [])}
+
+    # ── Updates ──────────────────────────────────────────────────────────────
+    _update_state = {"phase": "idle", "pct": 0, "msg": "", "tmp_exe": None, "latest": None}
+
+    def check_for_update(self, force: bool = False):
+        """Fetch the version manifest from the public site and compare.
+
+        Non-blocking from the UI's perspective (webview runs API calls on a
+        worker thread). 4s connect+read timeout; failures return ok=false so
+        the UI can quietly fall back to the local version.
+        """
+        import urllib.request, json as _json, ssl
+        def _parse(v: str):
+            try: return tuple(int(x) for x in str(v).strip().lstrip("v").split(".")[:4])
+            except Exception: return (0,)
+        try:
+            req = urllib.request.Request(
+                UPDATE_MANIFEST_URL,
+                headers={"User-Agent": f"{APP_NAME}/{APP_VERSION}"},
+            )
+            ctx = ssl.create_default_context()
+            with urllib.request.urlopen(req, timeout=4, context=ctx) as r:
+                data = _json.loads(r.read().decode("utf-8"))
+            latest = str(data.get("version", "0.0.0"))
+            exe    = str(data.get("exe_url", WEBSITE_URL + "/Helix.exe"))
+            notes  = str(data.get("notes", ""))
+            size   = int(data.get("size_bytes", 0) or 0)
+            has    = _parse(latest) > _parse(APP_VERSION)
+            self._update_state["latest"] = latest
+            return {"ok": True, "current": APP_VERSION, "latest": latest,
+                    "has_update": has, "exe_url": exe, "notes": notes,
+                    "size_bytes": size,
+                    "can_install": bool(getattr(sys, "frozen", False)),
+                    "website_url": data.get("website_url", WEBSITE_URL)}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "current": APP_VERSION}
+
+    def get_update_progress(self):
+        """Polling endpoint for the UI during download/apply."""
+        return dict(self._update_state)
+
+    def download_and_install_update(self):
+        """Download the new Helix.exe and launch an updater that swaps + relaunches.
+
+        Only works when running the frozen build (sys.frozen). Writes to the
+        PCHealthAgent/updates folder, then spawns a detached cmd script that:
+          1. Waits ~2s for this process to exit.
+          2. Replaces the running exe with the downloaded one.
+          3. Launches the new exe.
+          4. Deletes the staged file + the script.
+        Then this process exits.
+        """
+        import urllib.request, ssl, subprocess, time as _time
+        if not getattr(sys, "frozen", False):
+            return {"ok": False, "error": "Updates can only be installed in the packaged build."}
+        st = self._update_state
+        try:
+            info = self.check_for_update(force=True)
+            if not info.get("ok"):
+                st.update({"phase": "error", "msg": info.get("error") or "manifest unreachable"})
+                return {"ok": False, "error": st["msg"]}
+            if not info.get("has_update"):
+                st.update({"phase": "idle", "msg": "already up to date"})
+                return {"ok": False, "error": "already up to date"}
+
+            exe_url = info["exe_url"]
+            cur_exe = Path(sys.executable).resolve()
+            upd_dir = BASE / "updates"
+            upd_dir.mkdir(parents=True, exist_ok=True)
+            # Clean out old stage files
+            for p in upd_dir.glob("Helix-new*.exe"):
+                try: p.unlink()
+                except Exception: pass
+            new_exe = upd_dir / f"Helix-new-{int(_time.time())}.exe"
+
+            st.update({"phase": "downloading", "pct": 0, "msg": "Starting download…"})
+            ctx = ssl.create_default_context()
+            req = urllib.request.Request(exe_url, headers={"User-Agent": f"{APP_NAME}/{APP_VERSION}"})
+            with urllib.request.urlopen(req, timeout=15, context=ctx) as r, open(new_exe, "wb") as out:
+                total = int(r.headers.get("Content-Length") or info.get("size_bytes") or 0)
+                read = 0
+                chunk = 1024 * 128
+                while True:
+                    buf = r.read(chunk)
+                    if not buf: break
+                    out.write(buf)
+                    read += len(buf)
+                    if total:
+                        st["pct"] = int(read * 100 / total)
+                        st["msg"] = f"Downloading… {read // (1024*1024)} / {total // (1024*1024)} MB"
+                    else:
+                        st["msg"] = f"Downloading… {read // (1024*1024)} MB"
+            if new_exe.stat().st_size < 1_000_000:
+                raise RuntimeError(f"downloaded file too small ({new_exe.stat().st_size} bytes)")
+
+            st.update({"phase": "ready", "pct": 100, "msg": "Download complete. Installing…", "tmp_exe": str(new_exe)})
+
+            # Build the updater .cmd. We write to a .cmd (not .bat) and use quoted paths.
+            cmd_path = upd_dir / "apply_update.cmd"
+            script = (
+                '@echo off\r\n'
+                'setlocal\r\n'
+                'rem Wait a few seconds for Helix to exit cleanly.\r\n'
+                'ping 127.0.0.1 -n 3 >nul\r\n'
+                ':try_move\r\n'
+                f'move /Y "{new_exe}" "{cur_exe}" >nul 2>&1\r\n'
+                'if errorlevel 1 (\r\n'
+                '  ping 127.0.0.1 -n 2 >nul\r\n'
+                '  goto try_move\r\n'
+                ')\r\n'
+                f'start "" "{cur_exe}"\r\n'
+                '(goto) 2>nul & del "%~f0"\r\n'
+            )
+            cmd_path.write_text(script, encoding="ascii", newline="")
+
+            # Detach from this process; CREATE_NEW_PROCESS_GROUP + DETACHED_PROCESS
+            DETACHED = 0x00000008
+            NEW_GROUP = 0x00000200
+            subprocess.Popen(
+                ["cmd.exe", "/c", str(cmd_path)],
+                creationflags=DETACHED | NEW_GROUP,
+                close_fds=True, cwd=str(upd_dir),
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            st.update({"phase": "installing", "msg": "Restarting Helix…"})
+
+            # Give the UI a beat to acknowledge, then exit so the swap can happen.
+            def _bye():
+                _time.sleep(1.2)
+                try:
+                    import webview as _wv
+                    for w in _wv.windows:
+                        try: w.destroy()
+                        except Exception: pass
+                except Exception: pass
+                os._exit(0)
+            threading.Thread(target=_bye, daemon=True).start()
+            return {"ok": True, "will_restart": True}
+        except Exception as e:
+            st.update({"phase": "error", "msg": str(e)})
+            try:
+                _logging.getLogger("helix").exception("update failed")
+            except Exception: pass
+            return {"ok": False, "error": str(e)}
 
     # ── System info ──────────────────────────────────────────────────────────
     def get_system_info(self):
