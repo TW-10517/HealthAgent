@@ -13,64 +13,183 @@ LEVEL_LABEL = {
 # Logs to scan
 TARGET_LOGS = ["Application", "System"]
 
-# Known error patterns with explanations
+# Known error patterns with plain-language explanations.
+# Keys matched case-insensitive as substrings against the event source.
 KNOWN_PATTERNS = {
     "Application Error": {
-        "en": "An application crashed unexpectedly. Check for updates or reinstall.",
-        "ja": "アプリケーションが予期せずクラッシュしました。更新や再インストールを確認してください。",
+        "en": "An app crashed. If it keeps happening, update or reinstall that app.",
+        "ja": "アプリがクラッシュしました。頻発する場合は更新または再インストール。",
     },
     "Application Hang": {
-        "en": "An application stopped responding. May indicate insufficient RAM or a software bug.",
-        "ja": "アプリケーションが応答しなくなりました。メモリ不足またはソフトウェアのバグの可能性。",
+        "en": "An app froze and stopped responding. Often caused by low RAM or a software bug.",
+        "ja": "アプリが応答しなくなりました。メモリ不足かバグの可能性。",
     },
     ".NET Runtime": {
-        "en": "A .NET application encountered an unhandled exception.",
-        "ja": ".NETアプリケーションで未処理の例外が発生しました。",
+        "en": "A .NET-based app ran into an internal error. Usually safe — the app may have reopened.",
+        "ja": ".NETアプリで内部エラー。多くの場合、アプリが自動復帰します。",
     },
     "Windows Error Reporting": {
-        "en": "Windows captured a crash dump for analysis.",
-        "ja": "Windowsがクラッシュダンプを記録しました。",
+        "en": "Windows saved a crash report to help diagnose a problem. No action needed from you.",
+        "ja": "Windowsがクラッシュレポートを保存しました。特に対応は不要です。",
     },
     "Kernel-Power": {
-        "en": "Unexpected shutdown or power loss. May indicate hardware, driver, or overheating issue.",
-        "ja": "予期しないシャットダウンまたは電源喪失。ハードウェア、ドライバー、過熱の可能性。",
+        "en": "Your PC lost power or shut down unexpectedly (not a clean shutdown).",
+        "ja": "PCが突然電源喪失または強制シャットダウンしました。",
     },
     "BugCheck": {
-        "en": "Blue screen (BSOD) occurred. Check drivers and hardware.",
-        "ja": "ブルースクリーン(BSOD)が発生しました。ドライバーとハードウェアを確認。",
+        "en": "A blue screen (BSOD) happened. Likely a driver or hardware issue.",
+        "ja": "ブルースクリーン(BSOD)が発生。ドライバーかハードウェアの問題。",
     },
     "Disk": {
-        "en": "A disk error was detected. Back up data and check disk health.",
-        "ja": "ディスクエラーが検出されました。データをバックアップしディスクの状態を確認。",
+        "en": "The disk reported an error. Back up important files and check drive health.",
+        "ja": "ディスクエラー。重要なファイルをバックアップし健康状態を確認。",
     },
     "Ntfs": {
-        "en": "NTFS file system error. Run chkdsk to check for corruption.",
-        "ja": "NTFSファイルシステムエラー。chkdskで破損を確認してください。",
+        "en": "A file-system problem was detected. Running chkdsk can repair it.",
+        "ja": "ファイルシステムの問題。chkdskで修復可能。",
     },
     "WHEA-Logger": {
-        "en": "Hardware error logged. Possible RAM, CPU, or storage issue.",
-        "ja": "ハードウェアエラーが記録されました。RAM、CPU、ストレージの問題の可能性。",
+        "en": "The CPU or memory reported a hardware fault. Watch for a pattern.",
+        "ja": "CPUやメモリのハードウェア障害が記録されました。頻発に注意。",
     },
     "Service Control Manager": {
-        "en": "A Windows service failed to start or crashed.",
-        "ja": "Windowsサービスの起動失敗またはクラッシュ。",
+        "en": "A Windows background service failed to start or stopped. Usually recovers on its own.",
+        "ja": "Windowsサービスの起動失敗。多くの場合は自動復旧します。",
     },
     "EventLog": {
-        "en": "The event log service itself encountered an issue.",
-        "ja": "イベントログサービス自体に問題が発生しました。",
+        "en": "The event-log service itself had a hiccup. Rarely a real problem.",
+        "ja": "イベントログサービス自体に問題。通常は問題ありません。",
     },
     "volmgr": {
-        "en": "Volume manager error — possible crash dump failure.",
-        "ja": "ボリュームマネージャーエラー — クラッシュダンプの失敗の可能性。",
+        "en": "The disk-volume manager had trouble writing crash data. Not urgent.",
+        "ja": "ボリュームマネージャーの問題。緊急ではありません。",
+    },
+    "DistributedCOM": {
+        "en": "Two Windows components couldn't talk to each other. Usually harmless and self-recovers.",
+        "ja": "Windows内部コンポーネントの通信エラー。通常は自動復旧。",
+    },
+    "DCOM": {
+        "en": "Windows internal component couldn't start. Usually harmless.",
+        "ja": "Windows内部コンポーネントの起動失敗。通常は無害。",
+    },
+    "Perflib": {
+        "en": "A performance-counter plugin failed to load. Doesn't affect how your PC works.",
+        "ja": "パフォーマンスカウンタの読み込み失敗。動作には影響しません。",
+    },
+    "SideBySide": {
+        "en": "An app is missing a shared Windows component. Reinstalling that app usually fixes it.",
+        "ja": "アプリに必要なWindowsコンポーネントが不足。再インストールで解決。",
+    },
+    "WLAN": {
+        "en": "A Wi-Fi connection event (connected, disconnected, or lost signal).",
+        "ja": "Wi-Fi接続のイベント（接続・切断・信号喪失）。",
+    },
+    "Dhcp": {
+        "en": "The PC had trouble getting an IP address from your router.",
+        "ja": "ルーターからのIPアドレス取得に問題。",
+    },
+    "TCPIP": {
+        "en": "A networking issue — a dropped connection or routing problem.",
+        "ja": "ネットワークの問題 — 接続切断またはルーティングの問題。",
+    },
+    "StorPort": {
+        "en": "The storage driver reported a delay or timeout. If frequent, your drive may be failing.",
+        "ja": "ストレージドライバの遅延。頻発するならドライブ劣化の可能性。",
+    },
+    "disk": {
+        "en": "The disk reported a problem. Back up important files.",
+        "ja": "ディスクで問題。重要なファイルをバックアップ。",
+    },
+    "SearchIndexer": {
+        "en": "Windows Search had trouble indexing a file. Search still works.",
+        "ja": "Windowsサーチのインデックス処理に問題。検索機能は使えます。",
+    },
+    "WinInit": {
+        "en": "Startup component reported an issue. Only matters if your PC won't boot.",
+        "ja": "起動時のコンポーネントの問題。起動に支障がなければ無視可能。",
+    },
+    "Wininit": {
+        "en": "Startup component reported an issue. Only matters if your PC won't boot.",
+        "ja": "起動時のコンポーネントの問題。起動に支障がなければ無視可能。",
+    },
+    "WudfHost": {
+        "en": "A device driver's user-mode framework hiccuped. Usually self-recovers.",
+        "ja": "デバイスドライバの一部でエラー。通常は自動復旧。",
+    },
+    "Microsoft-Windows-Kernel": {
+        "en": "A low-level Windows component logged an issue. Watch for a pattern.",
+        "ja": "Windowsカーネルのイベント。頻発に注意。",
+    },
+    "VSS": {
+        "en": "Backup/restore (Volume Shadow Copy) had trouble. Try the operation again.",
+        "ja": "バックアップ(ボリュームシャドウコピー)に問題。再試行してください。",
+    },
+    "Schannel": {
+        "en": "An encrypted connection (HTTPS/TLS) failed. Often a certificate or time-sync issue.",
+        "ja": "暗号化接続(TLS)の失敗。証明書か時刻同期の問題。",
+    },
+    "Microsoft-Windows-Time-Service": {
+        "en": "The PC's clock couldn't sync with the internet time server.",
+        "ja": "PCの時刻をインターネットと同期できません。",
+    },
+    "Winlogon": {
+        "en": "A sign-in or sign-out event ran into trouble.",
+        "ja": "サインインまたはサインアウトで問題発生。",
+    },
+    "User Profile Service": {
+        "en": "Loading or saving your user profile hit a snag.",
+        "ja": "ユーザープロファイルの読み書きに問題。",
+    },
+    "SecurityCenter": {
+        "en": "Windows Security Center logged a change in security settings.",
+        "ja": "Windowsセキュリティセンターで設定変更が記録されました。",
+    },
+    "Microsoft-Windows-WindowsUpdateClient": {
+        "en": "Windows Update event — installation, download, or error.",
+        "ja": "Windows Update のイベント（インストール・ダウンロード・エラー）。",
     },
 }
 
 
 def _explain_source(source: str) -> dict | None:
+    """Return a plain-language explanation. Always returns something — if no
+    exact pattern matches, falls back to a severity/source heuristic so the
+    user never sees a raw unexplained row."""
+    s_low = (source or "").lower()
     for pattern, explanation in KNOWN_PATTERNS.items():
-        if pattern.lower() in source.lower():
+        if pattern.lower() in s_low:
             return explanation
-    return None
+    # ── Heuristic fallbacks by substring ─────────────────────────────────
+    if "driver" in s_low:
+        return {"en": "A device driver reported a problem. Only act if a device isn't working.",
+                "ja": "デバイスドライバの問題。実際に機器が動かない場合のみ対応。"}
+    if "service" in s_low:
+        return {"en": "A Windows background service had a problem. Usually recovers on its own.",
+                "ja": "Windowsバックグラウンドサービスの問題。通常は自動復旧。"}
+    if "network" in s_low or "net" in s_low or "wlan" in s_low or "dhcp" in s_low:
+        return {"en": "A networking event — connection, disconnect, or routing hiccup.",
+                "ja": "ネットワーク関連のイベント。"}
+    if "security" in s_low or "auth" in s_low:
+        return {"en": "A security or sign-in event was recorded. Not necessarily an attack.",
+                "ja": "セキュリティまたはサインインのイベント。攻撃とは限りません。"}
+    if "update" in s_low:
+        return {"en": "Windows Update activity was logged.",
+                "ja": "Windows Update の活動が記録されました。"}
+    if "install" in s_low or "setup" in s_low or "msi" in s_low:
+        return {"en": "A software install or uninstall event.",
+                "ja": "ソフトウェアのインストール/アンインストールのイベント。"}
+    if "power" in s_low or "battery" in s_low:
+        return {"en": "A power or battery event — sleep, wake, or power loss.",
+                "ja": "電源またはバッテリーのイベント（スリープ・復帰・電源喪失）。"}
+    if "kernel" in s_low:
+        return {"en": "A low-level Windows event. Only concerning if it repeats.",
+                "ja": "Windowsカーネルのイベント。頻発する場合のみ注意。"}
+    # Generic fallback — strip provider prefixes for readability
+    short = source.replace("Microsoft-Windows-", "").replace("-", " ")
+    return {
+        "en": f"System component '{short}' logged an event. Expand for the raw message.",
+        "ja": f"システムコンポーネント「{short}」のイベント。詳細を展開してください。",
+    }
 
 
 # ── Query events ────────────────────────────────────────────────────────────

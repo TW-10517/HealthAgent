@@ -69,12 +69,16 @@ class WNDCLASSW(ctypes.Structure):
 
 wt.WNDCLASSW = WNDCLASSW
 
-# ── Wheel geometry ─────────────────────────────────────────────────────────
-WHEEL_SIZE = 150   # fixed window size (square); transparent areas collapse visually
-CENTER_R   = 32    # center button radius
-INNER_R    = 38    # inner edge of segment ring (gap between button and segments)
-OUTER_R    = 72    # outer edge of segment ring
-SEG_GAP    = 5     # degrees of dark gap between each segment
+# ── Launcher geometry (dock-tile layout) ───────────────────────────────────
+WHEEL_SIZE = 200   # fixed window size (square); transparent areas collapse visually
+CENTER_R   = 30    # center button radius
+TILE_R     = 64    # distance from center to each tile center (ring radius)
+TILE_SIZE  = 20    # tile radius (idle); minimal flat tiles
+TILE_HOVER = 23    # tile radius (hover) — subtle pop, not drastic
+# Legacy aliases kept so other code (hit-test fallbacks, UI pills) keeps working.
+INNER_R    = TILE_R - TILE_SIZE
+OUTER_R    = TILE_R + TILE_SIZE
+SEG_GAP    = 0
 
 ANIM_STEPS     = 10
 TIMER_ANIM     = 1
@@ -122,96 +126,80 @@ def _render_frame(anim_t: float, hover_idx: int) -> bytes:
     from PIL import Image, ImageDraw, ImageFilter
 
     S  = 2                    # supersampling scale
-    W  = WHEEL_SIZE * S       # canvas at 2× (300×300)
+    W  = WHEEL_SIZE * S       # canvas at 2× (400×400)
     img  = Image.new("RGBA", (W, W), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     cx = cy = W // 2
 
     # Scaled geometry
     c_r   = CENTER_R * S
-    in_r  = INNER_R  * S
-    ou_r  = OUTER_R  * S
+    ring_r = TILE_R * S
+    tile_r_idle  = TILE_SIZE  * S
+    tile_r_hover = TILE_HOVER * S
 
     t      = max(0.0, min(1.0, anim_t))
-    outer  = in_r + int((ou_r - in_r) * t)
-    seg_a  = int(255 * min(t * 1.8, 1.0))
+    # Keep old vars for any legacy code paths below.
+    in_r  = INNER_R * S
+    ou_r  = OUTER_R * S
+    outer = in_r + int((ou_r - in_r) * t)
+    seg_a = int(255 * min(t * 1.8, 1.0))
 
     if t > 0.02:
-        # ── Segments ──────────────────────────────────────────────────────
+        # ── Minimal flat tiles ────────────────────────────────────────────
+        # One small flat accent-colored circle per action. No hover label —
+        # icons alone identify the action, and the hover state is a bright
+        # ring + slight scale-up. No floating text that could cover a tile.
         for i, (sid, angle_c, accent, icon_fn, label) in enumerate(SEGMENTS):
-            start = angle_c - 30 + SEG_GAP / 2
-            end   = angle_c + 30 - SEG_GAP / 2
+            r, g, b = accent
             is_hover = (i == hover_idx)
+
+            rad = math.radians(angle_c)
+            ring_t = ring_r * t
+            tx = cx + ring_t * math.cos(rad)
+            ty = cy + ring_t * math.sin(rad)
+            tr = tile_r_hover if is_hover else tile_r_idle
+
             if is_hover:
-                # Brighter fill for hovered
-                r, g, b = accent
-                fill = (min(r + 40, 255), min(g + 40, 255), min(b + 40, 255), seg_a)
+                fr, fg, fb = (min(r + 30, 255), min(g + 30, 255), min(b + 30, 255))
             else:
-                fill = (18, 28, 46, seg_a)
-            bbox = [cx - outer, cy - outer, cx + outer, cy + outer]
-            draw.pieslice(bbox, start=start, end=end, fill=fill)
+                fr, fg, fb = r, g, b
+            body_a = int(seg_a * (0.98 if is_hover else 0.88))
+            draw.ellipse([tx - tr, ty - tr, tx + tr, ty + tr],
+                         fill=(fr, fg, fb, body_a))
 
-        # Thin inner border ring on segments
-        border_r = outer - 2
-        draw.ellipse([cx - border_r, cy - border_r, cx + border_r, cy + border_r],
-                     outline=(45, 65, 90, seg_a), width=2)
+            # Hover: bright white ring hugging the tile edge — clear, strong
+            # feedback that doesn't rely on text.
+            if is_hover:
+                draw.ellipse([tx - tr, ty - tr, tx + tr, ty + tr],
+                             outline=(255, 255, 255, int(seg_a * 0.95)),
+                             width=max(2, S))
+            else:
+                draw.ellipse([tx - tr, ty - tr, tx + tr, ty + tr],
+                             outline=(255, 255, 255, int(seg_a * 0.28)),
+                             width=max(1, S // 2))
 
-        # Punch center hole
-        hole_r = in_r + 2
-        draw.ellipse([cx - hole_r, cy - hole_r, cx + hole_r, cy + hole_r],
-                     fill=(0, 0, 0, 0))
+            # Icon — white, slightly larger when hovered.
+            icon_t = max(0.0, (t - 0.3) * 1.5)
+            icon_a = int(255 * min(icon_t, 1.0))
+            if icon_a > 0:
+                ico_scale = S + (1 if is_hover else 0)
+                _draw_icon(draw, icon_fn, int(tx), int(ty),
+                           (255, 255, 255, icon_a), scale=ico_scale)
 
-        # ── Icons + labels ─────────────────────────────────────────────────
-        icon_t = max(0.0, (t - 0.4) * 1.7)
-        icon_a = int(255 * min(icon_t, 1.0))
-        if icon_a > 0:
-            fnt_label = _get_font(16)    # 16px at 2× → ~8px after downsample
-            mid_r = (in_r + outer) / 2
-
-            for i, (sid, angle_c, accent, icon_fn, label) in enumerate(SEGMENTS):
-                is_hover = (i == hover_idx)
-                ico_col = (255, 255, 255, icon_a) if is_hover else (*accent, icon_a)
-                rad = math.radians(angle_c)
-                ix  = cx + mid_r * math.cos(rad)
-                iy  = cy + mid_r * math.sin(rad)
-                _draw_icon(draw, icon_fn, int(ix), int(iy), ico_col, scale=S)
-                if is_hover and icon_a > 80:
-                    try:
-                        bb = draw.textbbox((0, 0), label, font=fnt_label)
-                        tw, th = bb[2] - bb[0], bb[3] - bb[1]
-                    except Exception:
-                        tw, th = len(label) * 10, 16
-                    lx = max(4, min(int(ix) - tw // 2, W - tw - 4))
-                    ly = max(4, min(int(iy) + 16, W - th - 4))
-                    # Drop shadow for label
-                    draw.text((lx + 1, ly + 1), label,
-                              fill=(0, 0, 0, icon_a // 2), font=fnt_label)
-                    draw.text((lx, ly), label,
-                              fill=(255, 255, 255, icon_a), font=fnt_label)
-
-    # ── Center button — clean solid button with subtle depth ─────────────
-    # Drop shadow (soft offset ellipse, fully transparent at edges)
+    # ── Center button — Helix "Orbit Pulse" mark (matches app_icon.ico) ───
+    # Dark navy tile with teal rim, orbit-pulse mark painted on top.
     draw.ellipse(
-        [cx - c_r + 2, cy - c_r + 6, cx + c_r + 2, cy + c_r + 6],
-        fill=(0, 0, 0, 50),
+        [cx - c_r + 2, cy - c_r + 5, cx + c_r + 2, cy + c_r + 5],
+        fill=(0, 0, 0, 55),
     )
-    # Outer border ring (brand teal)
     draw.ellipse(
         [cx - c_r, cy - c_r, cx + c_r, cy + c_r],
-        fill=(45, 212, 192, 255),
+        fill=(14, 20, 32, 255),  # dark navy base (matches app_icon.ico tile)
     )
-    # Button face — dark navy tile, matching the app's "Orbit Pulse" logo
     draw.ellipse(
-        [cx - c_r + 4, cy - c_r + 4, cx + c_r - 4, cy + c_r - 4],
-        fill=(13, 20, 34, 255),
+        [cx - c_r + 1, cy - c_r + 1, cx + c_r - 1, cy + c_r - 1],
+        outline=(45, 212, 192, 180), width=max(1, S // 2),
     )
-    # Single subtle highlight arc at top-left (low opacity, narrow)
-    draw.arc(
-        [cx - c_r + 6, cy - c_r + 6, cx + c_r - 6, cy + c_r - 6],
-        start=210, end=310, fill=(255, 255, 255, 40), width=4,
-    )
-
-    # Orbit Pulse mark (gauge arc + heartbeat pulse + end dot), scaled to button
     _draw_pulse_mark(draw, cx, cy, c_r)
 
     # Downsample 2× → final size for smooth anti-aliasing
@@ -224,36 +212,36 @@ def _render_frame(anim_t: float, hover_idx: int) -> bytes:
 
 
 def _draw_pulse_mark(draw, cx: int, cy: int, c_r: int):
-    """Orbit Pulse mark — teal gauge arc + cyan heartbeat pulse + white end dot.
-    Matches the SVG logo in desktop_app.py (viewBox 0 0 24 24)."""
-    # Fit the 24x24 logo inside the button face (leave ~3px padding).
-    r = max(6, c_r - 6)
-    # Gauge arc: 220°, open at the top (matches SVG path M5.9 17.1 A 1 1 … 18.1 17.1).
+    """Helix "Orbit Pulse" mark — teal gauge arc + cyan heartbeat line + white
+    end dot. This is the actual Helix brand mark (matches app_icon.ico and the
+    `_create_shield_icon` tile)."""
+    r = max(6, c_r - 5)
+    # Teal gauge arc — ~260° open at the top.
     draw.arc(
         [cx - r, cy - r, cx + r, cy + r],
         start=140, end=400,
-        fill=(45, 212, 192, 255),
+        fill=(45, 220, 200, 255),
         width=max(2, r // 4),
     )
-    # Heartbeat pulse (SVG: M6 12 H9.3 L10.8 8.8 L12.8 15.2 L14.2 12 H16.7).
-    k = r / 10.0  # SVG units -> px scale (radius ≈ 10 in SVG)
+    # Heartbeat pulse — flat line with a dip then a peak.
     pts = [
-        (cx + (6   - 12) * k, cy + (12  - 12) * k),
-        (cx + (9.3 - 12) * k, cy + (12  - 12) * k),
-        (cx + (10.8- 12) * k, cy + (8.8 - 12) * k),
-        (cx + (12.8- 12) * k, cy + (15.2- 12) * k),
-        (cx + (14.2- 12) * k, cy + (12  - 12) * k),
-        (cx + (16.7- 12) * k, cy + (12  - 12) * k),
+        (cx - r * 0.60, cy),
+        (cx - r * 0.26, cy),
+        (cx - r * 0.08, cy - r * 0.42),
+        (cx + r * 0.12, cy + r * 0.48),
+        (cx + r * 0.30, cy),
+        (cx + r * 0.60, cy),
     ]
     pw = max(2, int(r // 5))
     for i in range(len(pts) - 1):
-        draw.line([pts[i], pts[i+1]], fill=(138, 240, 255, 255), width=pw)
-    # End dot (SVG cx16.9 cy12 r1.35).
+        draw.line([pts[i], pts[i + 1]], fill=(130, 240, 255, 255), width=pw)
+    # White end dot — sits at the right end of the pulse line.
     dot_r = max(2, int(r * 0.14))
-    dcx = int(cx + (16.9 - 12) * k)
-    dcy = int(cy + (12   - 12) * k)
-    draw.ellipse([dcx - dot_r, dcy - dot_r, dcx + dot_r, dcy + dot_r],
-                 fill=(255, 255, 255, 255))
+    draw.ellipse(
+        [cx + r * 0.60 - dot_r, cy - dot_r,
+         cx + r * 0.60 + dot_r, cy + dot_r],
+        fill=(255, 255, 255, 255),
+    )
 
 
 def _draw_icon(draw, icon_fn: str, cx: int, cy: int, color: tuple, scale: int = 1):
@@ -283,8 +271,15 @@ def _draw_icon(draw, icon_fn: str, cx: int, cy: int, color: tuple, scale: int = 
         draw.line([(cx,       iy + 3*s), (cx + 5*s, iy - 2*s)], fill=color, width=2*s)
 
     elif icon_fn == "icon_mon":
-        for bx, bh in [(-5, 3), (-1, 6), (3, 4)]:
-            draw.rectangle([cx + bx*s, iy + 5*s - bh*s, cx + bx*s + 2*s, iy + 5*s], fill=color)
+        # Minimal bar chart — three vertical bars rising left→right. Matches
+        # the Performance / Insights iconography used inside the main app.
+        base_y = iy + 5*s
+        for bx, bh in [(-5, 4), (-1, 7), (3, 5)]:
+            draw.rounded_rectangle(
+                [cx + bx*s, base_y - bh*s, cx + bx*s + 2*s, base_y],
+                radius=max(1, s // 2),
+                fill=color,
+            )
 
     elif icon_fn == "icon_exit":
         draw.line([(cx - 5*s, iy - 5*s), (cx + 5*s, iy + 5*s)], fill=color, width=2*s)
@@ -487,7 +482,7 @@ class FloatingLauncher:
 
         self._hwnd = user32.CreateWindowExW(
             WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
-            self.CLASS_NAME, "PCHealth Launcher",
+            self.CLASS_NAME, "Helix Launcher",
             WS_POPUP,
             sx, sy, WHEEL_SIZE, WHEEL_SIZE,
             None, None, hinstance, None,
@@ -554,14 +549,19 @@ class FloatingLauncher:
         if dist <= CENTER_R:
             return "center"
 
-        if self._expanded and self._anim_progress > 0.4:
-            outer = INNER_R + (OUTER_R - INNER_R) * self._anim_progress
-            if INNER_R < dist <= outer:
-                angle = math.degrees(math.atan2(y - cy, x - cx))
-                for i, (sid, angle_c, *_) in enumerate(SEGMENTS):
-                    diff = ((angle - angle_c + 180) % 360) - 180
-                    if abs(diff) <= 30 - SEG_GAP / 2:
-                        return i
+        # Tile hit test: each action is a round tile at TILE_R from center;
+        # tiles are animated outward from the center as _anim_progress grows.
+        if self._expanded and self._anim_progress > 0.3:
+            ring = TILE_R * self._anim_progress
+            # Generous hit radius so the pointer snaps to the nearest tile even
+            # if it's slightly off — matches the visible hover feedback.
+            hit_r = TILE_HOVER + 4
+            for i, (sid, angle_c, *_) in enumerate(SEGMENTS):
+                rad = math.radians(angle_c)
+                tx = cx + ring * math.cos(rad)
+                ty = cy + ring * math.sin(rad)
+                if (x - tx) ** 2 + (y - ty) ** 2 <= hit_r ** 2:
+                    return i
         return None
 
     # ── Animation & expand/collapse ────────────────────────────────────────
@@ -748,7 +748,11 @@ def acquire_single_instance():
 
 def bring_existing_to_front():
     try:
-        hwnd = user32.FindWindowW(None, "PC Health Agent")
+        try:
+            from metadata import APP_NAME as _AN
+        except Exception:
+            _AN = "Helix"
+        hwnd = user32.FindWindowW(None, _AN)
         if hwnd:
             user32.ShowWindow(hwnd, SW_RESTORE)
             user32.SetForegroundWindow(hwnd)

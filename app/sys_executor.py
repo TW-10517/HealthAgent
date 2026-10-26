@@ -540,7 +540,11 @@ def get_network_connections() -> dict:
         if proto != "TCP":
             continue
         local, remote, state, pid_str = parts[1], parts[2], parts[3], parts[4]
-        if state not in ("ESTABLISHED", "LISTENING"):
+        # ESTABLISHED only — LISTENING sockets are internal services and clutter the UI.
+        if state != "ESTABLISHED":
+            continue
+        # Hide loopback (127.0.0.1 ↔ 127.0.0.1): internal IPC, meaningless to a user.
+        if local.startswith("127.") and remote.startswith("127."):
             continue
         try:
             pid = int(pid_str)
@@ -550,6 +554,11 @@ def get_network_connections() -> dict:
         if key in seen:
             continue
         seen.add(key)
+        try:
+            rport = int(remote.rsplit(":", 1)[-1])
+        except (ValueError, IndexError):
+            rport = 0
+        kind = _PORT_LABELS.get(rport, "")
         conns.append({
             "proto":   proto,
             "local":   local,
@@ -557,9 +566,60 @@ def get_network_connections() -> dict:
             "state":   state,
             "pid":     pid,
             "process": pid_map.get(pid, "?"),
+            "kind_en": kind or f"TCP port {rport}",
+            "kind_ja": _PORT_LABELS_JA.get(rport, kind or f"TCPポート {rport}"),
         })
 
     return {"connections": conns[:50]}
+
+
+_PORT_LABELS = {
+    80:   "Web (HTTP)",
+    443:  "Secure web (HTTPS)",
+    22:   "SSH",
+    21:   "FTP",
+    25:   "Email (SMTP)",
+    465:  "Email (SMTP, encrypted)",
+    587:  "Email (SMTP submission)",
+    110:  "Email (POP3)",
+    995:  "Email (POP3, encrypted)",
+    143:  "Email (IMAP)",
+    993:  "Email (IMAP, encrypted)",
+    53:   "DNS lookup",
+    3389: "Remote Desktop",
+    5900: "VNC",
+    3306: "MySQL database",
+    5432: "PostgreSQL database",
+    27017:"MongoDB",
+    1433: "SQL Server",
+    6379: "Redis",
+    8080: "Web (HTTP alt)",
+    8443: "Secure web (HTTPS alt)",
+}
+
+_PORT_LABELS_JA = {
+    80:   "Web (HTTP)",
+    443:  "暗号化Web (HTTPS)",
+    22:   "SSH",
+    21:   "FTP",
+    25:   "メール (SMTP)",
+    465:  "メール (SMTP 暗号化)",
+    587:  "メール (SMTP 送信)",
+    110:  "メール (POP3)",
+    995:  "メール (POP3 暗号化)",
+    143:  "メール (IMAP)",
+    993:  "メール (IMAP 暗号化)",
+    53:   "DNS",
+    3389: "リモートデスクトップ",
+    5900: "VNC",
+    3306: "MySQL",
+    5432: "PostgreSQL",
+    27017:"MongoDB",
+    1433: "SQL Server",
+    6379: "Redis",
+    8080: "Web (HTTP 代替)",
+    8443: "暗号化Web (HTTPS 代替)",
+}
 
 
 _SENSITIVE_NAME_FRAGMENTS = {
@@ -573,8 +633,24 @@ _SENSITIVE_EXTS = {
 }
 
 
+_SENSITIVE_NOISE_FRAGMENTS = (
+    "\\appdata\\", "\\cache\\", "\\caches\\", "\\code cache\\",
+    "\\gpucache\\", "\\service worker\\", "\\indexeddb\\",
+    "\\ebwebview\\", "\\webcache\\", "\\localstate\\",
+    "\\node_modules\\", "\\.git\\", "\\.vscode\\",
+    "\\microsoft\\windows\\", "\\packagecache\\", "\\onedrive\\cache\\",
+)
+
+
+def _is_sensitive_noise(path: str) -> bool:
+    p = path.lower() + "\\"
+    return any(frag in p for frag in _SENSITIVE_NOISE_FRAGMENTS)
+
+
 def get_sensitive_files() -> dict:
-    """Find potentially sensitive files in user space (detection only — read-only)."""
+    """Find potentially sensitive files in user space (detection only — read-only).
+    Skips browser caches and system subtrees so results aren't flooded with noise
+    like 'Trust Tokens' from Edge/Kindle webviews."""
     results: list[dict] = []
     stop_flag = threading.Event()
     roots = [_HOME]
@@ -587,11 +663,12 @@ def get_sensitive_files() -> dict:
             for dirpath, dirs, files in os.walk(root, topdown=True):
                 if stop_flag.is_set():
                     break
-                if _protected(dirpath):
+                if _protected(dirpath) or _is_sensitive_noise(dirpath):
                     dirs.clear()
                     continue
                 dirs[:] = [d for d in dirs if not d.startswith('.') and
-                           not _protected(os.path.join(dirpath, d))]
+                           not _protected(os.path.join(dirpath, d)) and
+                           not _is_sensitive_noise(os.path.join(dirpath, d))]
                 for fname in files:
                     fl    = fname.lower()
                     ext   = os.path.splitext(fl)[1]

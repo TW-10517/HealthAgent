@@ -14,7 +14,10 @@ The repo/package id remains `PCHealthAgent`.
 ```
 PCHealthAgent/
 ├── app/
-│   ├── desktop_app.py    # Main app: AgentAPI class + embedded SPA (~6000 lines)
+│   ├── desktop_app.py    # Main app: AgentAPI class + SPA loader (~2800 lines)
+│   ├── web/
+│   │   └── index.html    # Full SPA: HTML + inline <style> + inline <script> (~4300 lines)
+│   ├── metadata.py       # Single source of truth: APP_NAME, APP_ID, APP_VERSION, GITHUB_URL
 │   ├── assistant.py      # NL assistant engine: intent registry + Ollama fallback
 │   ├── sys_executor.py   # Read-only system query engine (files, processes, network, sysinfo)
 │   ├── action_planner.py # Multi-step chat: split_steps(), build_plan(), is_multi_step()
@@ -29,7 +32,12 @@ PCHealthAgent/
 │   ├── monitor.py        # Real-time system monitor (CPU/RAM/Disk/Battery/Temp)
 │   ├── event_analyzer.py # Windows Event Log analyzer (Get-WinEvent queries)
 │   ├── troubleshooter.py # Rule-based diagnostics engine with safe actions
+│   ├── thresholds.py     # Shared numeric constants (CPU/RAM/temp warn+crit)
+│   ├── protected.py      # 3-layer protected-apps logic (critical floor + IT defaults + user extras)
+│   ├── run_hidden.py     # subprocess helper: CREATE_NO_WINDOW for console tools
+│   ├── monitor_hud.py    # Floating HUD mini-window (idle-aware, hidden-gated polling)
 │   └── db.py             # SQLite storage (scan history, settings)
+├── tests/                # pytest suite (37 tests): test_safety.py, test_logic.py, conftest.py
 ├── data/
 │   ├── pchealthagent.db  # SQLite database (in %LOCALAPPDATA%\PCHealthAgent\data\)
 │   └── agent_context.txt # Ollama knowledge cache (rebuilt on app start + post-scan)
@@ -64,7 +72,7 @@ PCHealthAgent/
 
 ## Key patterns
 
-- **SPA in pywebview**: All HTML/CSS/JS is embedded in `desktop_app.py` as `APP_HTML` string. Python↔JS bridge via `class AgentAPI` exposed as `window.pywebview.api`.
+- **SPA in pywebview**: HTML/CSS/JS lives in `app/web/index.html` (~4300 lines). `desktop_app.py::_load_app_html()` reads it at startup into `APP_HTML`. Python↔JS bridge via `class AgentAPI` exposed as `window.pywebview.api`. When editing the SPA, edit `web/index.html` directly — never re-embed the string.
 - **Page navigation**: `showPage(name)` shows/hides `.page` divs. Nav items use `data-page` attributes. Wire new pages in both `showPage()` and as a nav button + page div. Legacy sub-page names (`monitor`, `startup`, `sysinfo`, `organize`, `events`, `troubleshoot`) are physically **moved** into tab panels at runtime, so `showPage()` holds a `_SUBPAGE` redirect map that routes each to its container page + tab (via `_activateTab(group,panel)`) instead of blanking the screen. Any KPI tile / finding / command-palette entry targeting those names goes through the redirect.
 - **Bilingual**: All SPA text uses `<span class="en">…</span><span class="ja">…</span>` pattern. `setLang()` toggles via `data-lang` on `<html>`. chat_popup.py uses a JS `_T = {en:{…}, ja:{…}}` dict instead (separate window, no DOM spans).
 - **Theme**: Flat dark design, teal brand `#2DD4B0`. No glass blur or glows. Light mode via `:root[data-theme="light"]` overrides. Toggle in Settings page, persisted in `localStorage('pcha_theme')`.
@@ -115,6 +123,7 @@ WebView2 runtime on the target (ships with Win11).
 ```powershell
 python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
   --icon "C:/Users/10517/Documents/Code/PCHealthAgent/app_icon.ico" `
+  --add-data "web;web" `
   --collect-all webview --collect-all clr_loader --collect-all pythonnet --collect-all proxy_tools `
   --hidden-import clr --hidden-import bottle --hidden-import pystray._win32 `
   --distpath "<root>/dist" --workpath "<scratchpad>/build" --specpath "<scratchpad>/build" desktop_app.py
@@ -125,11 +134,11 @@ python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
 
 ## Editing tips
 
-- `desktop_app.py` is ~6000 lines. Use `Grep` with `head_limit` to find sections. Never read the whole file.
-- CSS: search `<style>` — starts around line **1834** (preceded by Google Fonts `<link>`).
-- JS: search `<script>` — starts after all page HTML (~line 3600+).
-- Page HTML blocks: marked with `<!-- ══ PAGE: Name ══` comments.
-- API methods: `class AgentAPI` at line 114.
+- `desktop_app.py` is ~2800 lines (Python only). SPA markup/CSS/JS lives in `app/web/index.html` (~4300 lines).
+- CSS: in `web/index.html`, search `<style>` (near top of file).
+- JS: in `web/index.html`, search `<script>` (near bottom).
+- Page HTML blocks in `web/index.html`: marked with `<!-- ══ PAGE: Name ══` comments.
+- API methods: `class AgentAPI` in `desktop_app.py` (grep for `class AgentAPI`).
 - Adding a new page: nav button + `page div` + JS function + wire in `showPage()`.
 - **Sidebar live widget**: IDs `lp-cpu-bar/v`, `lp-ram-bar/v`, `lp-disk-bar/v` — updated every 3s by `updateLivePills()` called from the monitor poll.
 - **Merged pages**: Performance and Problems use `switchTab(group,panel,btn)` + JS init functions that mirror old page content into tab panels at first visit.
@@ -197,6 +206,20 @@ python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
 | `toggle_launcher_visibility()` | Show/hide launcher without disabling |
 | `reset_launcher_position()` | Move launcher to default corner |
 | `browse_folder()` | Opens native folder picker dialog |
+| `boost_preview()` | List memory-hog processes ≥ PROCESS_RAM_HIGH_MB (critical/IT filtered). Never auto-closes — UI calls close_app per-row |
+| `get_protected_apps()` / `set_protected_apps(defaults_on, extras[])` | Editable protected keyword list (3-layer: critical floor + IT defaults + user extras) |
+| `get_ai_status()` / `ollama_chat(...)` | Honour `ai_enabled` setting; return `{status:'disabled'}` / None when AI is off |
+| `apply_first_run_mode('work'\|'personal'\|'minimal')` / `get_first_run_mode()` | First-launch presets; writes `onboarded_mode` |
+| `create_restore_point(description)` / `list_restore_points()` | Windows System Restore via WMI |
+| `disable_startup(name)` / `enable_startup(name)` / `list_disabled_startup()` | HKCU Run entry disable with undo archive (`logs/startup-disabled.json`) |
+| `capture_metrics_snapshot(label)` / `compare_snapshots(before, after)` | In-memory before/after metric delta |
+| `run_schedule_now()` | Fire the in-process scheduler loop immediately (otherwise checks every 10 min) |
+| `undo_organize(folder)` | Reverse the last organize-move batch |
+| `generate_battery_report()` / `get_battery_capacity()` | powercfg /batteryreport to `logs/battery/` + WMI design vs full capacity + wear% |
+| `scan_browser_cache()` / `clean_browser_cache(browser, token)` | Edge/Chrome/Firefox/Brave; two-call confirm; refuses when browser running |
+| `list_profiles()` / `save_profile(name)` / `apply_profile(name)` / `delete_profile(name)` | Per-app settings presets (_PROFILE_KEYS = 11 settings; stored in `profiles_json`) |
+| `get_about()` / `open_error_log()` | Version info + opener for `<BASE>/logs/error.log` |
+| `report_js_error(msg, src, line, col, stack)` | JS → Python error pipe to `logs/js-errors.log` |
 
 ## ChatPopupAPI methods (chat_popup.py)
 
@@ -220,6 +243,16 @@ python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
 | `health_watch_enabled` | `true`/`false` | Background disk/RAM alert daemon |
 | `health_watch_disk_gb` | `3`/`5`/`10`/`20` | Free disk GB threshold for alert |
 | `health_watch_ram_pct` | `85`/`90`/`92`/`95` | RAM % threshold for alert |
+| `ai_enabled` | `true`/`false` | Master switch for Ollama/AI features (default true) |
+| `protected_apps_defaults` | `true`/`false` | Toggle shipping IT_PATTERN defaults (eset, optima, acall, …) |
+| `protected_apps_extra` | comma-separated | User-added protected keywords (merged with floor + defaults) |
+| `onboarded_mode` | `work`/`personal`/`minimal` | First-launch mode preset applied |
+| `schedule_enabled` | `true`/`false` | In-process scheduler on/off |
+| `schedule_cadence` | `daily`/`weekly`/`monthly` | Scheduler frequency |
+| `schedule_actions` | CSV: `quick_scan`,`temp_cleanup`,`snapshot` | What the schedule runs |
+| `schedule_last_run` | ISO timestamp | Last scheduler run time |
+| `profiles_json` | JSON | Named settings-preset dictionaries |
+| `active_profile` | profile name | Currently applied preset |
 
 ## Analysis panels
 
@@ -298,6 +331,56 @@ feature, add an entry to `_GUIDE` — no other wiring needed.
 `_show_notification(title, message)` — PowerShell `NotifyIcon` balloon tip. Called:
 1. After scan (if `show_notifications = "true"`)
 2. By health watch daemon (if thresholds crossed)
+
+## Performance guardrails (do NOT regress)
+
+Root cause of a 74%→0% CPU fix on 2026-10 — three invariants to preserve:
+
+1. **`document.hidden` gate every live timer.** `_globalPoll` in desktop_app.py AND `_hudPoll`/clock in `monitor_hud.py` both check `document.hidden` and skip the sample. Reason: a hidden HUD was burning a full core via `psutil.process_iter(memory_info)` every second.
+2. **No `typeperf` child per tick.** `monitor.py` must not spawn `typeperf` (or any native perfcounter) in `_collect_*`. The Step-15 GPU sampler was removed for this.
+3. **Idle-aware monitor sampler.** `monitor.request_samples()` is called by UI on each sidebar/live-pill refresh. Without recent calls the worker sleeps `_IDLE_INTERVAL` (30s) instead of `_ACTIVE_INTERVAL` (3s). Don't delete `request_samples()` plumbing when wiring new live panels — call it on refresh.
+4. **psutil CPU meter primed at import** and `_collect_cpu_ram` uses `interval=0.15` (NOT `interval=None`) — otherwise first sample is 0 and the Live gauges show 0,0,0.
+
+## JS defensive patterns (do NOT regress)
+
+- **localStorage is NOT guaranteed in WebView2.** A `SecurityError` at startup halts the entire script and triggers cascading `Cannot access 'X' before initialization` TDZ errors. All localStorage access MUST go through `_lsGet(k)` / `_lsSet(k,v)` try/catch helpers.
+- `_monTimer`, `_globalMonTimer` are declared with `var` (not `let`) to eliminate TDZ risk if script hoisting is disturbed by an early error.
+- Every page should start cleanly even with localStorage disabled.
+- JS errors pipe to `logs/js-errors.log` via `window.addEventListener('error'/'unhandledrejection')` → `report_js_error()`. Check this file when debugging a blank page.
+
+## Protected apps (3-layer, `app/protected.py`)
+
+Live keyword set = **critical floor** ∪ (**IT defaults** if `protected_apps_defaults=true`) ∪ **user extras**.
+
+- **Critical floor** (always on, never removable): `system, lsass, csrss, winlogon, smss, wininit, services, svchost, msmpeng, mssenses`
+- **IT defaults** (shipping, toggleable): `eset, ekrn, egui, optima, acall, onedrive, teams, microsoftedge, msedge, securityhealth, windowsdefender`
+- **User extras**: comma-separated via `set_protected_apps()`.
+
+Pytest `test_safety.py` enforces: critical floor always present; defaults toggle off correctly; user extras merge in.
+
+## Boost (Overview + Ctrl+K)
+
+🚀 Boost button on idle-state Overview and in command palette opens `#boost-modal`, which calls `boost_preview()` → list of memory-hog PIDs (name, mem_mb) filtered by protected keywords + self-PID. Each row has a Close button → `close_app(name)` (graceful WM_CLOSE, IT-protected names refused). Never auto-closes.
+
+## Scheduler
+
+In-process watcher thread (`_start_schedule_watch`) wakes every 10 min, checks `schedule_cadence` against `schedule_last_run`, runs `schedule_actions` CSV (any of `quick_scan`, `temp_cleanup`, `snapshot`). `run_schedule_now()` bypasses the cadence check.
+
+## Testing
+
+```powershell
+cd "C:\Users\10517\Documents\Code\PCHealthAgent"
+python -m pytest tests -q
+```
+
+37 tests across `test_safety.py` (protected paths, blocked exts, injection strings, 3-layer protected-apps logic) and `test_logic.py` (threshold ordering, intent matcher, multi-step splitter, organizer collision + undo round-trip). Must stay green before any commit.
+
+## Deferred UI work
+
+All six deferred UI items are now wired on the Settings page (About section
+is an expandable "Details" block inside the Settings → About card; First-run
+picker auto-shows ~1.8s after `pywebviewready` when `onboarded_mode` is unset,
+and can be reopened via Settings → Setup Mode).
 
 ## Known limitations
 

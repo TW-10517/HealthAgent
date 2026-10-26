@@ -72,7 +72,7 @@ CHAT_POPUP_HTML = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PC Health Assistant</title>
+<title>Helix Assistant</title>
 <style>
 :root{
   --bg:#07090F;--bg2:#0D1220;--bg3:#131C30;
@@ -95,7 +95,8 @@ body{
 }
 .hdr-badge{
   width:32px;height:32px;border-radius:9px;flex-shrink:0;
-  background:linear-gradient(145deg,#005244,#00D4AA);
+  background:linear-gradient(165deg,#121828,#0A0F1A);
+  border:1px solid rgba(45,212,192,.35);
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 2px 8px #00D4AA30;
 }
@@ -173,13 +174,15 @@ body{
 <body>
 <div class="hdr">
   <div class="hdr-badge">
-    <svg width="17" height="19" viewBox="0 0 17 19" fill="none">
-      <path d="M8.5 1L1 4.5v5.8C1 14.3 4.3 17.6 8.5 18.5 12.7 17.6 16 14.3 16 10.3V4.5L8.5 1z" fill="rgba(255,255,255,.95)"/>
-      <path d="M6.5 10l2 2 3.5-4" stroke="#041410" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Helix Orbit Pulse mark (matches app_icon.ico) -->
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <path d="M5.9 17.1 A 8.5 8.5 0 1 1 18.1 17.1" stroke="#2DD4C0" stroke-width="2.6" stroke-linecap="round"/>
+      <polyline points="6,12 9.3,12 10.8,8.8 12.8,15.2 14.2,12 16.7,12" stroke="#8AF0FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <circle cx="16.9" cy="12" r="1.35" fill="#FFFFFF"/>
     </svg>
   </div>
   <div class="hdr-info">
-    <div class="hdr-name" id="tb-title">PC Health Assistant</div>
+    <div class="hdr-name" id="tb-title">Helix Assistant</div>
     <div class="hdr-status"><span class="dot-live"></span><span id="tb-sub">Local AI · private</span></div>
   </div>
 </div>
@@ -200,7 +203,7 @@ let _busy=false,_lang='en';
 
 const _T={
   en:{
-    title:'PC Health Assistant',sub:'Local AI · private',
+    title:'Helix Assistant',sub:'Local AI · private',
     welcome:'Hi! Ask me about disk space, RAM, running apps, startup items, or anything about your PC health.',
     ph:'Type a question…',thinking:'Thinking',err:'Connection error — is the app running?',
   },

@@ -11,6 +11,14 @@ import psutil
 
 # Prime psutil's CPU meter so the first non-blocking read returns a real value.
 psutil.cpu_percent(interval=None)
+psutil.cpu_percent(interval=None, percpu=True)
+
+_prev_cpu_stats = None  # for context-switch / interrupt deltas
+_prev_cpu_stats_ts = 0.0
+_freq_cache = {"value": [], "ts": 0.0}
+_FREQ_TTL = 2.5  # cpu_freq(percpu=True) is slow on Windows; cache briefly
+_cpu_cache = {"total": 0.0, "per": [], "ts": 0.0}
+_CPU_TTL = 1.0  # coalesce rapid cpu_percent reads so non-blocking mode stays accurate
 
 # Ring buffer: keep last 60 samples (at 3s interval = ~3 minutes of history)
 MAX_HISTORY = 60
@@ -24,9 +32,28 @@ _thresholds = monitor_defaults()
 
 # ── Metric collection ──────────────────────────────────────────────────────
 
+def _read_cpu_pct(percpu: bool = False):
+    """Non-blocking cpu_percent that coalesces rapid reads. psutil's
+    interval=None returns % since last call — if two readers call close
+    together the second gets ~0. We cache for _CPU_TTL seconds so UI and
+    worker share the same value."""
+    now = time.time()
+    if now - _cpu_cache["ts"] < _CPU_TTL and _cpu_cache["per"]:
+        return _cpu_cache["per"] if percpu else _cpu_cache["total"]
+    try:
+        total = psutil.cpu_percent(interval=None)
+        per = psutil.cpu_percent(interval=None, percpu=True) or []
+    except Exception:
+        total, per = 0.0, []
+    _cpu_cache["total"] = total
+    _cpu_cache["per"] = per
+    _cpu_cache["ts"] = now
+    return per if percpu else total
+
+
 def _collect_cpu_ram() -> dict:
     try:
-        cpu = psutil.cpu_percent(interval=None)
+        cpu = _read_cpu_pct()
         vm = psutil.virtual_memory()
         return {
             "cpu_pct": round(cpu),
@@ -100,6 +127,134 @@ def _collect_temperature() -> dict:
     _temp_cache["value"] = val
     _temp_cache["ts"] = now
     return val
+
+
+def cpu_core_snapshot() -> dict:
+    """Per-core detail: utilization, frequency, counts, context-switch rate,
+    load imbalance (stddev across cores). Interpretation hints included so the
+    UI can show plain-English guidance.
+    """
+    global _prev_cpu_stats, _prev_cpu_stats_ts
+    out = {"ok": False}
+    try:
+        # Shared coalesced cache: avoids a double-sample race between UI + worker.
+        per = _read_cpu_pct(percpu=True) or []
+        # Cold-start fallback: non-blocking returns all-zeros until a delta exists.
+        # On click, pay a one-time ~100ms blocking sample so values appear immediately.
+        if not per or (max(per) == 0 and sum(per) == 0):
+            try:
+                per = psutil.cpu_percent(interval=0.1, percpu=True) or per
+                _cpu_cache["per"] = per
+                _cpu_cache["total"] = sum(per) / len(per) if per else 0.0
+                _cpu_cache["ts"] = time.time()
+            except Exception:
+                pass
+        logical = psutil.cpu_count(logical=True) or len(per)
+        physical = psutil.cpu_count(logical=False) or logical
+
+        # Frequencies — slow on Windows (calls into perf counters). Cache a few seconds.
+        now0 = time.time()
+        if now0 - _freq_cache["ts"] < _FREQ_TTL and _freq_cache["value"]:
+            freqs = _freq_cache["value"]
+        else:
+            freqs = []
+            try:
+                fs = psutil.cpu_freq(percpu=True) or []
+                freqs = [{
+                    "current_mhz": round(f.current or 0),
+                    "min_mhz": round(f.min or 0),
+                    "max_mhz": round(f.max or 0),
+                } for f in fs]
+            except Exception:
+                freqs = []
+            if not freqs:
+                try:
+                    f = psutil.cpu_freq()
+                    if f:
+                        freqs = [{
+                            "current_mhz": round(f.current or 0),
+                            "min_mhz": round(f.min or 0),
+                            "max_mhz": round(f.max or 0),
+                        }] * logical
+                except Exception:
+                    pass
+            _freq_cache["value"] = freqs
+            _freq_cache["ts"] = now0
+
+        # Context switches & interrupts, as rate per second.
+        ctx_rate = 0
+        int_rate = 0
+        now = time.time()
+        try:
+            s = psutil.cpu_stats()
+            if _prev_cpu_stats is not None and _prev_cpu_stats_ts > 0:
+                dt = max(now - _prev_cpu_stats_ts, 0.001)
+                ctx_rate = round(max(0, (s.ctx_switches - _prev_cpu_stats.ctx_switches) / dt))
+                int_rate = round(max(0, (s.interrupts - _prev_cpu_stats.interrupts) / dt))
+            _prev_cpu_stats = s
+            _prev_cpu_stats_ts = now
+        except Exception:
+            pass
+
+        # Imbalance: stddev across cores (0 = balanced, high = one core pinned).
+        if per:
+            avg = sum(per) / len(per)
+            var = sum((p - avg) ** 2 for p in per) / len(per)
+            stddev = var ** 0.5
+            max_core = max(per)
+            min_core = min(per)
+        else:
+            avg = stddev = max_core = min_core = 0
+
+        # Interpretation hints.
+        hints = []
+        if max_core >= 95 and stddev >= 25 and len(per) > 1:
+            hints.append({
+                "en": "One core is pinned near 100% while others are idle — a single-threaded workload is the bottleneck. Closing other apps won't help; it's the app itself.",
+                "ja": "1コアが100%近くで他はアイドル状態 — シングルスレッド処理がボトルネックです。他のアプリを閉じても改善しません。",
+                "severity": "info",
+            })
+        if avg >= 80 and stddev < 15:
+            hints.append({
+                "en": "All cores are heavily loaded — the PC is compute-bound. Expect fan noise and heat; cleaning temp files won't change this.",
+                "ja": "全コアが高負荷 — 計算能力が限界です。発熱・ファン音が増え、一時ファイル削除では改善しません。",
+                "severity": "warn",
+            })
+        if ctx_rate >= 50000:
+            hints.append({
+                "en": f"Very high context-switch rate ({ctx_rate:,}/s). Often caused by driver churn, aggressive antivirus, or many small I/O requests.",
+                "ja": f"コンテキストスイッチが非常に多い（{ctx_rate:,}/秒）。ドライバやアンチウイルス、I/O過多が原因のことが多いです。",
+                "severity": "warn",
+            })
+        if freqs:
+            curr = [f["current_mhz"] for f in freqs if f["current_mhz"]]
+            maxes = [f["max_mhz"] for f in freqs if f["max_mhz"]]
+            if curr and maxes:
+                ratio = (sum(curr) / len(curr)) / (sum(maxes) / len(maxes))
+                if ratio < 0.55 and avg >= 50:
+                    hints.append({
+                        "en": "CPU is running well below its max frequency under load — likely thermal throttling or a battery-saver power plan.",
+                        "ja": "負荷があるのに最大クロックの半分以下で動作中 — 熱によるスロットリングか省電力プランの可能性があります。",
+                        "severity": "warn",
+                    })
+
+        out = {
+            "ok": True,
+            "per_core_pct": [round(p) for p in per],
+            "cores_physical": physical,
+            "cores_logical": logical,
+            "avg_pct": round(avg),
+            "max_core_pct": round(max_core),
+            "min_core_pct": round(min_core),
+            "imbalance_stddev": round(stddev, 1),
+            "freqs": freqs,
+            "ctx_switches_per_sec": ctx_rate,
+            "interrupts_per_sec": int_rate,
+            "hints": hints,
+        }
+    except Exception as e:
+        out = {"ok": False, "error": str(e)}
+    return out
 
 
 def collect_metrics() -> dict:
@@ -204,6 +359,9 @@ def _worker():
             if not idle:
                 m = collect_metrics()
                 record_sample(m)
+                # Keep sampler warm so UI's non-blocking read is accurate.
+                try: _read_cpu_pct(percpu=True)
+                except Exception: pass
         except Exception:
             pass
         time.sleep(_IDLE_INTERVAL if (time.time() - _last_request_ts) > _IDLE_TIMEOUT

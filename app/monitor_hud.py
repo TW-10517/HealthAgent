@@ -10,7 +10,7 @@ _hud_win = None
 _hud_api = None
 _lock    = threading.Lock()
 
-HUD_TITLE = "PC Health Monitor"
+HUD_TITLE = "Helix Monitor"
 HUD_W, HUD_H = 400, 530
 
 # ── HTML ──────────────────────────────────────────────────────────────────────
@@ -20,7 +20,7 @@ MONITOR_HUD_HTML = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PC Health Monitor</title>
+<title>Helix Monitor</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -39,8 +39,9 @@ body{border:1px solid var(--border);border-radius:0}
   padding:0 8px 0 12px;display:flex;align-items:center;gap:8px;
   cursor:default;user-select:none}
 .hdr-drag{display:flex;align-items:center;gap:8px;flex:1;cursor:move}
-.hdr-badge{width:24px;height:24px;border-radius:7px;flex-shrink:0;
-  background:linear-gradient(145deg,#005244,#00D4AA);
+.hdr-badge{width:26px;height:26px;border-radius:7px;flex-shrink:0;
+  background:linear-gradient(165deg,#121828,#0A0F1A);
+  border:1px solid rgba(45,212,192,.35);
   display:flex;align-items:center;justify-content:center}
 .hdr-title{font-size:13px;font-weight:600;letter-spacing:.01em}
 .status-pill{display:flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;
@@ -131,24 +132,23 @@ body{border:1px solid var(--border);border-radius:0}
 <header class="hdr">
   <div class="hdr-drag" id="drag-handle">
     <div class="hdr-badge">
-      <svg width="13" height="15" viewBox="0 0 17 19" fill="none">
-        <path d="M8.5 1L1 4.5v5.8C1 14.3 4.3 17.6 8.5 18.5 12.7 17.6 16 14.3 16 10.3V4.5L8.5 1z"
-              fill="rgba(255,255,255,.92)"/>
-        <path d="M6 10l2 2 3.5-4" stroke="#041410" stroke-width="1.6"
-              stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Helix Orbit Pulse mark (matches app_icon.ico) -->
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <path d="M5.9 17.1 A 8.5 8.5 0 1 1 18.1 17.1"
+              stroke="#2DD4C0" stroke-width="2.6" stroke-linecap="round"/>
+        <polyline points="6,12 9.3,12 10.8,8.8 12.8,15.2 14.2,12 16.7,12"
+              stroke="#8AF0FF" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" fill="none"/>
+        <circle cx="16.9" cy="12" r="1.35" fill="#FFFFFF"/>
       </svg>
     </div>
-    <div class="hdr-title">PC Health Monitor</div>
+    <div class="hdr-title">Helix Monitor</div>
     <div class="status-pill" id="status-pill">
       <span class="sdot"></span>
       <span id="status-text">System healthy</span>
     </div>
   </div>
   <div class="hdr-clock" id="hud-clock">--:--:--</div>
-  <button class="hdr-btn" onclick="window.pywebview.api.close_hud()" title="Close">
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-  </button>
 </header>
 
 <div class="content">

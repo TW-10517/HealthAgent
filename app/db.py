@@ -7,7 +7,9 @@ from pathlib import Path
 from datetime import datetime
 from contextlib import contextmanager
 
-DB_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "PCHealthAgent" / "data"
+from metadata import APP_ID, APP_VERSION
+
+DB_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / APP_ID / "data"
 DB_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DB_DIR / "pchealthagent.db"
 
@@ -163,7 +165,7 @@ _DEFAULTS = {
     "schedule_actions": "quick_scan,temp_cleanup",
     "profiles_json": "",
     "active_profile": "",
-    "version": "1.0.0",
+    "version": APP_VERSION,
 }
 
 def get_setting(key: str) -> str:
