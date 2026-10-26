@@ -1,11 +1,11 @@
 {
   "version": "1.0.0",
   "released": "2026-10-26",
-  "exe_url": "https://helix.ealth-gent.workers.dev/Helix.exe",
-  "zip_url": "https://helix.ealth-gent.workers.dev/Helix.zip",
-  "website_url": "https://helix.ealth-gent.workers.dev",
-  "sha256": "a7f4b26ad757c27b701aa3db197cba973618919e8fa9bf95f409298390e63fe5",
-  "size_bytes": 24192830,
+  "exe_url": "https://helix-57o.pages.dev/Helix.exe",
+  "zip_url": "https://helix-57o.pages.dev/Helix.zip",
+  "website_url": "https://helix-57o.pages.dev",
+  "sha256": "9fe21c7df3c7cad1fb1a7cf5a041df8addb73241f9ae65fd5536c573cc959458",
+  "size_bytes": 24193898,
   "min_supported": "1.0.0",
   "notes": "Initial public release of Helix. Local-first PC health utility: storage insights, performance monitor with per-core breakdown, startup/boost, privacy sweep, diagnostics, scheduling. Nothing is uploaded."
 }
