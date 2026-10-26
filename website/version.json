@@ -1,11 +1,11 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.1",
   "released": "2026-10-26",
   "exe_url": "https://helix-57o.pages.dev/Helix.exe",
   "zip_url": "https://helix-57o.pages.dev/Helix.zip",
   "website_url": "https://helix-57o.pages.dev",
-  "sha256": "9fe21c7df3c7cad1fb1a7cf5a041df8addb73241f9ae65fd5536c573cc959458",
-  "size_bytes": 24193898,
+  "sha256": "b75af3c1b82d8e06ba99cf4d50c64a494a1f95eaebaa1105e6a7c1985ff4cc04",
+  "size_bytes": 24194242,
   "min_supported": "1.0.0",
-  "notes": "Initial public release of Helix. Local-first PC health utility: storage insights, performance monitor with per-core breakdown, startup/boost, privacy sweep, diagnostics, scheduling. Nothing is uploaded."
+  "notes": "Fixes: (1) Performance → System info tab was blank — a duplicate loadSysInfo function overrode the correct one; removed. (2) Delete-to-Recycle-Bin on files inside OneDrive-synced folders (Documents, Desktop, Downloads on corporate laptops) was refused. Deletion now narrows protection to true system paths (Windows, Program Files, ESET/Optima), allowing user content in OneDrive. OneDrive still keeps its own version history + bin."
 }

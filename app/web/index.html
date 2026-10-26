@@ -3648,8 +3648,6 @@ function fmtMB(mb){return mb>=1024?(mb/1024).toFixed(1)+' GB':mb+' MB';}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function animateBars(){document.querySelectorAll('.bar-fill[data-pct],.disk-seg-used[data-pct],.ram-gauge-fill[data-pct]').forEach(el=>{el.style.width=el.dataset.pct+'%';});}
 document.addEventListener('keydown',e=>{if(e.altKey){const map={'1':'overview','2':'storage','3':'monitor','4':'startup','5':'insights','6':'organize','7':'events','8':'troubleshoot','9':'assistant','0':'settings'};if(map[e.key]){e.preventDefault();showPage(map[e.key]);}}});
-function loadSysInfo(){if(!window.pywebview)return;window.pywebview.api.get_system_info().then(info=>{const el=document.getElementById('sysinfo-area');if(!el)return;el.innerHTML=[{l:'OS',v:info.os||'Windows'},{l:'CPU',v:info.cpu||'—'},{l:'RAM',v:info.ram_gb?info.ram_gb+' GB':'—'}].map(i=>`<div class="sysinfo-item"><div class="sysinfo-label">${i.l}</div><div class="sysinfo-value">${esc(i.v)}</div></div>`).join('');});}
-
 // ── Insights ─────────────────────────────────────────────────────────────
 let _insightsData=[];
 const _catIcons={storage:'💾',cleanup:'🧹',performance:'⚡',hardware:'🔧'};

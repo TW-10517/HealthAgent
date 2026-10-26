@@ -1460,17 +1460,32 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
         }
 
     def delete_to_recycle_bin(self, path: str) -> dict:
-        """Send a single file to the Recycle Bin (reversible). Refuses protected
-        and IT-managed paths. Never deletes permanently — always undoable."""
+        """Send a single file to the Recycle Bin (reversible). Refuses OS/program
+        files and IT-managed paths. Allows user content under OneDrive — OneDrive
+        keeps its own version history and recycle bin, so a user asking to delete
+        their own doc there is a legitimate operation. Never deletes permanently."""
         try:
-            import scanner as _sc
             p = os.path.abspath(path)
             if not os.path.exists(p):
                 return {"ok": False, "msg": "File no longer exists."}
             if os.path.isdir(p):
                 return {"ok": False, "msg": "Folders are not deleted here — only files."}
-            if _sc.is_protected(p):
-                return {"ok": False, "msg": "Protected location — refused."}
+            # Strict delete-protection: only truly critical system paths, NOT OneDrive.
+            # (scanner.is_protected is intentionally wider — it governs auto-cleanup, not
+            # manual deletes the user has already confirmed.)
+            _np = os.path.normcase(os.path.normpath(p))
+            _delete_blocked = []
+            for _root in (
+                r"C:\Windows", r"C:\Program Files", r"C:\Program Files (x86)",
+                os.path.join(os.environ.get("PROGRAMDATA", ""), "ESET"),
+                os.path.join(os.environ.get("LOCALAPPDATA", ""), "ESET"),
+                os.path.join(os.environ.get("PROGRAMDATA", ""), "Optima"),
+            ):
+                if _root:
+                    _rn = os.path.normcase(os.path.normpath(_root)) + os.sep
+                    _delete_blocked.append(_rn)
+            if any(_np.startswith(_r) for _r in _delete_blocked):
+                return {"ok": False, "msg": "System-protected location — refused."}
             low = os.path.basename(p).lower()
             import protected
             if any(k in low for k in protected.get_protected_keywords()):
