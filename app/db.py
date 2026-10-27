@@ -59,6 +59,18 @@ def init_db():
             );
             CREATE INDEX IF NOT EXISTS idx_scans_start ON scans(start_time DESC);
             CREATE INDEX IF NOT EXISTS idx_scans_status ON scans(status);
+            CREATE TABLE IF NOT EXISTS user_memory (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                fact        TEXT NOT NULL UNIQUE,
+                category    TEXT,
+                source      TEXT NOT NULL DEFAULT 'observed',
+                confidence  REAL NOT NULL DEFAULT 0.5,
+                seen_count  INTEGER NOT NULL DEFAULT 1,
+                last_seen   TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_memory_cat  ON user_memory(category);
+            CREATE INDEX IF NOT EXISTS idx_memory_last ON user_memory(last_seen DESC);
         """)
         row = conn.execute("SELECT version FROM schema_version LIMIT 1").fetchone()
         if not row:
@@ -165,8 +177,93 @@ _DEFAULTS = {
     "schedule_actions": "quick_scan,temp_cleanup",
     "profiles_json": "",
     "active_profile": "",
+    "memory_enabled": "true",
+    "briefing_enabled": "true",
+    "last_briefing_date": "",
     "version": APP_VERSION,
 }
+
+
+# ── User memory CRUD ─────────────────────────────────────────────────────────
+
+def remember_fact(fact: str, category: str = None, source: str = "observed",
+                  confidence: float = 0.5) -> int:
+    """Upsert a fact. On conflict: bump seen_count, refresh last_seen, keep
+    the higher confidence, promote source if the new one is 'explicit'.
+
+    Uses SQLite's atomic ON CONFLICT upsert so concurrent writers don't race
+    between SELECT and INSERT and lose seen_count bumps to UNIQUE violations.
+    """
+    fact = (fact or "").strip()
+    if not fact:
+        return 0
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with _db() as conn:
+        # Atomic upsert. For the UPDATE branch we read the pre-existing row
+        # via `excluded` + the stored row, taking the max confidence and
+        # promoting source if either side is 'explicit'.
+        conn.execute(
+            """INSERT INTO user_memory (fact, category, source, confidence, last_seen)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(fact) DO UPDATE SET
+                 seen_count = seen_count + 1,
+                 last_seen  = excluded.last_seen,
+                 confidence = MAX(user_memory.confidence, excluded.confidence),
+                 source     = CASE
+                                WHEN user_memory.source = 'explicit' THEN 'explicit'
+                                WHEN excluded.source   = 'explicit' THEN 'explicit'
+                                ELSE user_memory.source
+                              END,
+                 category   = COALESCE(excluded.category, user_memory.category)
+            """,
+            (fact, category, source, float(confidence), now),
+        )
+        row = conn.execute("SELECT id FROM user_memory WHERE fact=?", (fact,)).fetchone()
+        return int(row["id"]) if row else 0
+
+def forget_fact(fact_or_id) -> int:
+    # Reject empty / whitespace-only targets. Without this, a stray empty
+    # string reaches `fact LIKE '%%'` and silently deletes every row.
+    if isinstance(fact_or_id, str) and not fact_or_id.strip():
+        return 0
+    with _db() as conn:
+        if isinstance(fact_or_id, int) or (isinstance(fact_or_id, str) and fact_or_id.isdigit()):
+            cur = conn.execute("DELETE FROM user_memory WHERE id=?", (int(fact_or_id),))
+        else:
+            needle = fact_or_id.strip()
+            cur = conn.execute("DELETE FROM user_memory WHERE fact=? OR fact LIKE ?",
+                               (needle, f"%{needle}%"))
+        return cur.rowcount
+
+def list_memory(limit: int = 50, category: str = None,
+                min_confidence: float = 0.0) -> list[dict]:
+    with _db() as conn:
+        if category:
+            rows = conn.execute(
+                "SELECT * FROM user_memory WHERE category=? AND confidence>=? "
+                "ORDER BY last_seen DESC LIMIT ?",
+                (category, min_confidence, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM user_memory WHERE confidence>=? "
+                "ORDER BY last_seen DESC LIMIT ?",
+                (min_confidence, limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+def clear_memory(category: str = None) -> int:
+    with _db() as conn:
+        if category:
+            cur = conn.execute("DELETE FROM user_memory WHERE category=?", (category,))
+        else:
+            cur = conn.execute("DELETE FROM user_memory")
+        return cur.rowcount
+
+def memory_count() -> int:
+    with _db() as conn:
+        row = conn.execute("SELECT COUNT(*) as c FROM user_memory").fetchone()
+        return row["c"] if row else 0
 
 def get_setting(key: str) -> str:
     with _db() as conn:

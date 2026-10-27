@@ -29,9 +29,26 @@ _INTENTS = [
     (r'(go to|navigate to|take me to|open|show)\s+ai\s*(page|tab|assistant)?\s*$', 'nav', {'page': 'assistant'}),
     # Greetings
     (r'^(hi|hello|hey|greetings|good\s+(morning|afternoon|evening)|yo|sup|howdy|hiya)[\s!?.]*$', 'greet', {}),
-    (r'^(thank(s| you)|thx|cheers|ok|okay|got it|cool|great|nice|perfect)[\s!.]*$', 'greet', {}),
+    (r'^(thank(s| you)|thx|cheers|ok|okay|got it|cool|great|nice|perfect|'
+     r'(ok|okay|cool|great)\s+(thanks?|thank\s+you|got\s+it|cheers))[\s!.]*$',
+     'greet', {}),
     # Japanese greetings / common phrases
     (r'^(こんにちは|こんばんは|おはよう|ありがとう|よろしく|はじめまして|よし|わかった|了解|オッケー)[\s!。]*$', 'greet', {}),
+    # ── User memory (explicit remember / recall / forget) ──
+    # Must come before advisor/check_pc_runs so "remember I play valorant" doesn't
+    # get mis-routed into the game checker.
+    (r'^\s*(?:please\s+)?remember\s+(?:that\s+)?.+', 'remember_me', {}),
+    (r'^\s*note\s+(?:that\s+)?.+', 'remember_me', {}),
+    (r"^\s*(?:i\s*am|i'?m|im)\s+(?:an?\s+)?(?:developer|engineer|designer|student|teacher|writer|artist|gamer|data\s+scientist)[\s!?.]*$", 'remember_me', {}),
+    (r"^\s*i\s+play\s+.+", 'remember_me', {}),
+    (r"^\s*i\s+use\s+.+?\s+(?:daily|every day|a lot|often)[\s!?.]*$", 'remember_me', {}),
+    (r"^\s*forget\s+(?:that\s+)?.+", 'forget_me', {}),
+    (r"^\s*(?:please\s+)?remove\s+(?:the\s+)?(?:memory|fact)\s+.+", 'forget_me', {}),
+    (r"^\s*(?:what\s+do\s+you\s+(?:know|remember)(?:\s+about\s+me)?|"
+     r"what(?:'?s|\s+is)\s+in\s+(?:your\s+)?memory|"
+     r"show\s+(?:me\s+)?(?:your\s+)?memory|"
+     r"list\s+(?:your\s+)?memor(?:y|ies)|"
+     r"what\s+have\s+you\s+learned)[\s!?.]*$", 'recall_me', {}),
     # Bare health queries — no required verb prefix
     (r'^(disk|storage|space|ディスク|ストレージ)[\s!?。]*$', 'query_disk', {}),
     (r'disk\s*(space|usage|used|free|info)', 'query_disk', {}),
@@ -69,8 +86,33 @@ _INTENTS = [
     (r'(clean up|cleanup|delete temp|remove temp)\s*(files?)?', 'cleanup_confirm', {}),
     # Window
     (r'(minimize|hide)\s+(the\s+)?(app|window|application)', 'minimize_window', {}),
-    # Help
+    # ── Morning briefing (Feature #4) ──
+    # NOTE: bare "good morning" stays on the greet handler — it is more
+    # commonly a hello than a request for the daily summary.
+    (r"^\s*(?:morning\s+briefing|daily\s+briefing|"
+     r"what(?:s|'s|\s+is)\s+(?:up|new)\s+today|"
+     r"give\s+me\s+(?:the\s+)?briefing|"
+     r"briefing)[\s!?.]*$", 'briefing', {}),
+    # ── Error triage (Feature #7) ──
+    # Must come BEFORE the generic 'help' intent — "help me with this stack
+    # trace" would otherwise match the loose help keyword and never reach
+    # the triage path.
+    (r"^\s*(?:triage|explain|help\s+(?:me\s+)?(?:with|understand))\s+(?:this\s+)?(?:error|crash|exception|stack\s*trace|bsod)",
+     'triage_error', {}),
+    (r"^\s*what\s+does\s+(?:this\s+)?error\s+mean", 'triage_error', {}),
+    (r"^\s*why\s+did\s+(?:my\s+)?(?:pc|computer|app|chrome|edge|teams)\s+crash", 'triage_error', {}),
+    # Help (loose — must stay below everything that uses the word 'help')
     (r'(what can you do|help|commands|what do you support|what can i ask)', 'help', {}),
+    # ── "Can my PC run X?" / installer watchdog ──
+    (r'(can|will|would|does)\s+(my|this)\s+(pc|computer|laptop|machine|system)\s+'
+     r'(run|handle|play|support)\s+(.+?)[\s!?.]*$', 'check_pc_runs', {}),
+    (r'(am\s+i|is\s+(?:my\s+)?(?:pc|laptop|computer))\s+(able|good|ok|okay|fine|ready)\s+to\s+'
+     r'(run|play|install)\s+(.+?)[\s!?.]*$', 'check_pc_runs', {}),
+    (r"(?:i(?:'m|m|\s+am)?)\s+(?:going\s+to|about\s+to|planning\s+to|wanna|want\s+to)\s+"
+     r'(install|download|play|try)\s+(.+?)[\s,!?.]*(?:is\s+(?:this|it|that).*)?$', 'check_pc_runs', {}),
+    (r'(spec|specs|requirements?)\s+for\s+(.+?)[\s!?.]*$', 'check_pc_runs', {}),
+    (r'(will|would|does|can)\s+(.+?)\s+(run|work|play)\s+on\s+(my|this)\s+'
+     r'(pc|computer|laptop|machine|system)[\s!?.]*$', 'check_pc_runs', {}),
     # File open by extension — must be BEFORE sys_search so "find resume.docx" hits open_file
     (r'(find|open)\s+(\S+\.\w{2,5})\s*$', 'open_file', {}),
     # System queries — more specific patterns first
@@ -280,6 +322,14 @@ def ollama_chat(message: str, context: str = "", lang: str = "en",
     except Exception:
         kb = ""
 
+    # Pull a compact bullet of persistent user facts for personalization.
+    user_block = ""
+    try:
+        import user_memory as _um
+        user_block = _um.recall_for_prompt()
+    except Exception:
+        user_block = ""
+
     system = (
         "You are PC Health Agent's built-in assistant. "
         "Answer concisely in 2-3 sentences. "
@@ -288,6 +338,8 @@ def ollama_chat(message: str, context: str = "", lang: str = "en",
         "Politely redirect if asked about unrelated topics.\n\n"
         "KNOWLEDGE BASE:\n" + kb
     )
+    if user_block:
+        system += f"\n\n{user_block}"
     if context:
         system += f"\n\nCURRENT STATE: {context}"
 

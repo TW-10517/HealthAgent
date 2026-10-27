@@ -8,6 +8,15 @@ The repo/package id remains `PCHealthAgent`.
 
 **Project root**: `C:\Users\10517\Documents\Code\PCHealthAgent`
 **GitHub**: `https://github.com/TW-10517/HealthAgent.git` (branch `main`)
+**Live site**: https://helix-57o.pages.dev (Cloudflare Pages, free tier, unlimited bandwidth)
+**Download URLs**: `/Helix.exe` (23 MiB, UPX-compressed), `/Helix.zip`, `/version.json`
+**Current released version**: `1.0.1` (bumped from 1.0.0 on 2026-10-26 — fixes blank System Info tab + delete-on-OneDrive)
+
+## Working rules
+
+- **Never auto-deploy.** Do not run `wrangler pages deploy …` and do not `git push origin main` unless the user explicitly says "deploy", "push", "ship it" or similar. Build locally, commit locally if asked, then **stop and wait**. The user keeps a stated rule about this; it's in auto-memory too (`feedback_no_auto_deploy.md`).
+- **Website binaries live in `website/`** and are committed to git (so Cloudflare git-connected auto-deploy sees them). This is intentional — do not add `website/Helix.*` to `.gitignore`.
+- **Never remove the Vercel references assuming they're stale**: Vercel is fully deleted. Only Cloudflare Pages serves the site now.
 
 ## Architecture
 
@@ -43,7 +52,16 @@ PCHealthAgent/
 │   └── agent_context.txt # Ollama knowledge cache (rebuilt on app start + post-scan)
 ├── reports/              # Generated HTML scan reports
 ├── logs/
-└── app_icon.ico
+├── app_icon.ico
+└── website/                # Cloudflare Pages site (committed to git)
+    ├── index.html          # Landing page (GitHub/view-source links stripped per 2026-10-26)
+    ├── styles.css
+    ├── favicon.svg
+    ├── Helix.exe           # Current released build (23 MiB UPX)
+    ├── Helix.zip           # Same exe, zipped (avoids Chrome's "uncommon download" warning)
+    ├── version.json        # Update manifest served to the in-app updater
+    ├── vercel.json         # vestigial, Cloudflare ignores it; safe to delete
+    └── .gitignore          # excludes only .vercel/
 ```
 
 > **Note**: `pchealthagent.db` is stored at `%LOCALAPPDATA%\PCHealthAgent\data\pchealthagent.db`
@@ -117,20 +135,92 @@ Start-Process python -ArgumentList "desktop_app.py" -WorkingDirectory "C:\Users\
 
 ## Packaging (Helix.exe)
 
-PyInstaller onefile windowed build → `dist/Helix.exe` (~30 MB). Requires the
-WebView2 runtime on the target (ships with Win11).
+PyInstaller onefile windowed build → `dist/Helix.exe` (~23 MiB **with UPX**; ~30 MiB without). Requires the WebView2 runtime on the target (ships with Win11). **UPX is mandatory** because Cloudflare Pages caps individual file assets at 25 MiB — without UPX the exe is too big to host.
+
+UPX install path on this machine: `C:\Users\10517\AppData\Local\Microsoft\WinGet\Packages\UPX.UPX_Microsoft.Winget.Source_8wekyb3d8bbwe\upx-5.2.1-win64\` (installed via `winget install UPX.UPX`).
 
 ```powershell
+$SCRATCH = 'C:\Users\10517\AppData\Local\Temp\…\scratchpad'  # session scratchpad
+$upxDir  = 'C:\Users\10517\AppData\Local\Microsoft\WinGet\Packages\UPX.UPX_Microsoft.Winget.Source_8wekyb3d8bbwe\upx-5.2.1-win64'
+cd C:\Users\10517\Documents\Code\PCHealthAgent\app
 python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
   --icon "C:/Users/10517/Documents/Code/PCHealthAgent/app_icon.ico" `
-  --add-data "<repo>/app/web;web" `
+  --add-data "C:/Users/10517/Documents/Code/PCHealthAgent/app/web;web" `
   --collect-all webview --collect-all clr_loader --collect-all pythonnet --collect-all proxy_tools `
-  --hidden-import clr --hidden-import bottle --hidden-import pystray._win32 `
-  --distpath "<root>/dist" --workpath "<scratchpad>/build" --specpath "<scratchpad>/build" desktop_app.py
+  --upx-dir "$upxDir" `
+  --distpath "C:/Users/10517/Documents/Code/PCHealthAgent/dist" `
+  --workpath "$SCRATCH/build" --specpath "$SCRATCH/build" desktop_app.py
 ```
 
+Before building: `Get-Process Helix -EA SilentlyContinue | Stop-Process -Force` — PyInstaller fails `PermissionError: Access is denied` if the old exe is still running.
+
 - **Frozen-aware paths**: when `getattr(sys,"frozen",False)`, `BASE` = `%LOCALAPPDATA%\PCHealthAgent` (else repo parent). `launcher.py` startup entry uses `sys.executable` directly when frozen.
-- `dist/`, `build/`, `*.spec`, `app_icon.ico` are gitignored — the exe is **not** committed. Rebuild and redistribute the exe after any source change testers run.
+- `dist/`, `build/`, `*.spec`, `app_icon.ico` are gitignored — the dev `dist/Helix.exe` is **not** committed. The **released** exe lives at `website/Helix.exe` and IS committed (Cloudflare serves from there).
+- UPX side effect: slightly higher antivirus false-positive rate. SmartScreen already shows "Windows protected your PC" on first run of any unsigned exe — UPX adds no new user-visible warning on top of that.
+
+## Release pipeline
+
+### Hosting
+
+- **Cloudflare Pages** project `helix`, URL `https://helix-57o.pages.dev` (the `-57o` suffix is a Cloudflare-generated random tag because `helix.pages.dev` was globally taken; same policy as Vercel's free tier).
+- **Account**: `Gokuldharsan03@gmail.com` (id `15feca14c3b15012f9f31aa2250ab106`).
+- GitHub ↔ Pages connection: live. **Build output directory = `website`**. Every push to `main` triggers a Cloudflare build; preview URL comes back in ~30s.
+- Wrangler CLI: `npm i -g wrangler` (installed, v4.152.0). Auth lives in `C:\Users\10517\AppData\Roaming\xdg.config\.wrangler\`.
+- Classic Pages was created with `wrangler pages project create helix --production-branch=main --force` (the `--force` opts out of Cloudflare's new default of delegating `pages` commands to Workers — leave Pages, don't use Workers; Pages gives the cleaner `*.pages.dev` URL and git-connected auto-deploy).
+- **Hobby/free tier**: unlimited bandwidth, commercial-use OK, per-file cap **25 MiB**.
+- Vercel is completely removed. If a prior conversation referenced `gethelix-ten.vercel.app` or `helix-seven-inky.vercel.app`, those are deleted.
+
+### Update manifest (`website/version.json`)
+
+```json
+{
+  "version": "1.0.1",
+  "released": "2026-10-26",
+  "exe_url":     "https://helix-57o.pages.dev/Helix.exe",
+  "zip_url":     "https://helix-57o.pages.dev/Helix.zip",
+  "website_url": "https://helix-57o.pages.dev",
+  "sha256":      "<lowercase hex>",
+  "size_bytes":  24194242,
+  "min_supported": "1.0.0",
+  "notes": "Human-readable changelog (shown verbatim in-app)."
+}
+```
+
+The in-app updater reads this. `metadata.py` holds the baked-in `WEBSITE_URL` and `UPDATE_MANIFEST_URL` — change these together whenever the host or subdomain changes.
+
+### In-app auto-updater
+
+Three Python API methods (see `AgentAPI` in `desktop_app.py`):
+
+| Method | Behaviour |
+|---|---|
+| `check_for_update(force=False)` | GETs `version.json` (4 s timeout). Returns `{ok, current, latest, has_update, exe_url, notes, size_bytes, can_install, website_url}`. Non-blocking from UI; failures return `ok:false` so UI silently falls back. |
+| `get_update_progress()` | UI poll (600 ms) returns `{phase, pct, msg, tmp_exe, latest}`. Phases: `idle` → `downloading` → `ready` → `installing` → `error`. |
+| `download_and_install_update()` | Only works when `sys.frozen`. Downloads new exe to `BASE/updates/Helix-new-<ts>.exe`, writes `apply_update.cmd` that waits ~2 s, moves the staged file over the running exe path, relaunches, and self-deletes. Then this process `os._exit(0)` after ~1.2 s. |
+
+JS side (`web/index.html`):
+- Settings → About has an **"Install update"** row (`#update-row`) with `btn-check-update`, `btn-get-update`, progress bar `#update-progress-bar`.
+- Sidebar version label `#nav-ver` becomes a glowing-dot "Update available" button when newer version is detected.
+- Auto-check fires once 2.5 s after `pywebviewready`.
+
+### Full release flow
+
+Follow the no-auto-deploy rule — do each step and **stop before** pushing/deploying unless the user explicitly says to.
+
+1. Make changes in `app/`, test locally with `python desktop_app.py`.
+2. Bump `APP_VERSION` in `app/metadata.py`.
+3. Kill any running Helix: `Get-Process Helix -EA SilentlyContinue | Stop-Process -Force`.
+4. Rebuild with the PyInstaller + UPX command above → `dist/Helix.exe`.
+5. Copy to website: `Copy-Item dist/Helix.exe website/Helix.exe -Force`.
+6. Rezip: `Remove-Item website/Helix.zip -Force; Compress-Archive website/Helix.exe website/Helix.zip -CompressionLevel Optimal`.
+7. Compute SHA256 + size, update `website/version.json` (bump `version`, update `sha256`, `size_bytes`, `released`, `notes`).
+8. **Pause.** Report ready-to-deploy status.
+9. On the user's go-ahead: `git add` the five files (`app/metadata.py`, `website/Helix.exe`, `website/Helix.zip`, `website/version.json`, any UI/code changes), commit, `git push origin main`. Cloudflare auto-deploys. No wrangler needed.
+10. Verify: `Invoke-WebRequest https://helix-57o.pages.dev/version.json` and the three asset HEAD requests.
+
+### Website edits (HTML/CSS only, no exe change)
+
+Edit `website/index.html` or `website/styles.css` → commit → push (on user go-ahead). Cloudflare auto-rebuilds. Skip the exe/zip/version.json dance entirely.
 
 ## Editing tips
 
@@ -220,6 +310,9 @@ python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
 | `list_profiles()` / `save_profile(name)` / `apply_profile(name)` / `delete_profile(name)` | Per-app settings presets (_PROFILE_KEYS = 11 settings; stored in `profiles_json`) |
 | `get_about()` / `open_error_log()` | Version info + opener for `<BASE>/logs/error.log` |
 | `report_js_error(msg, src, line, col, stack)` | JS → Python error pipe to `logs/js-errors.log` |
+| `check_for_update(force=False)` | GET `UPDATE_MANIFEST_URL` (4 s timeout), semver-compare → `{ok, current, latest, has_update, exe_url, notes, size_bytes, can_install, website_url}` |
+| `get_update_progress()` | Poll endpoint: `{phase, pct, msg, tmp_exe, latest}` where phase ∈ `idle`/`downloading`/`ready`/`installing`/`error` |
+| `download_and_install_update()` | Frozen-only: stream exe to `BASE/updates/`, write `apply_update.cmd`, detach-spawn it, `os._exit(0)` after 1.2 s |
 
 ## ChatPopupAPI methods (chat_popup.py)
 
@@ -390,6 +483,128 @@ and can be reopened via Settings → Setup Mode).
 - Windows notifications flash a brief tray icon (PowerShell NotifyIcon approach)
 - `sys_executor.py` file search covers home + OneDrive only
 - `get_hardware_info()` WMI call takes ~5s on first load (cached after that)
+- **SmartScreen "Windows protected your PC"** on first run — the exe is unsigned (no code-signing cert). The user must click "More info" → "Run anyway". Zipping to `Helix.zip` on the site reduces Chrome's "uncommon download" warning but does not remove SmartScreen itself.
+- **UPX bumps the AV false-positive rate.** Microsoft Defender has been fine so far; some third-party AVs may quarantine. If this becomes a user-visible problem, the only fixes are code signing (paid) or dropping UPX (requires paid Cloudflare plan to raise the 25 MiB file cap).
+- **Cloudflare Pages hard limits**: 25 MiB per file (why UPX exists), 20,000 files per deployment, 500 builds/month on free tier.
+
+## Regression gotchas (v1.0.1)
+
+- **Duplicate `loadSysInfo()` in `web/index.html`.** A second definition at ~line 3651 referenced a nonexistent `#sysinfo-area` and shadowed the real one at ~line 2797, leaving Performance → System info blank. If sysinfo blanks again, grep for `function loadSysInfo` — there should be exactly one.
+- **Delete-to-Recycle-Bin vs scanner.PROTECTED.** `delete_to_recycle_bin()` must NOT reuse `scanner.is_protected()` — that path's protection set includes OneDrive, so on corporate laptops where Documents/Desktop/Downloads are OneDrive-synced every user-initiated delete was refused. The narrower `_delete_blocked` list covers only Windows + Program Files + ESET + Optima. Scan-protection and delete-protection are different trust boundaries — keep them separate.
+
+## Roadmap: AI-first direction
+
+Standing direction (also in auto-memory `project_helix_direction.md`): the user wants local-Ollama AI to be the main interaction surface, not a side tab. All inference stays local on `qwen2.5:3b` (~8–13 tok/s output on this machine). Features must fit a 3B-model envelope: short prompts, short outputs, Python code does the fact-gathering and hands structured context to the model to narrate/advise.
+
+### Top 3 to start
+
+1. **"Can my PC run X?" + Installer Watchdog** — user says "I'm about to install Valorant" (or any game/app); Helix knows CPU/RAM/GPU/disk-free from existing hardware data, grabs the game's requirements (steam/web lookup), tells them yes/no in plain language with the bottleneck named. Watchdog mode optionally hooks installer launches via a file-system / clipboard trigger.
+2. **"What's wrong?" event-log explainer** — `event_analyzer.py` already pulls Windows events; feed the last 24 h of errors/warnings to qwen2.5 and ask for a human summary ("Your webcam driver crashed twice last night; here's what that means"). Keep it strictly narrative, no auto-fix.
+3. **User memory (SQLite)** — a `user_memory` table (fact, confidence, last_seen, source) so Helix remembers: "user plays Valorant", "user complains about fan noise", "user runs Teams + Chrome + VS Code daily". Fed back into the system prompt so advice gets personal over time.
+
+### Longer-list ideas (brainstorm bank)
+
+4. Proactive morning briefing: "Your disk filled 2 GB overnight (OneDrive sync); CPU averaged 40% during a Teams call at 3 AM — scheduled task?"
+5. Conversational cleanup: "I need 10 GB free" → AI picks temp caches + old installers + big video files, previews the list, user confirms per-group.
+6. Game-mode narrator: when a known-game process starts, HUD whisper-shows "Closed 4 background apps, freed 2.1 GB RAM, you're good."
+7. Error-triage chat: user pastes a crash message → Helix cross-references event log timestamps around the crash → explains what probably caused it.
+8. "Why is my PC slow right now?" live triage: snapshot CPU/RAM/disk/net top offenders → qwen2.5 narrates ("Chrome has 47 tabs eating 6 GB; Teams is 20% CPU").
+9. Weekly health letter: emailed-style summary rendered in-app ("This week your average boot time went from 48 s to 71 s — three new startup apps added themselves").
+10. Smart startup pruning: AI explains each startup app's purpose and suggests disable candidates based on how often the user actually uses them (requires foreground-window logging).
+11. Battery coaching: "You're running on battery 60% of the day — enable efficiency mode? Your Chrome is the biggest drain."
+12. Context-aware notifications: silence health-watch during gaming/presentation detection.
+13. Install assistant: "I want to try Blender" → downloads from vendor, checks hash, flags installer options, warns about bundled bloatware.
+
+### Feature #4 landed (2026-10-27)
+
+`app/briefing.py` — once-per-calendar-day summary of overnight PC deltas.
+Compares the latest two completed scans (score, issues, disk free) and the
+last 12 h of Windows Error/Critical events, builds 2-4 plain-English
+highlights, then asks Ollama for an optional 2-sentence narration grounded
+in those exact numbers.
+
+- **Intents**: `morning briefing`, `daily briefing`, `briefing`,
+  `give me the briefing`, `what(s|'s|'s) up today`, `what's new today`.
+  Bare "good morning" intentionally stays on the greet handler.
+- **Settings**: `briefing_enabled` (default true), `last_briefing_date`
+  (set via `mark_shown()` after each delivery).
+- **API**: `AgentAPI.get_briefing(force=False, narrate=True)`,
+  `dismiss_briefing()`.
+- Narration prompt holds strict "do NOT invent numbers" guardrails and lists
+  the exact facts available (score, issues, disk free, event counts, top
+  event sources).
+
+### Feature #7 landed (2026-10-27)
+
+`app/error_triage.py` — user pastes a crash/stack/BSOD → Helix detects it,
+pulls a ±5 min window of Windows events (or last 2 h fallback), hands both
+to Ollama for a 2-3 sentence explanation. Never executes anything.
+
+- **Detection**: `looks_like_error()` recognises traceback/exception/BSOD
+  keywords, stop codes (`0x...`), faulting modules, kernel panics, and
+  multi-line stack frames.
+- **Timestamp hints**: three formats parsed (ISO, US m/d/y + AM/PM,
+  European d/m/y 24h); extracts the first plausible timestamp from the
+  paste so correlated events come from the right window.
+- **Explicit intents**: `triage this error …`, `explain this error`,
+  `help me with this stack trace`, `help me understand this crash`,
+  `what does this error mean`, `why did my pc/app/chrome crash`. These
+  patterns live above the generic `help` intent — order matters.
+- **Implicit routing**: when no intent matches but `looks_like_error()` is
+  true, the chat handler auto-routes to triage, so pasting a raw traceback
+  "just works".
+- **Force mode**: `triage(text, force=True)` runs correlation + narration
+  even if the input doesn't look like an error paste — used when the user
+  explicitly asks ("why did my pc crash") without providing one.
+- **API**: `AgentAPI.triage_error(text, narrate=True)`.
+
+### Feature #3 landed (2026-10-27)
+
+`app/user_memory.py` + new `user_memory` SQLite table (`db.py`). Short facts
+("user plays valorant", "user is a developer") persist across conversations
+and are auto-injected into every Ollama system prompt via
+`user_memory.recall_for_prompt()` so advice gets personal over time.
+
+- **Explicit intents**: `remember that I play X`, `note that …`, `I play X`,
+  `I use X daily`, `I'm a developer/gamer/…` → `remember_me`. `what do you
+  know about me` / `show your memory` / `list memories` → `recall_me`.
+  `forget that …` / `remove the memory about …` → `forget_me`.
+- **Observation**: every advisor turn in `check_pc_runs` fires
+  `note_game_interest(name, verdict)` so Helix remembers which games the user
+  has asked about and what the verdict was.
+- **Prompt budget**: `recall_for_prompt()` returns at most 6 bullets capped
+  at 400 chars so the 3B model's prompt budget stays small; explicit facts
+  outrank observed; higher-confidence outranks newer.
+- **Toggle**: Settings key `memory_enabled` (default `true`) gates the
+  recall block; set `false` to disable personalization entirely.
+- **CRUD API**: `AgentAPI.memory_list / memory_add / memory_forget /
+  memory_clear / memory_count` for future UI; CLI/intent paths already
+  wired.
+- Pytest: `scratchpad/qa/mem_batch1.py` covers 10 logic cases + 16 intent
+  routings; `mem_batch2_live.py` is the live Ollama round-trip.
+
+### Feature #1 landed (2026-10-27)
+
+`app/game_advisor.py` — local catalog of ~75 games/apps with min specs, CPU/GPU tier model (`_cpu_tier` / `_gpu_tier` cover Intel i3/i5/i7/i9 gens 6–14, Ryzen 3/5/7/9 gens 1–7, Xeon/Celeron/Pentium, plus NVIDIA GTX/RTX, AMD RX, and all common integrated families). Cached (`_SPECS_CACHE`, 5-min TTL) + pre-warmed from `_preload_hw_cache` at startup so queries after boot are instant.
+
+**Japan-market coverage is first-class.** The catalog includes the full Dospara GALLERIA 推奨PC roster (Thirdwave Corporation) — these are the exact titles Dospara ships pre-configured gaming PCs for and must never silently fail to answer:
+- **Square Enix**: FFXIV (ff14/ffxiv), FFXVI (ff16/ffxvi), FF7 Rebirth (ff7r/ffvii rebirth), Dragon Quest X/XI (dqx/dq xi/dq11), NieR Automata, NieR Replicant
+- **Capcom**: Monster Hunter Rise / World / Wilds (mhr/mhw/mh wilds/monhun), Resident Evil 4 Remake (re4), Resident Evil Village (re8), Devil May Cry 5 (dmc5/dmcv), Dragon's Dogma 2 (dd2), Street Fighter 6 (sf6)
+- **Sega / Atlus / RGG**: Like a Dragon: Infinite Wealth (yakuza 8/lad8/infinite wealth), Yakuza 0, Persona 5 Royal (p5r), Persona 3 Reload (p3r), Metaphor ReFantazio
+- **Bandai Namco**: Tekken 8, Blue Protocol
+- **FromSoftware**: Elden Ring, Armored Core VI (ac6), Dark Souls III (ds3), Sekiro
+- **Cygames / Kuro / HoYoverse / Shift Up / Koei Tecmo**: Granblue Fantasy Relink (gbfr/relink), Wuthering Waves (wuwa), Genshin Impact (genshin), Honkai Star Rail (hsr/star rail), Zenless Zone Zero (zzz/zenless), NIKKE, Atelier Ryza 3 (ryza 3)
+- **SEGA**: Phantasy Star Online 2 New Genesis (pso2/pso2 ngs/ngs)
+
+Every title above has at least one short-form alias (katakana aliases are a TODO; current intent regex is lowercase ASCII). When adding more JP titles, follow this exact pattern — add to `KNOWN_APPS` AND add aliases to `_ALIASES`. Test with `scratchpad/qa_dospara.py` which asserts 90-case resolution coverage.
+
+### Guardrails specific to AI-first
+
+- Never let the model execute shell commands. All actions still go through typed `chat()` handlers.
+- Never send user data off-machine — Ollama only. No cloud fallback, no telemetry.
+- Keep prompts <~800 tokens of context; qwen2.5:3b at ~37 tok/s input means a 4k-token prompt is a ~110 s wait.
+- Verify short JA↔EN translations before trusting them — 3B models sometimes echo input back.
+- Any new AI feature should degrade gracefully when `ai_enabled=false` or Ollama is offline.
 
 ## Dependencies
 

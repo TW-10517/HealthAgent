@@ -157,6 +157,7 @@ class AgentAPI:
         self._pending_confirmations  = {}   # token → callable, for close-app confirm
         self._chat_history: list[dict] = []  # rolling conversation for Ollama context
         self._hw_cache               = None  # cached hardware info (WMI is slow)
+        self._advisor_lock           = threading.Lock()  # serialize "can my pc run X" so burst chats don't exhaust Ollama's queue
 
     def set_window(self, w):
         self._window = w
@@ -169,6 +170,21 @@ class AgentAPI:
         import time as _t
         _t.sleep(8)  # let startup settle, then warm the WMI cache silently
         self.get_hardware_info()
+        # Also warm the game-advisor specs cache so "can my pc run X" is instant.
+        try:
+            import game_advisor as _ga
+            _ga.get_pc_specs()
+        except Exception:
+            pass
+        # Pre-warm Ollama so the first real chat query doesn't hit a 60-90 s
+        # model-load wait. A tiny ping loads qwen2.5:3b into memory; it stays
+        # resident for the OLLAMA_KEEP_ALIVE window (default 5 min, kept warm
+        # by subsequent chat traffic).
+        try:
+            import assistant as _asst
+            _asst.ollama_chat("ok", context="warmup", lang="en", history=None)
+        except Exception:
+            pass
 
     def _check_ollama_status(self):
         import urllib.request, time as _t
@@ -485,6 +501,44 @@ class AgentAPI:
         s = db.get_all_settings()
         s["version"] = APP_VERSION
         return s
+
+    # ── User memory bridge (Feature #3) ──
+    def memory_list(self, limit: int = 50, category: str = None):
+        import user_memory as _um
+        return _um.list_all(limit=limit, category=category)
+
+    def memory_count(self):
+        import user_memory as _um
+        return _um.count()
+
+    def memory_add(self, fact: str, category: str = None, source: str = "explicit"):
+        import user_memory as _um
+        return {"id": _um.remember(fact, category=category, source=source)}
+
+    def memory_forget(self, fact_or_id):
+        import user_memory as _um
+        return {"removed": _um.forget(fact_or_id)}
+
+    def memory_clear(self, category: str = None):
+        import user_memory as _um
+        return {"removed": _um.clear(category=category)}
+
+    # ── Briefing bridge (Feature #4) ──
+    def get_briefing(self, force: bool = False, narrate: bool = True):
+        import briefing as _br
+        if not _br.should_show_today(force=force):
+            return {"available": False, "reason": "already_shown_today"}
+        return _br.generate_briefing(narrate=narrate)
+
+    def dismiss_briefing(self):
+        import briefing as _br
+        _br.mark_shown()
+        return {"ok": True}
+
+    # ── Triage bridge (Feature #7) ──
+    def triage_error(self, text: str, narrate: bool = True):
+        import error_triage as _et
+        return _et.triage(text, narrate=narrate)
 
     def report_js_error(self, info: dict):
         """JS global error handler calls here; written to logs/js-errors.log."""
@@ -2309,6 +2363,16 @@ ForEach-Object{
 
         action_id, params = asst.match_intent(message)
 
+        # Implicit error-paste routing: if no explicit intent fired AND the
+        # message looks like a crash/stack/BSOD paste, route to triage.
+        if action_id is None:
+            try:
+                import error_triage as _et
+                if _et.looks_like_error(message):
+                    action_id, params = "triage_error", {}
+            except Exception:
+                pass
+
         if action_id == "nav":
             page = params["page"]
             names = {"overview": "Dashboard", "storage": "Storage", "monitor": "Monitor",
@@ -2599,6 +2663,198 @@ ForEach-Object{
             env = sx.get_env_info()
             lines = [f"**{k}**: `{v}`" for k, v in env.items() if v]
             return {"type": "data", "content": "**Environment**:\n" + "\n".join(lines)}
+        elif action_id == "check_pc_runs":
+            # The whole flow (specs lookup + Ollama narration) runs in a background
+            # thread so the chat UI returns "Checking…" immediately. The first
+            # specs call is a double WMI query (~7 s cold); subsequent calls hit
+            # the module-level cache.
+            import game_advisor as _ga
+            _target = _popup_window
+            self._chat_history.append({"role": "user", "content": message})
+            _hist = list(self._chat_history)
+
+            def _advisor_turn():
+                title = _ga.extract_name(message)
+                result = _ga.check_pc_for(title)
+                if not result.get("found"):
+                    context = (
+                        f"The user is asking whether their PC can run '{title}'. "
+                        f"I don't have that title in my local catalog. "
+                        f"Their PC: {result['specs'].get('cpu_name','?')}, "
+                        f"{result['specs'].get('ram_gb','?')} GB RAM, "
+                        f"{result['specs'].get('gpu_name','?')}, "
+                        f"{result['specs'].get('disk_free_gb','?')} GB free. "
+                        f"Answer with the app's minimum spec, whether it fits, and the bottleneck."
+                    )
+                    # Standalone query — do NOT pass history, else prior
+                    # "can my pc run X" turns bleed into this verdict.
+                    resp = asst.ollama_chat(message, context, lang, history=None)
+                    if resp:
+                        self._chat_history.append({"role": "assistant", "content": resp})
+                        payload = json.dumps({"type": "text", "content": resp})
+                    else:
+                        payload = json.dumps({"type": "info",
+                                              "content": _ga.summary_text(result)})
+                else:
+                    specs, req = result["specs"], result["req"]
+                    verdict_phrase = {
+                        "pass": "YES, this PC can run it comfortably",
+                        "borderline": "IT WILL RUN but settings/performance will be tight",
+                        "fail": "NO, this PC does NOT meet the minimum requirements",
+                    }[result["verdict"]]
+                    gpu_phrase = "a discrete gaming GPU" if req["gpu_required"] else "a GPU of the given class"
+                    user_gpu_phrase = ("discrete GPU " if specs.get("gpu_discrete")
+                                       else "integrated GPU ") + (specs.get("gpu_name","") or "")
+                    context = (
+                        f"The user asked: \"can my pc run {result['name']}?\"\n"
+                        f"\n"
+                        f"The verdict is: {verdict_phrase}.\n"
+                        f"Bottleneck component (if any): {result['bottleneck'] or 'none — all requirements met'}\n"
+                        f"\n"
+                        f"What THE USER HAS:\n"
+                        f"  - CPU: {specs.get('cpu_name','?')}\n"
+                        f"  - RAM: {specs.get('ram_gb')} GB\n"
+                        f"  - GPU: {user_gpu_phrase}\n"
+                        f"  - Disk free: {specs.get('disk_free_gb')} GB\n"
+                        f"\n"
+                        f"What {result['name'].upper()} NEEDS at minimum:\n"
+                        f"  - RAM: {req['ram_gb']} GB\n"
+                        f"  - GPU: {gpu_phrase}\n"
+                        f"  - Disk: {req['disk_gb']} GB install\n"
+                        f"\n"
+                        f"Specific shortfalls (quote only these, invent nothing else):\n"
+                        f"  {chr(10).join('- ' + f for f in result['fails']) if result['fails'] else '- (none)'}\n"
+                        f"Specific tight-margin notes:\n"
+                        f"  {chr(10).join('- ' + m for m in result['margins']) if result['margins'] else '- (none)'}\n"
+                        f"\n"
+                        f"INSTRUCTIONS for your reply (3-4 friendly sentences):\n"
+                        f"- Lead with the verdict in plain English.\n"
+                        f"- If there is a bottleneck, name the exact part (CPU/RAM/GPU/disk).\n"
+                        f"- NEVER mention 'tier' numbers (like 'tier 5') — that is an internal label.\n"
+                        f"- NEVER tell the user to upgrade a part they already exceed. "
+                        f"The user has {specs.get('ram_gb')} GB RAM; do not suggest they need more RAM "
+                        f"unless shortfalls list explicitly names RAM.\n"
+                        f"- Suggest low/medium graphics settings only if the verdict is BORDERLINE.\n"
+                        f"- Do NOT invent additional spec requirements beyond what is listed above."
+                    )
+                    # Standalone — no history, see note above.
+                    # Advisor queries get serialized through _advisor_lock so a
+                    # burst of 5 chats doesn't saturate Ollama's single-threaded
+                    # queue and trigger wholesale timeout fallbacks.
+                    advisor_extra = {"advisor": {
+                        "verdict": result["verdict"],
+                        "name": result["name"],
+                        "bottleneck": result["bottleneck"],
+                    }}
+                    # Learn that the user cares about this title.
+                    try:
+                        import user_memory as _um
+                        _um.note_game_interest(result["name"], result["verdict"])
+                    except Exception:
+                        pass
+                    with self._advisor_lock:
+                        resp = asst.ollama_chat(message, context, lang, history=None)
+                    if resp:
+                        self._chat_history.append({"role": "assistant", "content": resp})
+                        payload = json.dumps({"type": "text", "content": resp,
+                                              "extra": advisor_extra})
+                    else:
+                        # Fallback keeps the advisor chip so UI can still render
+                        # the verdict even when Ollama is unavailable.
+                        payload = json.dumps({"type": "data",
+                                              "content": _ga.summary_text(result),
+                                              "extra": advisor_extra})
+                code = f"onChatResponse({payload})"
+                if _target:
+                    try: _target.evaluate_js(code)
+                    except Exception: pass
+                else:
+                    self._js(code)
+
+            threading.Thread(target=_advisor_turn, daemon=True).start()
+            return {"type": "thinking", "content": "Checking…"}
+
+        elif action_id == "briefing":
+            import briefing as _br
+            _target = _popup_window
+            def _brief_turn():
+                b = _br.generate_briefing()
+                _br.mark_shown()
+                content = b.get("narrated") or _br.plain_text(b)
+                payload = json.dumps({"type": "text", "content": content,
+                                      "extra": {"briefing": b}})
+                code = f"onChatResponse({payload})"
+                if _target:
+                    try: _target.evaluate_js(code)
+                    except Exception: pass
+                else:
+                    self._js(code)
+            threading.Thread(target=_brief_turn, daemon=True).start()
+            return {"type": "thinking", "content": "Pulling your morning briefing…"}
+
+        elif action_id == "triage_error":
+            import error_triage as _et
+            _target = _popup_window
+            # If the user explicitly asked ("why did my pc crash", "triage this",
+            # "explain this error") but hasn't actually pasted an error, pull
+            # recent event-log entries anyway rather than refusing.
+            _force = not _et.looks_like_error(message)
+            def _triage_turn():
+                r = _et.triage(message, force=_force)
+                if not r.get("detected"):
+                    payload = json.dumps({"type": "info",
+                        "content": "That didn't look like an error paste. "
+                                   "Paste the full error message or stack trace."})
+                else:
+                    content = r.get("narrated") or _et.plain_text(r)
+                    payload = json.dumps({"type": "text", "content": content,
+                                          "extra": {"triage": {
+                                              "timestamp": r.get("timestamp"),
+                                              "event_count": r.get("event_count"),
+                                              "nearest_source": r.get("nearest_source"),
+                                          }}})
+                code = f"onChatResponse({payload})"
+                if _target:
+                    try: _target.evaluate_js(code)
+                    except Exception: pass
+                else:
+                    self._js(code)
+            threading.Thread(target=_triage_turn, daemon=True).start()
+            return {"type": "thinking", "content": "Checking the event log for correlated entries…"}
+
+        elif action_id == "remember_me":
+            import user_memory as _um
+            fact = _um.extract_explicit_fact(message)
+            if not fact:
+                return {"type": "info",
+                        "content": "I didn't catch what to remember. Try: \"remember that I play Valorant\"."}
+            _um.remember(fact, source="explicit")
+            return {"type": "info",
+                    "content": f"Got it — I'll remember: {fact}."}
+
+        elif action_id == "recall_me":
+            import user_memory as _um
+            rows = _um.list_all(limit=15, min_confidence=0.3)
+            if not rows:
+                return {"type": "info",
+                        "content": "I don't have any memories yet. Tell me something with \"remember that …\"."}
+            lines = [f"• {r['fact']}" for r in rows]
+            return {"type": "info",
+                    "content": "Here's what I remember about you:\n" + "\n".join(lines)}
+
+        elif action_id == "forget_me":
+            import user_memory as _um
+            target = _um.extract_forget_target(message)
+            if not target:
+                return {"type": "info",
+                        "content": "I didn't catch what to forget. Try: \"forget that I play Valorant\"."}
+            n = _um.forget(target)
+            if n == 0:
+                return {"type": "info",
+                        "content": f"I don't have a memory matching \"{target}\"."}
+            return {"type": "info",
+                    "content": f"Done — removed {n} memor{'y' if n == 1 else 'ies'} matching \"{target}\"."}
+
         elif action_id == "cleanup_confirm":
             return {"type": "info", "action": "cleanup",
                     "content": "Navigate to Storage → Clean Up to review and confirm file deletion."}
@@ -2631,6 +2887,7 @@ ForEach-Object{
                 "• **System** — \"show system info\", \"list running processes\", \"show my IP\"\n"
                 "• **Recent** — \"show recently modified files\"\n"
                 "• **Explain issues** — \"explain issue 1\", \"why is my disk space low?\"\n"
+                "• **Can my PC run?** — \"can my pc run valorant\", \"will cyberpunk work on my laptop\", \"specs for fortnite\"\n"
                 "• **Multi-step** — \"close Notepad, then open Calculator, then find my resume\"\n"
                 "• **General** — ask anything about your PC health"
             )}

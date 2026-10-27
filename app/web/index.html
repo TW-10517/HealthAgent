@@ -571,6 +571,46 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
   line-height:1.5;max-height:120px;overflow-y:auto;
   transition:border-color .15s,box-shadow .15s}
 .ai-textarea::placeholder{color:#484F58}
+.sample-q-group{border-top:1px solid var(--border);padding-top:8px}
+.sample-q-group:first-child{border-top:none;padding-top:0}
+.sample-q-title{font-size:11px;font-weight:700;color:var(--fg3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.sample-q-row{display:flex;flex-wrap:wrap;gap:5px}
+.sample-q{background:var(--surface2);border:1px solid var(--border);color:var(--fg2);border-radius:999px;padding:4px 10px;font-size:11.5px;cursor:pointer;transition:all .15s;font-family:inherit}
+.sample-q:hover{background:var(--bg);border-color:var(--brand);color:var(--brand)}
+@keyframes ph-pop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes ph-slide{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+@keyframes ph-expand{from{opacity:0;max-height:0}to{opacity:1;max-height:600px}}
+#btn-page-hint{position:relative;animation:ph-pulse 3.2s ease-in-out infinite}
+#btn-page-hint:hover{animation:none;transform:scale(1.15)}
+@keyframes ph-pulse{0%,100%{filter:drop-shadow(0 0 0 rgba(45,212,176,0))}50%{filter:drop-shadow(0 0 6px rgba(45,212,176,.7))}}
+.ph-feat{border:1px solid var(--border);background:var(--surface);border-radius:12px;margin-bottom:10px;overflow:hidden;animation:ph-slide .25s ease both}
+.ph-feat-head{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;transition:background .15s}
+.ph-feat-head:hover{background:var(--surface2)}
+.ph-feat-icon{width:36px;height:36px;border-radius:9px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.ph-feat-name{font-size:13.5px;font-weight:600;color:var(--fg)}
+.ph-feat-short{font-size:11.5px;color:var(--fg3);margin-top:2px}
+.ph-feat-caret{color:var(--fg3);transition:transform .25s}
+.ph-feat.open .ph-feat-caret{transform:rotate(90deg);color:var(--brand)}
+.ph-feat-body{display:none;padding:0 14px 14px 62px;font-size:12.5px;color:var(--fg2);line-height:1.6;animation:ph-expand .35s ease both}
+.ph-feat.open .ph-feat-body{display:block}
+.ph-feat-steps{margin:8px 0;padding-left:18px}
+.ph-feat-steps li{margin-bottom:4px}
+.ph-feat-example{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:11.5px;color:var(--fg2);font-family:ui-monospace,Consolas,monospace;line-height:1.5;white-space:pre-wrap}
+.ph-feat-try{margin-top:10px}
+.ph-tag{display:inline-block;background:var(--brand);color:#06231D;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;margin-left:6px;vertical-align:middle}
+.ph-tab{background:transparent;border:none;color:var(--fg3);padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:inherit}
+.ph-tab:hover{color:var(--fg2)}
+.ph-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+.ph-sec{margin-bottom:16px;animation:ph-slide .3s ease both}
+.ph-sec-title{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--brand);margin-bottom:8px;padding-bottom:4px;border-bottom:1px dashed var(--border)}
+.ph-sec-item{display:flex;gap:12px;padding:9px 10px;border-radius:9px;transition:background .15s;border:1px solid transparent;margin-bottom:3px}
+.ph-sec-item:hover{background:var(--surface);border-color:var(--border)}
+.ph-sec-icon{width:28px;text-align:center;font-size:17px;line-height:1.3;flex-shrink:0}
+.ph-sec-name{font-size:13px;font-weight:600;color:var(--fg);margin-bottom:2px}
+.ph-sec-desc{font-size:11.5px;line-height:1.5;color:var(--fg3)}
+.fov-pill{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:9px 11px;cursor:pointer;transition:all .18s;font-size:12.5px;color:var(--fg2)}
+.fov-pill:hover{border-color:var(--brand);color:var(--brand);transform:translateY(-1px);box-shadow:0 4px 10px rgba(45,212,176,.1)}
+.fov-pill span:first-child{font-size:16px}
 .ai-textarea:focus{border-color:rgba(79,209,197,.4);box-shadow:0 0 0 3px rgba(79,209,197,.08)}
 .ai-send-btn{width:38px;height:38px;flex-shrink:0;border:0;border-radius:9px;
   background:#4FD1C5;color:#0B0E12;display:flex;align-items:center;justify-content:center;
@@ -866,9 +906,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
     <!-- hidden for JS compat -->
     <button id="btn-theme" onclick="toggleTheme()" style="display:none"></button>
     <div style="display:none"><button id="btn-en" onclick="setLang('en')">EN</button><button id="btn-ja" onclick="setLang('ja')">日本語</button></div>
-    <button class="btn btn-ghost btn-sm" id="btn-guide" onclick="openGuide()" title="Feature guide / 機能ガイド" style="width:30px;padding:0;justify-content:center">
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 11v-.2c0-.9.6-1.3 1.2-1.7.6-.4 1-.9 1-1.7a2.2 2.2 0 0 0-4.3-.6"/><circle cx="8" cy="12.6" r=".2" fill="currentColor"/></svg>
-    </button>
+    <button class="btn btn-ghost btn-sm" id="btn-page-hint" onclick="openPageHint()" title="Help: this page + all features / ヘルプ" style="width:30px;padding:0;justify-content:center;font-size:14px">💡</button>
     <button class="btn btn-secondary btn-sm" id="btn-fast" onclick="startScan(true)"
       data-tip="Skips the duplicate-file hash step (~15s). You still get disk usage, temp/cache size and startup counts, so the Overview score updates — but duplicates on Storage won't."
       data-tip-ja="重複ファイルのハッシュ計算（約15秒）を省略。ディスク使用量・一時/キャッシュ・起動アプリ数は取得でき概要スコアも更新しますが、ストレージの重複は空のままです。">
@@ -984,6 +1022,24 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
       <button class="btn btn-secondary btn-sm" onclick="cancelScan()" id="btn-cancel-scan"><span class="en">Cancel</span><span class="ja">キャンセル</span></button>
     </div>
       <div id="idle-state">
+        <!-- Slim hint strip: one-liner pointing to the 💡 button for first-time users -->
+        <div id="feature-overview-card" style="display:none;max-width:720px;margin:0 auto 10px;background:transparent;border:1px dashed var(--border);border-radius:999px;padding:6px 14px;position:relative;animation:ph-pop .3s ease">
+          <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--fg3)">
+            <span style="font-size:13px">💡</span>
+            <span style="flex:1"><span class="en">New here? Click the lightbulb (top-right) to see what every page does.</span><span class="ja">初めての方は右上の💡から全機能を確認できます。</span></span>
+            <button onclick="openPageHint('all')" style="background:transparent;border:1px solid var(--border);color:var(--brand);padding:3px 10px;border-radius:999px;font-size:11px;cursor:pointer"><span class="en">Open</span><span class="ja">開く</span></button>
+            <button onclick="dismissFeatureOverview()" style="background:transparent;border:none;color:var(--fg4);cursor:pointer;font-size:14px;padding:0 4px" title="Dismiss">✕</button>
+          </div>
+        </div>
+        <div id="briefing-card" style="display:none;max-width:720px;margin:0 auto 14px;background:linear-gradient(135deg,rgba(45,212,176,0.08),rgba(45,212,176,0.02));border:1px solid var(--brand-border);border-radius:var(--r-lg);padding:14px 18px;position:relative">
+          <button onclick="dismissBriefing()" aria-label="Dismiss" style="position:absolute;top:8px;right:8px;background:none;border:none;color:var(--fg3);cursor:pointer;font-size:16px;padding:4px 8px">✕</button>
+          <div style="font-size:11px;font-weight:700;color:var(--brand);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">
+            <span class="en">Morning briefing</span><span class="ja">朝のブリーフィング</span>
+            <span id="briefing-date" style="color:var(--fg3);font-weight:500;letter-spacing:0;text-transform:none;margin-left:6px"></span>
+          </div>
+          <div id="briefing-narration" style="font-size:13px;color:var(--fg);line-height:1.55;margin-bottom:10px"></div>
+          <ul id="briefing-highlights" style="margin:0;padding-left:18px;font-size:12px;color:var(--fg2);line-height:1.6"></ul>
+        </div>
         <div class="idle-screen">
           <div class="idle-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M5.9 17.1 A 8.5 8.5 0 1 1 18.1 17.1" stroke="#2DD4C0" stroke-width="2.6" stroke-linecap="round"/><polyline points="6,12 9.3,12 10.8,8.8 12.8,15.2 14.2,12 16.7,12" stroke="#8AF0FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="16.9" cy="12" r="1.35" fill="#FFFFFF"/></svg></div>
           <div class="idle-title"><span class="en">Your PC, Protected</span><span class="ja">あなたのPC、保護されています</span></div>
@@ -1676,6 +1732,22 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
             </button>
           </div>
         </header>
+        <!-- Advisor quick-check (Feature #1) -->
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2)">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:.5px"><span class="en">Can my PC run</span><span class="ja">動作確認</span></span>
+            <input id="advisor-input" type="text" placeholder="Valorant, FFXIV, Elden Ring…" style="flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--fg);font-size:12px" onkeydown="if(event.key==='Enter')advisorCheck()">
+            <button class="btn btn-primary btn-sm" onclick="advisorCheck()"><span class="en">Check</span><span class="ja">確認</span></button>
+          </div>
+          <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" onclick="advisorChip('valorant')">Valorant</button>
+            <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" onclick="advisorChip('cyberpunk 2077')">Cyberpunk 2077</button>
+            <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" onclick="advisorChip('ff14')">FFXIV</button>
+            <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" onclick="advisorChip('elden ring')">Elden Ring</button>
+            <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" onclick="advisorChip('minecraft')">Minecraft</button>
+            <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" onclick="advisorChip('monster hunter rise')">Monhun Rise</button>
+          </div>
+        </div>
         <!-- Messages -->
         <div id="chat-messages" class="ai-msgs">
           <div class="chat-msg chat-assistant">
@@ -1683,8 +1755,55 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
               <svg width="15" height="15" aria-hidden="true"><use href="#pcha-logo"/></svg>
             </div>
             <div class="chat-bubble">
-              <span class="en">Hi! I'm Helix, your PC health assistant. Try: "run a scan", "disk space", "cpu usage", or "help".</span>
-              <span class="ja">Helixです。「スキャン」「ディスク」「CPU」「ヘルプ」などとどうぞ。</span>
+              <span class="en">Hi! I'm Helix. Tap any example below, or type your own question.</span>
+              <span class="ja">Helixです。下の例をタップするか、自由に質問してください。</span>
+              <div class="sample-q-wrap" style="margin-top:10px;display:flex;flex-direction:column;gap:10px">
+                <div class="sample-q-group">
+                  <div class="sample-q-title">🎮 <span class="en">Can my PC run…?</span><span class="ja">このPCで動く?</span></div>
+                  <div class="sample-q-row">
+                    <button class="sample-q" onclick="sampleAsk('Can my PC run Valorant?')">Can my PC run Valorant?</button>
+                    <button class="sample-q" onclick="sampleAsk('Can my PC run FFXIV?')">Can my PC run FFXIV?</button>
+                    <button class="sample-q" onclick="sampleAsk('Can my PC run Elden Ring?')">Can my PC run Elden Ring?</button>
+                    <button class="sample-q" onclick="sampleAsk('Will Cyberpunk 2077 run on my laptop?')">Will Cyberpunk 2077 run on my laptop?</button>
+                  </div>
+                </div>
+                <div class="sample-q-group">
+                  <div class="sample-q-title">🧠 <span class="en">What do you remember?</span><span class="ja">記憶について</span></div>
+                  <div class="sample-q-row">
+                    <button class="sample-q" onclick="sampleAsk('Remember that I play Apex Legends')">Remember that I play Apex Legends</button>
+                    <button class="sample-q" onclick="sampleAsk('What do you know about me?')">What do you know about me?</button>
+                    <button class="sample-q" onclick="sampleAsk('I use VS Code and Chrome daily')">I use VS Code and Chrome daily</button>
+                    <button class="sample-q" onclick="sampleAsk('Forget that I play Apex Legends')">Forget that I play Apex Legends</button>
+                  </div>
+                </div>
+                <div class="sample-q-group">
+                  <div class="sample-q-title">☀️ <span class="en">Morning briefing</span><span class="ja">今朝のまとめ</span></div>
+                  <div class="sample-q-row">
+                    <button class="sample-q" onclick="sampleAsk('Give me the morning briefing')">Morning briefing</button>
+                    <button class="sample-q" onclick="sampleAsk(&quot;What's new today?&quot;)">What's new today?</button>
+                    <button class="sample-q" onclick="sampleAsk('Daily briefing')">Daily briefing</button>
+                  </div>
+                </div>
+                <div class="sample-q-group">
+                  <div class="sample-q-title">💥 <span class="en">Explain a crash or error</span><span class="ja">クラッシュを説明</span></div>
+                  <div class="sample-q-row">
+                    <button class="sample-q" onclick="sampleAsk('Why did my PC crash?')">Why did my PC crash?</button>
+                    <button class="sample-q" onclick="sampleAsk('Help me understand this error')">Help me understand this error</button>
+                    <button class="sample-q" onclick="sampleAsk('What does this stack trace mean?')">Explain a stack trace</button>
+                  </div>
+                </div>
+                <div class="sample-q-group">
+                  <div class="sample-q-title">⚡ <span class="en">PC health</span><span class="ja">PC診断</span></div>
+                  <div class="sample-q-row">
+                    <button class="sample-q" onclick="sampleAsk('How is my PC doing?')">How is my PC doing?</button>
+                    <button class="sample-q" onclick="sampleAsk('Check my RAM')">Check my RAM</button>
+                    <button class="sample-q" onclick="sampleAsk('What is my CPU usage?')">CPU usage?</button>
+                    <button class="sample-q" onclick="sampleAsk('Show disk space')">Show disk space</button>
+                    <button class="sample-q" onclick="sampleAsk('How long has my PC been on?')">Uptime?</button>
+                    <button class="sample-q" onclick="sampleAsk('Run a quick scan')">Run a quick scan</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1722,6 +1841,34 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Notifications</span><span class="ja">通知</span></div><div class="setting-desc"><span class="en">Show notifications after scan</span><span class="ja">スキャン完了後に通知を表示</span></div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="set-notify" onchange="saveSetting('show_notifications',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div></div></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Scan on startup</span><span class="ja">起動時にスキャン</span></div><div class="setting-desc"><span class="en">Run a quick scan automatically when the app opens</span><span class="ja">アプリ起動時に自動でクイックスキャンを実行</span></div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="set-scan-startup" onchange="saveSetting('scan_on_startup',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div></div></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">History retention</span><span class="ja">履歴保持期間</span></div><div class="setting-desc"><span class="en">Days to keep scan records</span><span class="ja">スキャン記録の保持日数</span></div></div><div class="setting-control"><select class="setting-select" id="set-retention" onchange="saveSetting('history_retention_days',this.value)"><option value="30">30</option><option value="60">60</option><option value="90">90</option><option value="180">180</option><option value="365">365</option></select></div></div></div>
+        <div class="setting-group">
+          <div class="setting-row">
+            <div>
+              <div class="setting-label"><span class="en">Remember things about me</span><span class="ja">ユーザー情報を記憶</span></div>
+              <div class="setting-desc"><span class="en">Helix remembers short facts (games you ask about, apps you use, preferences you share) and uses them to personalize AI answers. All stored locally.</span><span class="ja">ゲーム、アプリ、好みなどを記憶してAI応答をパーソナライズ。すべてローカル保存。</span></div>
+            </div>
+            <div class="setting-control"><label class="toggle"><input type="checkbox" id="set-memory" onchange="saveSetting('memory_enabled',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div>
+          </div>
+          <div style="padding:4px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input id="mem-add-input" type="text" placeholder="Add a fact (e.g. 'I play Apex')…" style="flex:1;min-width:220px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;color:var(--fg);font-size:12px">
+            <button class="btn btn-primary btn-sm" onclick="memoryAdd()"><span class="en">Add</span><span class="ja">追加</span></button>
+            <button class="btn btn-secondary btn-sm" onclick="memoryReload()"><span class="en">Refresh</span><span class="ja">更新</span></button>
+            <button class="btn btn-ghost btn-sm" onclick="memoryClearAll()"><span class="en">Clear all</span><span class="ja">全削除</span></button>
+          </div>
+          <div id="mem-list" style="margin-top:10px;max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2)"></div>
+        </div>
+        <div class="setting-group">
+          <div class="setting-row">
+            <div>
+              <div class="setting-label"><span class="en">Morning briefing</span><span class="ja">朝のブリーフィング</span></div>
+              <div class="setting-desc"><span class="en">Once per day, show overnight score/disk/event deltas on the Overview page.</span><span class="ja">毎日1回、オーバーナイトの変化をオーバービューに表示。</span></div>
+            </div>
+            <div class="setting-control"><label class="toggle"><input type="checkbox" id="set-briefing" onchange="saveSetting('briefing_enabled',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div>
+          </div>
+          <div style="padding:4px 0 0">
+            <button class="btn btn-secondary btn-sm" onclick="showBriefingNow()"><span class="en">Show today's briefing now</span><span class="ja">今日のブリーフィングを表示</span></button>
+          </div>
+        </div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">About</span><span class="ja">アプリ情報</span></div></div></div>
           <div style="padding:8px 0 4px;display:flex;align-items:center;gap:14px">
             <svg width="36" height="42" aria-label="Helix logo"><use href="#pcha-logo"/></svg>
@@ -1931,9 +2078,27 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
       <div class="tab-bar">
         <button class="tab-btn active" onclick="switchTab('prob','fix',this)"><span class="en">Fix</span><span class="ja">修復</span></button>
         <button class="tab-btn" onclick="switchTab('prob','events',this)"><span class="en">Event log</span><span class="ja">イベントログ</span></button>
+        <button class="tab-btn" onclick="switchTab('prob','triage',this);_initTriageTab()"><span class="en">Triage</span><span class="ja">トリアージ</span></button>
       </div>
       <div class="tab-panel active" id="prob-tab-fix" style="flex:1;overflow-y:auto"></div>
       <div class="tab-panel" id="prob-tab-events" style="flex:1;overflow-y:auto"></div>
+      <div class="tab-panel" id="prob-tab-triage" style="flex:1;overflow-y:auto;padding:14px 0">
+        <div style="max-width:860px;margin:0 auto">
+          <div style="font-size:12px;color:var(--fg2);margin-bottom:10px;line-height:1.6">
+            <span class="en">Paste a crash message, stack trace, or BSOD code below. Helix will correlate it with Windows event-log entries from the same timeframe and explain in plain English what probably happened.</span>
+            <span class="ja">クラッシュメッセージ、スタックトレース、BSODコードを貼り付けてください。Helixはイベントログと照合し、原因を分かりやすく説明します。</span>
+          </div>
+          <textarea id="triage-input" rows="8" placeholder="Traceback (most recent call last)…&#10;BSOD: 0x00000124…&#10;System.NullReferenceException at…"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-lg);padding:10px 12px;color:var(--fg);font-family:'Cascadia Mono','Consolas',monospace;font-size:12px;resize:vertical"></textarea>
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+            <button class="btn btn-primary btn-sm" onclick="triagePaste()" id="btn-triage-go"><span class="en">Analyze</span><span class="ja">分析</span></button>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('triage-input').value='';document.getElementById('triage-result').innerHTML=''"><span class="en">Clear</span><span class="ja">クリア</span></button>
+            <div style="flex:1"></div>
+            <button class="btn btn-ghost btn-sm" onclick="triageRecent()" data-tip="Pull the last 2 h of Windows errors and summarize"><span class="en">Why did my PC crash?</span><span class="ja">なぜクラッシュ？</span></button>
+          </div>
+          <div id="triage-result" style="margin-top:14px"></div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -2017,6 +2182,29 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
       <button class="btn btn-ghost" style="width:30px;height:30px;padding:0;justify-content:center;border-radius:8px" onclick="closeGuide()">✕</button>
     </div>
     <div id="guide-body" style="overflow-y:auto;padding:12px 22px 22px"></div>
+  </div>
+</div>
+
+<!-- ── Per-page hint modal (button is in titlebar as #btn-page-hint) ────── -->
+
+<div id="page-hint-modal" onclick="if(event.target===this)closePageHint()"
+     style="position:fixed;inset:0;z-index:330;display:none;align-items:center;justify-content:center;background:rgba(5,9,18,.72);backdrop-filter:blur(6px);padding:24px">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);width:min(760px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;animation:ph-pop .25s ease">
+    <div style="display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--brand),#1DA98B);display:flex;align-items:center;justify-content:center;font-size:18px">💡</div>
+      <div style="flex:1">
+        <div id="ph-title" style="font-size:15px;font-weight:700;color:var(--fg)">—</div>
+        <div id="ph-sub" style="font-size:11.5px;color:var(--fg3)">—</div>
+      </div>
+      <button class="btn btn-ghost" style="width:30px;height:30px;padding:0;justify-content:center;border-radius:8px" onclick="closePageHint()">✕</button>
+    </div>
+    <div class="ph-tabs" style="display:flex;gap:4px;padding:10px 20px 0;border-bottom:1px solid var(--border);flex-shrink:0">
+      <button class="ph-tab active" data-tab="page" onclick="_phTab('page')"><span class="en">📍 This page</span><span class="ja">📍 このページ</span></button>
+      <button class="ph-tab" data-tab="all" onclick="_phTab('all')"><span class="en">📚 All features</span><span class="ja">📚 全機能</span></button>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:6px;color:var(--fg3);font-size:11px"><span>🔒</span><span class="en">All local, no cloud</span><span class="ja">すべてローカル</span></div>
+    </div>
+    <div id="ph-body" style="overflow-y:auto;padding:14px 20px 20px;flex:1"></div>
   </div>
 </div>
 
@@ -2183,7 +2371,9 @@ function showPage(name){
   if(name==='history') loadHistory();
   if(name==='storage'){ loadRecycleBin(); _initStoragePage(); }
   if(name==='performance'){ _initPerfPage(); startGlobalPoll(); _globalPoll(); }
-  if(name==='problems') _initProblemsPage();
+  if(name==='problems'){ _initProblemsPage(); _initTriageTab(); }
+  if(name==='overview'){ loadBriefing(); _showFeatureOverviewIfFirst(); }
+  if(name==='settings') loadMemorySection();
 }
 
 function showToast(msg,type='info'){
@@ -2665,8 +2855,8 @@ function _buildGuide(){
   });
   box.innerHTML=h; _guideBuilt=true;
 }
-function openGuide(){ if(!_guideBuilt) _buildGuide(); document.getElementById('guide-modal').style.display='flex'; }
-function closeGuide(){ document.getElementById('guide-modal').style.display='none'; }
+function openGuide(){ openPageHint('all'); }
+function closeGuide(){ closePageHint(); }
 
 // ── Boost modal ──────────────────────────────────────────────────────────
 async function loadCoreDetail(){
@@ -3312,6 +3502,10 @@ function loadSettings(){
     const scanStartEl=document.getElementById('set-scan-startup');
     if(scanStartEl) scanStartEl.checked=(s.scan_on_startup==='true');
     if(s.scan_on_startup==='true'&&!_scanRunning) setTimeout(()=>startScan(true),2000);
+    const memEl=document.getElementById('set-memory');
+    if(memEl) memEl.checked=(s.memory_enabled!=='false');
+    const brEl=document.getElementById('set-briefing');
+    if(brEl) brEl.checked=(s.briefing_enabled!=='false');
     _applyScheduleToUI(s);
   });
   window.pywebview.api.get_launcher_enabled().then(v=>{
@@ -3324,6 +3518,615 @@ function loadSettings(){
   });
   loadProtectedApps();
   loadProfiles();
+}
+
+/* ─── Feature #4: Briefing card ─────────────────────────────── */
+let _briefingLoaded=false;
+function loadBriefing(force){
+  if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.get_briefing) return;
+  if(_briefingLoaded && !force) return;
+  window.pywebview.api.get_briefing(!!force, true).then(b=>{
+    _briefingLoaded=true;
+    _renderBriefing(b);
+  }).catch(()=>{});
+}
+function _renderBriefing(b){
+  const card=document.getElementById('briefing-card');
+  if(!card) return;
+  if(!b||!b.show){ card.style.display='none'; return; }
+  card.style.display='';
+  const dt=document.getElementById('briefing-date');
+  if(dt) dt.textContent=b.date||'';
+  const narr=document.getElementById('briefing-narration');
+  if(narr) narr.textContent=b.narrated||'';
+  const hl=document.getElementById('briefing-highlights');
+  if(hl){
+    hl.innerHTML='';
+    (b.highlights||[]).forEach(h=>{
+      const li=document.createElement('li'); li.textContent=h; hl.appendChild(li);
+    });
+  }
+}
+function dismissBriefing(){
+  const card=document.getElementById('briefing-card');
+  if(card) card.style.display='none';
+  if(window.pywebview&&window.pywebview.api&&window.pywebview.api.dismiss_briefing)
+    window.pywebview.api.dismiss_briefing();
+}
+function showBriefingNow(){ _briefingLoaded=false; loadBriefing(true); showPage('overview'); }
+
+/* ─── Feature #3: Memory settings ───────────────────────────── */
+function loadMemorySection(){
+  memoryReload();
+}
+function memoryReload(){
+  if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.memory_list) return;
+  window.pywebview.api.memory_list(100).then(rows=>{
+    const list=document.getElementById('mem-list');
+    if(!list) return;
+    if(!rows||rows.length===0){
+      list.innerHTML='<div style="color:var(--fg3);font-size:12px;padding:8px 0"><span class="en">No memories yet.</span><span class="ja">記憶はまだありません。</span></div>';
+      return;
+    }
+    list.innerHTML=rows.map(r=>{
+      const cat=r.category?' · '+_escHtml(r.category):'';
+      const src=r.source==='explicit'?' <span style="color:var(--brand)">★</span>':'';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:4px;background:var(--bg)">'
+        +'<div style="flex:1;font-size:12px"><div>'+_escHtml(r.fact)+src+'</div>'
+        +'<div style="color:var(--fg3);font-size:10.5px;margin-top:2px">'+(r.source||'')+cat+' · seen '+(r.seen_count||1)+'×</div></div>'
+        +'<button class="btn btn-ghost btn-sm" onclick="memoryForget('+r.id+')" title="Forget">✕</button>'
+        +'</div>';
+    }).join('');
+  });
+}
+function memoryAdd(){
+  const inp=document.getElementById('mem-add-input');
+  if(!inp||!inp.value.trim()) return;
+  const fact=inp.value.trim();
+  window.pywebview.api.memory_add(fact,null,'explicit',0.9).then(()=>{
+    inp.value='';
+    memoryReload();
+  });
+}
+function memoryForget(id){
+  window.pywebview.api.memory_forget(id).then(()=>memoryReload());
+}
+async function memoryClearAll(){
+  const ok=await uiConfirm({title:'Clear all memories?',message:'This will remove everything Helix remembers about you.',danger:true});
+  if(!ok) return;
+  window.pywebview.api.memory_clear().then(()=>memoryReload());
+}
+
+/* ─── Feature #7: Triage tab ────────────────────────────────── */
+let _triageInit=false;
+function _initTriageTab(){
+  if(_triageInit) return;
+  _triageInit=true;
+}
+function triagePaste(){
+  const inp=document.getElementById('triage-input');
+  const out=document.getElementById('triage-result');
+  if(!inp||!out) return;
+  const text=(inp.value||'').trim();
+  if(!text){
+    out.innerHTML='<div style="color:var(--warn);font-size:12px"><span class="en">Paste an error message, stack trace or crash log first.</span><span class="ja">エラーメッセージを貼り付けてください。</span></div>';
+    return;
+  }
+  out.innerHTML='<div style="color:var(--fg2);font-size:12px"><span class="en">Analyzing…</span><span class="ja">解析中…</span></div>';
+  window.pywebview.api.triage_error(text,true).then(r=>_renderTriage(r)).catch(e=>{
+    out.innerHTML='<div style="color:var(--error);font-size:12px">Error: '+_escHtml(String(e))+'</div>';
+  });
+}
+function triageRecent(){
+  const out=document.getElementById('triage-result');
+  if(!out) return;
+  out.innerHTML='<div style="color:var(--fg2);font-size:12px"><span class="en">Checking recent crashes…</span><span class="ja">最近のクラッシュを確認中…</span></div>';
+  window.pywebview.api.triage_error('why did my pc crash',true).then(r=>_renderTriage(r)).catch(e=>{
+    out.innerHTML='<div style="color:var(--error);font-size:12px">Error: '+_escHtml(String(e))+'</div>';
+  });
+}
+function _renderTriage(r){
+  const out=document.getElementById('triage-result');
+  if(!out) return;
+  if(!r||!r.ok){
+    out.innerHTML='<div style="color:var(--fg2);font-size:12px"><span class="en">'+_escHtml((r&&r.message)||'No result.')+'</span></div>';
+    return;
+  }
+  let html='';
+  if(r.narrated){
+    html+='<div style="padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;font-size:13px;line-height:1.5">'+_escHtml(r.narrated)+'</div>';
+  }
+  if(r.events && r.events.length){
+    html+='<div style="font-size:11px;font-weight:700;color:var(--fg3);text-transform:uppercase;margin:8px 0 4px"><span class="en">Correlated events</span><span class="ja">関連イベント</span></div>';
+    html+=r.events.map(e=>{
+      const lvl=e.level||'';
+      const col=lvl.toLowerCase()==='critical'?'var(--error)':(lvl.toLowerCase()==='error'?'var(--warn)':'var(--fg3)');
+      return '<div style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:4px;background:var(--bg);font-size:11.5px">'
+        +'<div style="color:'+col+';font-weight:600">'+_escHtml(lvl)+' · '+_escHtml(e.source||'')+' · '+_escHtml(e.id||'')+'</div>'
+        +'<div style="color:var(--fg3);margin-top:2px">'+_escHtml(e.when||'')+'</div>'
+        +(e.message?'<div style="color:var(--fg2);margin-top:3px">'+_escHtml(String(e.message).slice(0,220))+'</div>':'')
+        +'</div>';
+    }).join('');
+  }else{
+    html+='<div style="color:var(--fg3);font-size:11.5px"><span class="en">No correlated Windows events found.</span><span class="ja">関連する Windows イベントは見つかりませんでした。</span></div>';
+  }
+  out.innerHTML=html;
+}
+
+/* ─── Feature #1: Advisor quick-check ───────────────────────── */
+function advisorChip(name){
+  const inp=document.getElementById('advisor-input');
+  if(inp){ inp.value=name; advisorCheck(); }
+}
+function sampleAsk(q){
+  showPage('assistant');
+  const inp=document.getElementById('chat-input');
+  if(!inp) return;
+  inp.value=q;
+  if(typeof sendChat==='function') sendChat();
+}
+function _showFeatureOverviewIfFirst(){
+  try{
+    if(_lsGet('pcha_fov_dismissed')==='1') return;
+    const card=document.getElementById('feature-overview-card');
+    if(card) card.style.display='';
+  }catch(_){}
+}
+function dismissFeatureOverview(){
+  try{ _lsSet('pcha_fov_dismissed','1'); }catch(_){}
+  const card=document.getElementById('feature-overview-card');
+  if(card) card.style.display='none';
+}
+
+/* ─── Per-page hint system ──────────────────────────────────── */
+const _PAGE_HINTS = {
+  overview: {
+    title: 'Overview — what\'s on this page',
+    sub: 'Your PC\'s health at a glance',
+    features: [
+      {icon:'☀️', name:'Morning briefing', tag:'NEW',
+        short:'Once-a-day summary of what changed on your PC overnight.',
+        detail:'When you open Helix in the morning, this teal card appears at the top of the page if anything meaningful changed since yesterday. It compares the last two scans (health score, number of issues, free disk space) and pulls the last 12 hours of Windows Error / Critical events, groups them by source, and asks the local Ollama AI to write a 2-sentence narration grounded in those exact numbers. The AI never invents figures — only re-phrases what the data shows. On a quiet day with no changes and no errors, the card stays hidden so it never nags.\n\nThe briefing fires once per calendar day (gated by last_briefing_date in settings). Dismissing with ✕ hides it until tomorrow; replaying is always available in Settings → Briefing or by asking the Assistant "morning briefing".',
+        steps:[
+          'Open Helix any morning — the card shows automatically if anything changed',
+          'Read the AI narration (2 sentences) at the top',
+          'Scan the 2–4 highlight bullets below for exact deltas (score, disk, event counts)',
+          'Click ✕ to dismiss, or leave it — it won\'t come back today',
+          'Replay anytime: Settings → Briefing → "Show today\'s briefing now", or just ask the Assistant'
+        ],
+        example:'Your health score dropped from 82 to 76 overnight.\nFree disk fell 2.3 GB (OneDrive syncing) and the\nwebcam driver logged 4 errors around 3:14 AM.\n\n• Score 82 → 76 (-6)\n• Free disk 182 GB → 179.7 GB\n• 4 Error events (usbvideo.sys, 03:14–03:21)\n• 0 Critical events in the last 12 h',
+        try:{label:'Show today\'s briefing now', run:()=>{closePageHint(); showBriefingNow();}}},
+      {icon:'🫀', name:'Health score ring',
+        short:'A single 0–100 number summarising your PC\'s current state.',
+        detail:'The large circular ring in the middle of the Overview page. The score is calculated from five weighted inputs: free disk space, RAM pressure, number of startup programs, Windows Event Log Error/Critical count in the last 24 h, and the count of currently unresolved issues from the latest scan.\n\nReading the number: 85–100 is healthy (green ring, nothing to do), 70–85 means minor nits worth looking at (amber ring, items appear in "Needs attention"), under 70 means something concrete needs fixing (red ring, those items are the first things to tackle). The ring also shows the delta vs. your previous scan so you can see whether things are getting better or worse.',
+        steps:[
+          'Run a scan (quick or full) — the ring stays at 0 until the first scan completes',
+          'The ring colour tells you where you stand: green/amber/red',
+          'Look at the delta number next to the score — did it go up or down?',
+          'Scroll to "Needs attention" below the ring — these are the exact items pulling the score down',
+          'Click any Needs-attention row to jump straight to its fix'
+        ],
+        example:'Score: 76 (-6 since last scan)\n\nNeeds attention:\n• 12.1 GB temp files (Storage → Files)\n• 23 startup programs (Performance → Startup)\n• 2 Error events in last 24 h (Problems → Events)'},
+      {icon:'🚀', name:'Boost',
+        short:'One-click review of memory-hog apps you probably don\'t need right now.',
+        detail:'Opens a modal that lists background processes using the most RAM, sorted descending. Only apps safe to close are shown — the 3-layer protection list filters out Windows system processes (system, lsass, csrss, winlogon…), IT-managed tools (ESET, OPTIMA, Acall, OneDrive, Teams, Edge, Defender), and anything you\'ve added to your extras list. Helix never auto-closes anything: it only shows the candidates and you pick which to close per row.\n\nClosing uses a graceful WM_CLOSE message (same as clicking the window\'s ✕), not a hard kill, so apps get a chance to save state. You\'ll free RAM but no documents will be lost.',
+        steps:[
+          'Click the 🚀 Boost button on the Overview idle state (or Ctrl+K → Boost)',
+          'Review the memory column — bigger = more RAM freed if closed',
+          'Click Close on any row you don\'t need right now',
+          'Protected apps are not listed at all — this is safe by design',
+          'Reopen anything by launching it normally'
+        ],
+        example:'Discord           742 MB   [Close]\nSpotify           318 MB   [Close]\nSlack             287 MB   [Close]\nFigma Desktop     201 MB   [Close]',
+        try:{label:'Open Boost', run:()=>{closePageHint(); if(typeof openBoost==='function')openBoost();}}},
+      {icon:'⚙️', name:'Scan controls',
+        short:'Start quick or full scans; cancel in-progress scans.',
+        detail:'Two scan modes. Quick scan (~5 s) checks disk free, startup apps, Windows events, and recent crashes. Full scan (~30–60 s) adds temp-file discovery, duplicate detection, large-file enumeration, and the complete problems pass. The progress ring overlays the whole Overview page during a scan so other pages stay usable; the sidebar shows live scan % too.\n\nAll scan work happens in a daemon thread — the UI never freezes. Cancel aborts cleanly at the next checkpoint without corrupting any state.',
+        steps:[
+          'Click "Quick scan" for a 5-second health check',
+          'Click "Full scan" for the complete pass with temp-file and duplicate detection',
+          'Watch the progress ring or switch pages — scan continues in the background',
+          'Cancel if needed — the Cancel button waits for a safe checkpoint',
+          'Set Settings → "Scan on startup" to auto-run a quick scan when Helix opens'
+        ]},
+    ]
+  },
+  assistant: {
+    title: 'Ask Assistant — what\'s on this page',
+    sub: 'Natural-language chat with Helix in English or Japanese',
+    features: [
+      {icon:'🎮', name:'Can my PC run X?', tag:'NEW',
+        short:'Instant verdict on whether a specific game or app will run on your PC.',
+        detail:'Helix ships with a local catalog of ~75 games and heavy apps, each with their published minimum CPU, GPU, RAM, and disk requirements. The CPU/GPU tier model knows Intel i3–i9 generations 6–14, Ryzen 3–9 gens 1–7, Celeron/Pentium/Xeon, plus NVIDIA GTX/RTX, AMD RX, and every common integrated GPU family. Japan-market coverage is first-class — the full Dospara GALLERIA 推奨PC roster is included (FFXIV, FFXVI, Monster Hunter Rise/World/Wilds, Elden Ring, Yakuza 8, Persona 5 Royal, Blue Protocol, Granblue Fantasy Relink, Wuthering Waves, Honkai Star Rail, PSO2 NGS, and dozens more).\n\nFor each query, Helix compares your actual hardware (already queried via WMI at startup and cached) against the game\'s minimums, picks the single bottleneck component, and names it in plain language. The verdict is one of ✓ runs, ⚠ marginal, or ✗ no, each with a short reason. Observed games are automatically remembered via the user-memory system so future advice gets personal — ask "what do you know about me" to see what Helix has picked up.',
+        steps:[
+          'Type "Can my PC run [game name]" — or tap any chip in the sample questions',
+          'Helix matches aliases: "ff14", "ffxiv", "monhun", "re4", "sf6", "wuwa" all work',
+          'Read the verdict + the one-line reason (names the exact bottleneck)',
+          'If marginal, Helix suggests the setting level you\'ll probably hit (low/med/high)',
+          'The game is auto-remembered — Helix will reference it in future chats'
+        ],
+        example:'You: can my pc run elden ring\n\nHelix: ⚠ Marginal — your i5-1334U meets CPU\n(Elden Ring min: i5-8400, you have 13th gen),\nbut Iris Xe is below the GTX 1060 minimum.\nExpect low settings at 30 fps on 1080p.\n(Noted: user has asked about Elden Ring)',
+        try:{label:'Try "Can my PC run Valorant?"', run:()=>{closePageHint(); sampleAsk('Can my PC run Valorant?');}}},
+      {icon:'🧠', name:'User memory', tag:'NEW',
+        short:'Helix remembers facts about you so advice gets personal over time.',
+        detail:'A local SQLite table (user_memory) stores short facts about you — "user plays Valorant", "user is a developer", "user uses VS Code and Chrome daily". Nothing leaves the machine, ever. Facts have two sources: explicit (you said "remember that…" or confirmed one) marked with a teal ★, and observed (Helix inferred from a conversation, like asking about a game). Each fact has a confidence score, a seen-count, and a last-seen timestamp. Explicit facts outrank observed; higher confidence outranks newer.\n\nAt every chat turn, Helix pulls up to 6 of the most relevant facts (capped at 400 characters total, to stay inside the 3B model\'s prompt budget) and injects them into Ollama\'s system prompt. The result: Helix stops suggesting you close Discord if it knows you use it daily, and recommends settings tuned to the games you actually play.\n\nFull CRUD is exposed both in chat and in Settings → Memory. The master toggle "User memory" disables the recall block entirely if you want generic answers.',
+        steps:[
+          'Add explicitly: "remember that I play Apex Legends"',
+          'Review: "what do you know about me" or Settings → Memory',
+          'Forget one: "forget that I play Apex" (or ✕ in Settings)',
+          'Clear everything: Settings → Memory → "Clear all"',
+          'Disable personalization entirely: Settings → Memory toggle off'
+        ],
+        example:'You: what do you know about me?\n\nHelix: Based on what you\'ve told me:\n  ★ user plays Apex Legends (explicit, seen 3×)\n  ★ user is a developer (explicit, seen 1×)\n    user has asked about Elden Ring (observed, verdict: marginal)\n    user uses Chrome daily (observed, seen 12×)',
+        try:{label:'Try "What do you know about me?"', run:()=>{closePageHint(); sampleAsk('What do you know about me?');}}},
+      {icon:'💥', name:'Error triage', tag:'NEW',
+        short:'Paste a crash or error, get a plain-language explanation with correlated Windows events.',
+        detail:'Detects most crash-shaped text: Python tracebacks, .NET stack traces, BSOD stop codes (0x00000124, PAGE_FAULT_IN_NONPAGED_AREA…), kernel panics, faulting-module messages, and generic exception blocks. It also tries to extract a timestamp from the paste in three formats (ISO 2026-10-27 03:14:22, US 10/27/2026 3:14 AM, European 27/10/2026 03:14).\n\nIf a timestamp is found, Helix pulls Windows Event Log entries from a ±5-minute window around that time. If no timestamp parses, it falls back to the last 2 hours of Error/Critical events. The paste + the correlated events are handed to the local Ollama (qwen2.5:3b) with strict guardrails: 2–3 sentences, no auto-fix, no shell commands, never recommends registry edits.\n\nThe tool has a force path too — "Why did my PC crash?" with no paste runs correlation on recent Error/Critical events alone. This is accessible both from the chat and from the Triage tab under Problems.',
+        steps:[
+          'Open the Problems page → Triage tab (or ask here)',
+          'Paste the crash/error text into the big textarea',
+          'Click Analyze — or click "Why did my PC crash?" if you have no paste',
+          'Read the 2–3 sentence narration at the top',
+          'Scroll through the correlated Windows events below for context'
+        ],
+        example:'Input: Faulting application chrome.exe, exception\n0xc0000005 at 2026-10-27 03:14:22\n\nOutput: Chrome crashed with an access violation at\n03:14. A GPU driver reset (dxgkrnl event ID 153)\nhappened 22 s earlier at 03:13:60 — looks like\nthe GPU hiccup cascaded into the browser process.\n\nCorrelated events (±5 min):\n  Error  chrome.exe   03:14  0xc0000005\n  Error  dxgkrnl      03:13  Display reset\n  Info   kbdclass     03:12  Device wake',
+        try:{label:'Open the Triage tab', run:()=>{closePageHint(); showPage('problems'); setTimeout(()=>_activateTab('prob','triage'),120);}}},
+      {icon:'⚡', name:'Live PC health questions',
+        short:'Ask about CPU, RAM, disk, uptime, apps — real-time answers in plain English.',
+        detail:'Covers the entire sys_executor and monitor API through natural language. "Check my RAM" returns live psutil values in under 100 ms. "What is my CPU usage?" samples once with a 150 ms interval for an accurate read. "How long has my PC been on?" calls Windows\'s LastBootUpTime. "Show running processes" lists what\'s active. "What is my IP?" runs ipconfig. "System info" summarizes CPU + RAM + OS.\n\nAll answers are generated from the handler registry (no Ollama needed), so they return instantly and work even if Ollama is offline. The intent-matcher recognises many phrasings for the same question — "ram", "memory", "how much ram", "memory usage" all route to the same handler.',
+        steps:[
+          'Type a plain English question — no commands or syntax',
+          'Short questions get sub-second answers (handler-level, no AI)',
+          'Open-ended questions fall through to Ollama with your memory as context',
+          'Chat history (last 20) is kept so follow-ups work: "and what about disk?"',
+          'Toggle to Japanese via the sidebar to ask in 日本語'
+        ],
+        try:{label:'Try "Check my RAM"', run:()=>{closePageHint(); sampleAsk('Check my RAM');}}},
+      {icon:'🧭', name:'Navigation & actions by voice',
+        short:'Tell Helix to open pages, launch apps, close windows, run scans.',
+        detail:'The intent registry recognises action phrasings: "go to storage", "run a scan", "open edge", "close notepad", "find resume.docx", "list my desktop". Opening apps is whitelisted (not arbitrary exec); the file finder is scoped to your home folder + OneDrive; closing windows uses graceful WM_CLOSE and refuses IT-managed apps.\n\nMulti-step commands work via the action planner: "find a PDF then open it" splits into two steps and runs them in sequence with the first result feeding the next.',
+        steps:[
+          'Navigation: "show storage", "go to history", "open settings"',
+          'Scans: "run quick scan", "scan everything"',
+          'Apps: "open vscode", "close spotify"',
+          'Files: "find resume.docx" (exact match), "find resume" (fuzzy)',
+          'Multi-step: "find a PDF and open it"'
+        ]},
+    ]
+  },
+  problems: {
+    title: 'Problems — what\'s on this page',
+    sub: 'Find and understand what\'s wrong with your PC',
+    features: [
+      {icon:'🔧', name:'Fix tab (diagnostics)',
+        short:'Rule-based diagnostics with safe, one-click fix actions.',
+        detail:'Runs roughly 20 checks on each visit: disk free below threshold, RAM pressure, high startup count, Windows Update stuck, SMART warnings, pending reboots, slow boot time, excessive background services, and more. Each finding comes with a severity (info/warn/crit) and, where safe, a one-click action: run temp cleanup, open the responsible page, generate a Windows battery report, or trigger a snapshot.\n\nEverything that executes is on a strict whitelist. There are no registry edits, no driver changes, no firewall or antivirus toggles, no process kills on protected names, no shell=True anywhere. If a finding needs manual action, Helix explains what and points at the right page — it never tries to be clever beyond the whitelist.',
+        steps:[
+          'Open Problems — the Fix tab runs automatically',
+          'Red items first (critical), then amber (warnings), then info',
+          'Each row has a one-line explanation and (if available) an Action button',
+          'Clicking Action asks for confirmation on anything destructive',
+          'Items without an Action point you to the right page'
+        ]},
+      {icon:'📋', name:'Event log tab',
+        short:'Last 24 hours of Windows Error and Warning events, grouped by source.',
+        detail:'Pulls from the Windows Event Log via Get-WinEvent, filtered to Error (level 2) and Critical (level 1) by default. Entries are grouped by source so a 50-event storm from one misbehaving driver reads as one group with a count, not 50 separate rows. Each group expands to show individual timestamps and messages. Noise filtering drops common benign repeats like DCOM 10016 and WMI permission notices.\n\nUseful on its own, but also feeds the Triage tab — when you paste a crash, the correlated-events panel reads from this same source.',
+        steps:[
+          'Open Problems → Event log',
+          'Groups sorted by severity, then by count',
+          'Click a group to expand its individual events',
+          'Hover a timestamp for the full ISO date-time',
+          'Change the hours slider to widen the window (default 24 h)'
+        ]},
+      {icon:'💥', name:'Triage tab', tag:'NEW',
+        short:'Paste a crash → get a plain-English explanation + correlated Windows events.',
+        detail:'See the Assistant page\'s Error triage card for the full detail. Short version: paste any crash/error/BSOD/stack trace into the textarea, click Analyze, and Helix runs it through the detector (looks_like_error), pulls a ±5 min window of Windows events around any timestamp it finds (or last 2 h fallback), and hands both to Ollama for a 2–3 sentence explanation. Never auto-fixes anything.\n\nThe "Why did my PC crash?" button is the no-paste path — Helix pulls recent Error/Critical events on its own and narrates them. Useful when something crashed but you don\'t have the message handy.',
+        steps:[
+          'Switch to the Triage tab (third tab on this page)',
+          'Paste a traceback, stack trace, BSOD code, or crash log',
+          'Click Analyze — or click "Why did my PC crash?" if you have nothing to paste',
+          'Read the 2–3 sentence narration',
+          'Scroll the correlated events for the surrounding context'
+        ],
+        example:'Input: System.NullReferenceException at\nMicrosoft.Edge.WebView2.Core.CoreWebView2…\n\nOutput: Edge WebView2 crashed because a video\ndecoder extension unloaded mid-playback. Two\nrelated events happened within 3 minutes:\nMsiInstaller finished an update, and DistributedCOM\nreported an activation failure for the WebView\nhost process.',
+        try:{label:'Open Triage tab', run:()=>{closePageHint(); setTimeout(()=>_activateTab('prob','triage'),80);}}},
+    ]
+  },
+  performance: {
+    title: 'Performance — what\'s on this page',
+    sub: 'Live metrics and what\'s eating your resources',
+    features: [
+      {icon:'📊', name:'Live tab',
+        short:'Real-time CPU, RAM, Disk, Battery, and GPU-temp gauges + top processes.',
+        detail:'Four gauges refresh every 3 seconds while this tab is visible (and pause when hidden — a document.hidden gate stops the sample loop so Helix uses 0% CPU in the background). Driven by psutil, which is dramatically faster than per-call PowerShell (one measured fix cut collection from 9.4 s to 0.002 s). CPU sampling uses a primed meter with a 150 ms interval so the first reading is accurate, not zero.\n\nThe line chart below the gauges holds a 60-sample rolling window (3 minutes of history at the 3 s cadence) so you can see trends, not just the instant snapshot. The "Top processes" table lists what\'s actually using the most CPU and RAM right now, with the owning PID. Thermal-zone temperature appears when the hardware exposes it (varies by laptop model); when it doesn\'t, the card is hidden rather than showing 0.',
+        steps:[
+          'Open Performance — defaults to the Live tab',
+          'Gauges update every 3 s, chart holds 3 min of history',
+          'Top processes table shows real-time offenders by CPU and RAM',
+          'Switch away or minimize — sampling pauses to save battery',
+          'Return to the tab — sampling resumes within 3 s'
+        ]},
+      {icon:'🚀', name:'Startup tab',
+        short:'Programs that auto-launch with Windows — see them, disable them, undo later.',
+        detail:'Reads from HKCU\\Run and HKLM\\Run plus the user Startup folder. Each entry shows the display name, the full command, and a short "what is this?" hint drawn from a local known-startups catalog so you can decide safely. The disable action moves the entry to a logs/startup-disabled.json archive — not a delete — so re-enabling is one click.\n\nHigh startup counts (over ~15) are a leading cause of slow boot. The analysis panel at the bottom summarises your count against typical healthy ranges.',
+        steps:[
+          'Open Performance → Startup',
+          'Each row shows name, command, and a short description',
+          'Click Disable to move it out of the Run key (archived, not deleted)',
+          'Click Enable in the "Disabled" section to restore any entry',
+          'Watch your boot time improve on the next restart'
+        ]},
+      {icon:'🖥️', name:'System info tab',
+        short:'Full hardware readout: CPU, GPU, RAM slots, disks, OS, machine model.',
+        detail:'Queried via WMI (CIM) on first open — takes about 5 seconds — then cached. The Refresh button re-queries. Shown as cards per component: CPU (model, cores, threads, base/boost clock), each GPU (name, VRAM), each RAM module (size, speed, slot), each physical disk (model, size, type: HDD vs SSD vs NVMe), OS (version, build, install date), and machine (manufacturer, model, UUID).\n\nThis card is also what the Can-my-PC-run advisor reads from — it\'s the single source of truth for your hardware.',
+        steps:[
+          'Open Performance → System info',
+          'First visit takes ~5 s to query WMI; after that it\'s instant',
+          'Click Refresh to force a re-query (if you installed new hardware)',
+          'Cards expand to show full detail per component',
+          'Everything here feeds the Advisor and the Scan score'
+        ]},
+    ]
+  },
+  storage: {
+    title: 'Storage — what\'s on this page',
+    sub: 'See what\'s taking up disk space, clean up safely',
+    features: [
+      {icon:'💾', name:'Files tab',
+        short:'Disk usage, temp files, duplicates, large files, Recycle Bin — all in one place.',
+        detail:'Four sub-sections. "Disk usage" shows a per-drive breakdown with free/used/total. "Temp files" lists Windows %TEMP%, your user temp, and browser caches, each with a safe-to-clean total. "Duplicates" uses size-then-hash matching to find identical files you may have multiple copies of. "Recycle Bin" shows total items and total size, with an Empty button.\n\nAll delete actions go through the Recycle Bin (recoverable) — Helix never permanently deletes. Delete-protection is intentionally narrower than scan-protection so it doesn\'t refuse to clean files inside OneDrive-synced Documents/Desktop/Downloads (a corporate-laptop pitfall that would otherwise block every user-initiated delete).',
+        steps:[
+          'Open Storage — defaults to the Files tab',
+          'Disk usage card shows free space per drive',
+          'Temp files: review the list, click Clean Up to recycle them',
+          'Duplicates: identical files are grouped — pick which copies to recycle',
+          'Recycle Bin: see what\'s in it, click Empty when you\'re sure'
+        ]},
+      {icon:'📁', name:'Organize tab',
+        short:'Move loose files in any folder into category subfolders — never deletes.',
+        detail:'Works on any folder: Downloads, Documents, Desktop, Pictures (one-click Quick Folders), or a custom path via the native Browse button. Scans the folder, classifies each file by extension into categories (Documents, Images, Videos, Audio, Archives, Installers, Code, Other), and previews the moves. You confirm per-category, then Helix moves the files into subfolders.\n\nEvery move is written to a .organize-log.json inside the target folder with a session timestamp. The Undo Last button reads that log and reverses the most recent batch, moving every file back to its original location. The Move History section shows every past session, newest first, with per-file arrows and buttons to open the file or its new folder.',
+        steps:[
+          'Open Storage → Organize',
+          'Click a Quick Folder (Downloads/Documents/Desktop/Pictures) or Browse',
+          'Review the per-category preview',
+          'Click Apply to execute the moves (never deletes, only moves)',
+          'Undo any batch from the Move History section below'
+        ]},
+    ]
+  },
+  settings: {
+    title: 'Settings — what\'s on this page',
+    sub: 'Configuration, preferences, and account controls',
+    features: [
+      {icon:'🧠', name:'Memory section', tag:'NEW',
+        short:'Review and edit everything Helix remembers about you.',
+        detail:'Shows every row of the user_memory SQLite table: the fact text, its source (explicit ★ vs observed), its category (games/hardware/apps/habits/preferences/role), its confidence, and its seen-count. Rows are sorted by rank — explicit facts first, then by confidence, then by recency.\n\nFour actions. Toggle "User memory" to turn personalization on/off globally (off hides the recall block from every Ollama prompt). Type a fact into the input and click Add to create an explicit entry at confidence 0.9. Click ✕ on any row to forget that single fact. Click "Clear all" (requires confirmation) to wipe the whole table.',
+        steps:[
+          'Scroll to the "User memory" card in Settings',
+          'Toggle on/off to enable/disable personalization',
+          'Type a fact and click Add — stored as explicit (★)',
+          'Click ✕ on any row to forget just that fact',
+          '"Clear all" wipes everything (confirms first)'
+        ],
+        try:{label:'Scroll to Memory section', run:()=>{closePageHint(); const el=document.getElementById('mem-list'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'});}}},
+      {icon:'☀️', name:'Briefing section', tag:'NEW',
+        short:'Control the morning briefing — toggle it, or replay today\'s card.',
+        detail:'The briefing_enabled toggle controls whether the Overview page shows the briefing card at all. Turning it off means you\'ll never see the card — but you can still ask the Assistant for a briefing explicitly.\n\n"Show today\'s briefing now" is a replay button. It clears last_briefing_date in memory so the next call to get_briefing() runs fresh and the card appears again on Overview, even if you already dismissed it earlier today.',
+        steps:[
+          'Toggle "Daily briefing" to enable/disable the automatic card',
+          'Click "Show today\'s briefing now" to replay',
+          'Replay also works from the Assistant: "give me the briefing"',
+          'Dismiss the card with ✕ when done — it won\'t show again today'
+        ],
+        try:{label:'Show today\'s briefing', run:()=>{closePageHint(); showBriefingNow();}}},
+      {icon:'🌐', name:'Language & theme',
+        short:'EN ↔ 日本語 and dark ↔ light switches, saved for next time.',
+        detail:'Language controls every string on the SPA (via <span class="en">/<span class="ja"> pairs that setLang() toggles) and also propagates to the standalone chat popup, the launcher, and the chat_popup window. The choice saves to the DB (settings.language) so it survives app restarts.\n\nTheme switches between the dark v2 design (default) and a light override via :root[data-theme="light"]. Persists in localStorage (pcha_theme). Ctrl+Shift+T toggles from anywhere.',
+        steps:[
+          'Change language — all text updates instantly',
+          'Change theme — colors transition smoothly',
+          'Ctrl+Shift+T toggles theme from any page',
+          'Both choices survive restarts'
+        ]},
+      {icon:'🔒', name:'Protected apps',
+        short:'3-layer safety list that prevents Helix from closing anything critical.',
+        detail:'The live protected-keyword set is the union of three layers: a Critical floor (always on, never removable — system, lsass, csrss, winlogon, smss, wininit, services, svchost, msmpeng, mssenses), IT defaults (shipping, toggleable — eset, ekrn, egui, optima, acall, onedrive, teams, microsoftedge, msedge, securityhealth, windowsdefender), and User extras (comma-separated list you edit).\n\nAny close-window or disable-startup action checks against this set and refuses matches. The 3-layer design means IT policy can be loosened for personal use (toggle defaults off) without ever risking the critical floor.',
+        steps:[
+          'Toggle "Include IT defaults" to include/exclude the shipping defaults',
+          'Add your own keywords to Extras (comma-separated)',
+          'Critical floor is always protected — not editable',
+          'Any match blocks close/disable actions'
+        ]},
+      {icon:'📅', name:'Scheduler',
+        short:'Run a quick scan, temp cleanup, or snapshot on a daily/weekly/monthly cadence.',
+        detail:'In-process watcher thread wakes every 10 minutes and checks the schedule. "Cadence" picks daily / weekly / monthly. "Actions" is a comma-separated list of what to run — any subset of quick_scan, temp_cleanup, snapshot. last_run is written on each successful run so the schedule never fires twice in the same window.\n\n"Run now" bypasses the cadence check and executes immediately — useful for testing or forcing a cycle without waiting.',
+        steps:[
+          'Toggle "Enable scheduler" on',
+          'Pick cadence (daily / weekly / monthly)',
+          'Check the actions you want to run on each firing',
+          'Click "Run now" to execute without waiting',
+          'Logs appear in History and in logs/'
+        ]},
+      {icon:'🩺', name:'Health watch',
+        short:'Background daemon that alerts when disk gets low or RAM gets high.',
+        detail:'A daemon thread polls psutil every 15 minutes and compares against your configured thresholds (free disk GB and RAM %). If either crosses the line, Helix shows a Windows balloon notification. The daemon respects the show_notifications setting; it also deduplicates alerts so a persistently full disk doesn\'t spam you.',
+        steps:[
+          'Toggle "Health watch" on',
+          'Pick a disk threshold (3/5/10/20 GB free)',
+          'Pick a RAM threshold (85/90/92/95 %)',
+          'A balloon appears when either is crossed',
+          'The daemon pauses while scans are running'
+        ]},
+      {icon:'🚀', name:'Launcher',
+        short:'Floating radial menu that stays on screen even when Helix is minimized.',
+        detail:'A 6-segment Win32 layered window: Open App, Quick Chat, Run Scan, Monitor HUD, Hide, Exit. Click a segment to invoke that action from anywhere. Chat opens a standalone bilingual popup. Hide tucks the ring; Show restores it. Position is remembered; Reset Position moves it back to the default corner.',
+        steps:[
+          'Toggle "Floating launcher" on',
+          'Drag the ring anywhere on screen',
+          'Click a segment to run that action',
+          'Reset Position returns it to the default corner',
+          '"Start with Windows" launches Helix + launcher on boot'
+        ]},
+      {icon:'⬆️', name:'Updates (About section)',
+        short:'Check for new Helix versions; install self-updates when available.',
+        detail:'Reads version.json from the Cloudflare host (helix-57o.pages.dev/version.json). Semver-compares against the local build. If newer, the "Install update" row appears with the release notes. Clicking downloads the new exe to %LOCALAPPDATA%\\PCHealthAgent\\updates\\, writes an apply_update.cmd that waits for Helix to exit, swaps the exe, and relaunches. The current process exits with os._exit(0) after 1.2 s.\n\nAuto-check fires once ~2.5 s after the UI is ready. The sidebar version pill shows "Update available" with a glowing dot when a newer version is detected.',
+        steps:[
+          'Settings → About → check version info',
+          'Click "Check now" to force a manifest fetch',
+          'If "Install update" appears, click to start',
+          'Progress bar fills, Helix exits, the updater runs, Helix relaunches',
+          'The sidebar version pill always reflects the latest known state'
+        ]},
+    ]
+  },
+  history: {
+    title: 'History — what\'s on this page',
+    sub: 'Past scans and your PC\'s health over time',
+    features: [
+      {icon:'📈', name:'Score trend chart',
+        short:'A line chart of your health score across every past scan.',
+        detail:'Each point is one completed scan. The X axis is time, the Y axis is the 0–100 health score. Hover any point to see the exact score and the full timestamp. The chart auto-scales to your retention window (default 30 days; configurable up to 365 in Settings).\n\nUseful for spotting slow degradation (score drifting down over weeks) or sudden drops (a bad update, a new runaway process) that correlate with real events on your machine.',
+        steps:[
+          'Open History',
+          'Hover any point for exact score + date',
+          'Zoom with mouse scroll (if your Chrome supports it)',
+          'Patterns to watch: slow decline, sudden drops, recovery after fixes'
+        ]},
+      {icon:'📋', name:'Scan list',
+        short:'Every past scan with its issue count and completion time.',
+        detail:'Rows sorted newest first. Each shows the timestamp, mode (quick vs full), total issues found, duration, and final score. Click any row to see the full issue list from that scan — useful for comparing "what did Helix flag three weeks ago?" against today.\n\nRetention is controlled by Settings → "History retention" (30 / 60 / 90 / 180 / 365 days). Older scans are pruned on app start.',
+        steps:[
+          'Rows are sorted newest first',
+          'Each row: timestamp, mode, issues, duration, score',
+          'Click to drill in — see the exact issues from that scan',
+          'Change retention in Settings → History retention'
+        ]},
+    ]
+  },
+  privacy: {
+    title: 'Security — what\'s on this page',
+    sub: 'Privacy, browser cache, network, and sensitive-file detection',
+    features: [
+      {icon:'🍪', name:'Browser cache',
+        short:'Clear Edge, Chrome, Firefox, and Brave caches safely.',
+        detail:'Lists each supported browser with its current cache size. Clearing works only when the browser is closed — if the browser is running, Helix refuses with a message, because clearing a live cache will corrupt the profile. The confirm is two-step: first you click Clean, then a confirmation dialog shows exactly what will be removed and how much space it will free.\n\nThis only clears HTTP cache (temp files, image cache, service-worker storage). It does not touch cookies, saved passwords, bookmarks, autofill, or history.',
+        steps:[
+          'Open Security — browser cache card loads automatically',
+          'Each browser shows its cache size in MB',
+          'Close the browser you want to clean (Helix refuses otherwise)',
+          'Click Clean — a confirm dialog shows exact size to free',
+          'Confirm — the cache is cleared without touching your profile'
+        ]},
+      {icon:'🌐', name:'Network connections',
+        short:'See which programs on your PC are talking to the internet right now.',
+        detail:'Lists active TCP connections via psutil, grouped by owning process. For each connection: the remote IP, remote port, state (ESTABLISHED/LISTEN), and the process name. Useful for spotting unexpected outbound traffic — a browser you don\'t have open, a utility phoning home, a background app with unusual destinations.\n\nStrictly read-only; Helix never blocks connections or interferes with networking. For actual blocking you\'d use Windows Firewall.',
+        steps:[
+          'Open Security → Network',
+          'Rows sorted by process',
+          'Expand a process to see its individual connections',
+          'Spot anything surprising — unknown processes with outbound links',
+          'For blocking, use Windows Firewall (Helix is read-only here)'
+        ]},
+      {icon:'📄', name:'Sensitive-file radar',
+        short:'Flags files with sensitive-looking names in your home folder.',
+        detail:'Walks your home directory (and OneDrive if present) looking for filenames that match a pattern list: password*, *.env, api_key*, credentials*, *.pem, *.key, token*, secret*, aws_credentials, .netrc, and about a dozen more. Shows the full path and the match reason.\n\nStrictly a detection tool — nothing is moved, nothing is deleted, nothing leaves the machine. The point is awareness: "you have a password.txt on your Desktop, maybe put it in a password manager."',
+        steps:[
+          'Open Security → Sensitive files',
+          'The list shows every match with its full path',
+          'Review each — some are false positives (e.g. example.key)',
+          'Move real secrets to a password manager, encrypted volume, or secure vault',
+          'Helix never moves or touches these files itself'
+        ]},
+    ]
+  },
+};
+
+let _phCurrent=null, _phMode='page';
+function openPageHint(mode){
+  _phMode = mode || 'page';
+  document.querySelectorAll('.ph-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===_phMode));
+  _phRender();
+  const m = document.getElementById('page-hint-modal');
+  m.style.display='flex';
+}
+function closePageHint(){ const m=document.getElementById('page-hint-modal'); if(m) m.style.display='none'; }
+function _phTab(mode){
+  _phMode = mode;
+  document.querySelectorAll('.ph-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===mode));
+  _phRender();
+}
+function _phRender(){
+  if(_phMode==='all') return _phRenderAll();
+  const activePage = document.querySelector('.page.active');
+  const name = activePage ? activePage.id.replace('page-','') : 'overview';
+  const data = _PAGE_HINTS[name] || _PAGE_HINTS.overview;
+  document.getElementById('ph-title').textContent = data.title;
+  document.getElementById('ph-sub').textContent = data.sub;
+  const body = document.getElementById('ph-body');
+  body.innerHTML = data.features.map((f,i)=>{
+    const tag = f.tag ? '<span class="ph-tag">'+_escHtml(f.tag)+'</span>' : '';
+    return '<div class="ph-feat" data-i="'+i+'" style="animation-delay:'+(i*60)+'ms">'
+      +'<div class="ph-feat-head" onclick="_phToggle('+i+')">'
+      +'<div class="ph-feat-icon">'+f.icon+'</div>'
+      +'<div style="flex:1"><div class="ph-feat-name">'+_escHtml(f.name)+tag+'</div>'
+      +'<div class="ph-feat-short">'+_escHtml(f.short)+'</div></div>'
+      +'<div class="ph-feat-caret">▸</div></div>'
+      +'<div class="ph-feat-body"><div>'+_escHtml(f.detail||'')+'</div>'
+      +(f.steps?'<ol class="ph-feat-steps">'+f.steps.map(s=>'<li>'+_escHtml(s)+'</li>').join('')+'</ol>':'')
+      +(f.example?'<div class="ph-feat-example">'+_escHtml(f.example)+'</div>':'')
+      +(f.try?'<div class="ph-feat-try"><button class="btn btn-primary btn-sm" onclick="_phTry('+i+')">▶ '+_escHtml(f.try.label)+'</button></div>':'')
+      +'</div></div>';
+  }).join('');
+  _phCurrent = data;
+}
+function _phRenderAll(){
+  document.getElementById('ph-title').textContent = 'All features — the full Helix tour';
+  document.getElementById('ph-sub').textContent = 'Every section grouped by purpose. Switch to "This page" for in-depth guidance on the active page.';
+  const body = document.getElementById('ph-body');
+  let html = '<div style="font-size:12px;color:var(--fg2);line-height:1.6;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px"><strong style="color:var(--fg)">👋 Welcome to Helix.</strong> Local PC-health utility for Windows. The AI runs on your machine via Ollama — nothing is sent to the cloud. The sidebar on the left groups features into Overview, Performance, Storage, Security, Problems, History, Assistant and Settings. Click the <strong>💡</strong> at the top-right on any page for details specific to that page.</div>';
+  _GUIDE.forEach((sec,si)=>{
+    html += '<div class="ph-sec" style="animation-delay:'+(si*80)+'ms">'
+      + '<div class="ph-sec-title"><span class="en">'+sec.t[0]+'</span><span class="ja">'+sec.t[1]+'</span></div>';
+    sec.items.forEach(it=>{
+      html += '<div class="ph-sec-item">'
+        + '<div class="ph-sec-icon">'+it[0]+'</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div class="ph-sec-name"><span class="en">'+_escHtml(it[1][0])+'</span><span class="ja">'+_escHtml(it[1][1])+'</span></div>'
+        + '<div class="ph-sec-desc"><span class="en">'+it[2][0]+'</span><span class="ja">'+it[2][1]+'</span></div>'
+        + '</div></div>';
+    });
+    html += '</div>';
+  });
+  body.innerHTML = html;
+}
+function _phToggle(i){
+  document.querySelectorAll('#ph-body .ph-feat').forEach(el=>{
+    if(parseInt(el.dataset.i)===i) el.classList.toggle('open');
+    else el.classList.remove('open');
+  });
+}
+function _phTry(i){
+  if(_phCurrent && _phCurrent.features[i] && _phCurrent.features[i].try && _phCurrent.features[i].try.run){
+    _phCurrent.features[i].try.run();
+  }
+}
+function advisorCheck(){
+  const inp=document.getElementById('advisor-input');
+  if(!inp||!inp.value.trim()) return;
+  const q='can my pc run '+inp.value.trim();
+  const chatInp=document.getElementById('chat-input');
+  if(chatInp){ chatInp.value=q; if(typeof sendChat==='function') sendChat(); }
+  inp.value='';
+}
+
+/* ─── Toggle wiring for memory / briefing ───────────────────── */
+function saveMemoryEnabled(cb){
+  if(window.pywebview&&window.pywebview.api)
+    window.pywebview.api.save_settings({memory_enabled: cb.checked?'true':'false'});
+}
+function saveBriefingEnabled(cb){
+  if(window.pywebview&&window.pywebview.api)
+    window.pywebview.api.save_settings({briefing_enabled: cb.checked?'true':'false'});
 }
 
 function _fmtBytes(n){ if(!n) return ''; if(n<1024) return '('+n+' B)'; if(n<1<<20) return '('+(n/1024).toFixed(1)+' KB)'; return '('+(n/(1<<20)).toFixed(1)+' MB)'; }
@@ -4528,6 +5331,8 @@ window.addEventListener('unhandledrejection', e=>{
 });
 window.addEventListener('pywebviewready',()=>{loadSettings();loadHistory();setTimeout(loadInsights,500);
   setTimeout(startGlobalPoll, 800); setTimeout(_startSidebarPolling, 1200);
+  setTimeout(_showFeatureOverviewIfFirst, 1500);
+  setTimeout(loadBriefing, 1900);
   setTimeout(_maybeShowFirstRunPicker, 1800);
   setTimeout(()=>checkForUpdate(false), 2500);
   setTimeout(_enhanceSelects, 50);
