@@ -1,11 +1,11 @@
 {
-  "version": "1.0.1",
-  "released": "2026-10-26",
+  "version": "1.1.0",
+  "released": "2026-10-27",
   "exe_url": "https://helix-57o.pages.dev/Helix.exe",
   "zip_url": "https://helix-57o.pages.dev/Helix.zip",
   "website_url": "https://helix-57o.pages.dev",
-  "sha256": "b75af3c1b82d8e06ba99cf4d50c64a494a1f95eaebaa1105e6a7c1985ff4cc04",
-  "size_bytes": 24194242,
+  "sha256": "a55a40146f38e0496a1adcdb82fe5ca6bedea65bcb6f4cb0073279b23f835bf0",
+  "size_bytes": 24252249,
   "min_supported": "1.0.0",
-  "notes": "Fixes: (1) Performance → System info tab was blank — a duplicate loadSysInfo function overrode the correct one; removed. (2) Delete-to-Recycle-Bin on files inside OneDrive-synced folders (Documents, Desktop, Downloads on corporate laptops) was refused. Deletion now narrows protection to true system paths (Windows, Program Files, ESET/Optima), allowing user content in OneDrive. OneDrive still keeps its own version history + bin."
+  "notes": "AI-first features (local Ollama, nothing leaves your PC): (1) \"Can my PC run X?\" advisor with ~75 games including the full Dospara GALLERIA roster. (2) User memory — Helix remembers facts about you across sessions. (3) Morning briefing — once-a-day summary of overnight PC changes. (4) Error triage — paste any crash/BSOD/traceback and get a plain-English explanation with correlated Windows events. New help: unified 💡 button (top-right) with per-page deep hints + full feature catalog, animated. Fixes greet-pattern miss on \"ok thanks\" and a memory race under concurrent writes."
 }
