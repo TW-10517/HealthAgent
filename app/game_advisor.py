@@ -385,8 +385,8 @@ def get_pc_specs(force: bool = False) -> dict[str, Any]:
         return specs
 
     try:
-        import subprocess
-        r = subprocess.run(
+        import run_hidden
+        r = run_hidden.run(
             ["powershell", "-NoProfile", "-Command",
              "(Get-CimInstance Win32_Processor | Select-Object -First 1).Name"],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=6,
@@ -398,8 +398,8 @@ def get_pc_specs(force: bool = False) -> dict[str, Any]:
     specs["cpu_tier"] = _cpu_tier(specs["cpu_name"])
 
     try:
-        import subprocess
-        r = subprocess.run(
+        import run_hidden
+        r = run_hidden.run(
             ["powershell", "-NoProfile", "-Command",
              "(Get-CimInstance Win32_VideoController).Name"],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=6,
