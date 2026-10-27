@@ -1889,7 +1889,6 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
             <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-secondary btn-sm" onclick="openErrorLog()"><span class="en">Open error log</span><span class="ja">エラーログを開く</span> <span id="about-errsz" style="color:var(--fg3)"></span></button>
               <button class="btn btn-secondary btn-sm" onclick="window.pywebview.api.generate_battery_report().then(r=>showToast(r&&r.ok?'Battery report saved':'Battery report failed', r&&r.ok?'success':'error'))"><span class="en">Battery report</span><span class="ja">バッテリーレポート</span></button>
-              <a class="btn btn-secondary btn-sm" href="https://github.com/TW-10517/HealthAgent" target="_blank" rel="noopener">GitHub</a>
             </div>
           </div>
           <div id="update-row" style="margin-top:12px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">
@@ -2835,7 +2834,7 @@ const _GUIDE=[
     ['⌨️',['Command palette / shortcuts','コマンドパレット/ショートカット'],['Press Ctrl+K to jump to any page or action; press ? for the full keyboard-shortcut list.','Ctrl+Kで任意のページ/操作へ、?でショートカット一覧。']],
     ['🌗',['Theme toggle','テーマ切替'],['Dark (default) or light. Settings or Ctrl+Shift+T.','ダーク（既定）またはライト。設定または Ctrl+Shift+T。']],
     ['⚙️',['Settings','設定'],['Language (EN / 日本語), theme, tray behaviour, notifications, scan-on-startup, launcher, health watch — plus all cards above.','言語（英/日）、テーマ、トレイ動作、通知、起動時スキャン、ランチャー、バックグラウンド監視など。']],
-    ['ℹ️',['About / Battery / Error log','情報 / バッテリー / エラーログ'],['Settings ▸ About ▸ Details — paths, Python/mode, GitHub link, Battery report (powercfg), and an opener for the local error log.','設定 ▸ 情報 ▸ 詳細：パス・Python情報・GitHubリンク・バッテリーレポート・エラーログを開く。']],
+    ['ℹ️',['About / Battery / Error log','情報 / バッテリー / エラーログ'],['Settings ▸ About ▸ Details — paths, Python/mode, Battery report (powercfg), and an opener for the local error log.','設定 ▸ 情報 ▸ 詳細：パス・Python情報・バッテリーレポート・エラーログを開く。']],
   ]},
 ];
 let _guideBuilt=false;

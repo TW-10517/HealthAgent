@@ -259,11 +259,20 @@ a:hover { color: var(--brand2); }
   background: linear-gradient(165deg, rgba(45, 212, 192, 0.08), rgba(20, 27, 39, 0.9));
   border: 1px solid rgba(45, 212, 192, 0.25);
   border-radius: var(--radius-lg);
-  padding: 48px 44px;
+  padding: 44px 40px;
   text-align: center;
-  max-width: 640px; width: 100%;
+  max-width: 920px; width: 100%;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }
+.dl-options { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 24px; text-align: left; }
+@media (max-width: 720px) { .dl-options { grid-template-columns: 1fr; } }
+.dl-option { background: rgba(7, 9, 13, 0.55); border: 1px solid var(--border); border-radius: 14px; padding: 22px 22px 24px; display: flex; flex-direction: column; }
+.dl-option-head { flex: 1; margin-bottom: 18px; }
+.dl-option h3 { font-size: 1.15rem; margin: 10px 0 8px; color: var(--fg); }
+.dl-option p { font-size: 13.5px; color: var(--fg2); line-height: 1.55; margin: 0; }
+.dl-option .btn { width: 100%; justify-content: center; }
+.dl-option-badge { display: inline-block; background: var(--brand); color: #06231D; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+.dl-option-badge-alt { background: transparent; color: var(--fg3); border: 1px solid var(--border); }
 .dl-card h2 { font-size: 2rem; margin-bottom: 10px; letter-spacing: -0.02em; }
 .dl-card > p { color: var(--fg2); margin-bottom: 28px; }
 .dl-meta {
