@@ -35,14 +35,17 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller pywebview pystray Pillow psutil pythonnet clr-loader proxy-tools
+          pip install pyinstaller==6.22.3 pyinstaller-hooks-contrib pywebview==6.2.1 pystray==0.19.5 Pillow==12.3.0 psutil==7.2.2 pythonnet==3.2.0 clr-loader==0.3.1 proxy-tools==0.1.0
 
       - name: Install UPX
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-win64.zip" -OutFile upx.zip
           Expand-Archive upx.zip -DestinationPath upx-dir
-          "UPX_DIR=$((Get-ChildItem upx-dir -Directory | Select-Object -First 1).FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $upxPath = (Get-ChildItem upx-dir -Directory | Select-Object -First 1).FullName
+          "UPX_DIR=$upxPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "UPX_DIR = $upxPath"
+          Get-ChildItem $upxPath
 
       - name: Install Inno Setup
         shell: pwsh
