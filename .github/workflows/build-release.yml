@@ -1,0 +1,139 @@
+name: Build Helix release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'installer/**'
+      - 'app_icon.ico'
+      - '.github/workflows/build-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-release
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller pywebview pystray Pillow psutil pythonnet clr-loader proxy-tools
+
+      - name: Install UPX
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-win64.zip" -OutFile upx.zip
+          Expand-Archive upx.zip -DestinationPath upx-dir
+          "UPX_DIR=$((Get-ChildItem upx-dir -Directory | Select-Object -First 1).FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Read APP_VERSION
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path app\metadata.py -Pattern 'APP_VERSION\s*=\s*"([0-9\.]+)"').Matches[0].Groups[1].Value
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "APP_VERSION = $v"
+
+      - name: Build Helix.exe (PyInstaller + UPX)
+        shell: pwsh
+        run: |
+          cd app
+          python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
+            --icon "..\app_icon.ico" `
+            --add-data "web;web" `
+            --collect-all webview --collect-all clr_loader --collect-all pythonnet --collect-all proxy_tools `
+            --upx-dir "$env:UPX_DIR" `
+            --distpath "..\dist" desktop_app.py
+
+      - name: Verify exe size (must be <= 25 MiB for Cloudflare)
+        shell: pwsh
+        run: |
+          $size = (Get-Item dist\Helix.exe).Length
+          $mib = [math]::Round($size / 1MB, 2)
+          Write-Host "Helix.exe = $size bytes ($mib MiB)"
+          if ($size -gt 25MB) { throw "Helix.exe exceeds Cloudflare 25 MiB cap: $mib MiB" }
+
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          Copy-Item dist\Helix.exe website\Helix.exe -Force
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\Helix.iss
+
+      - name: Stage website binaries + zips
+        shell: pwsh
+        run: |
+          Copy-Item dist\HelixSetup.exe website\HelixSetup.exe -Force
+          Remove-Item website\Helix.zip, website\HelixSetup.zip -Force -EA SilentlyContinue
+          Compress-Archive -Path website\Helix.exe -DestinationPath website\Helix.zip -CompressionLevel Optimal
+          Compress-Archive -Path website\HelixSetup.exe -DestinationPath website\HelixSetup.zip -CompressionLevel Optimal
+
+      - name: Regenerate version.json
+        shell: pwsh
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          $today = Get-Date -Format 'yyyy-MM-dd'
+          function H($p) { (Get-FileHash $p -Algorithm SHA256).Hash.ToLower() }
+          function S($p) { (Get-Item $p).Length }
+          # Preserve existing notes field if present, otherwise default message
+          $notes = "Automated build from commit ${{ github.sha }}."
+          try {
+            $prev = Get-Content website\version.json -Raw | ConvertFrom-Json
+            if ($prev.notes -and $prev.version -eq $v) { $notes = $prev.notes }
+          } catch {}
+          $json = [ordered]@{
+            version              = $v
+            released             = $today
+            exe_url              = "https://helix-57o.pages.dev/Helix.exe"
+            zip_url              = "https://helix-57o.pages.dev/Helix.zip"
+            setup_url            = "https://helix-57o.pages.dev/HelixSetup.exe"
+            setup_zip_url        = "https://helix-57o.pages.dev/HelixSetup.zip"
+            website_url          = "https://helix-57o.pages.dev"
+            sha256               = H 'website\Helix.exe'
+            size_bytes           = S 'website\Helix.exe'
+            zip_sha256           = H 'website\Helix.zip'
+            zip_size_bytes       = S 'website\Helix.zip'
+            setup_sha256         = H 'website\HelixSetup.exe'
+            setup_size_bytes     = S 'website\HelixSetup.exe'
+            setup_zip_sha256     = H 'website\HelixSetup.zip'
+            setup_zip_size_bytes = S 'website\HelixSetup.zip'
+            min_supported        = "1.0.0"
+            notes                = $notes
+          } | ConvertTo-Json -Depth 5
+          $json | Out-File website\version.json -Encoding utf8
+
+      - name: Commit updated binaries back to main
+        shell: pwsh
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add website/Helix.exe website/Helix.zip website/HelixSetup.exe website/HelixSetup.zip website/version.json
+          if ((git status --porcelain) -eq $null) {
+            Write-Host "No binary changes to commit."
+            exit 0
+          }
+          git commit -m "ci: rebuild v${{ steps.ver.outputs.version }} binaries from ${{ github.sha }} [skip ci]"
+          # Pull-rebase in case something else landed meanwhile
+          git pull --rebase origin main
+          git push origin HEAD:main

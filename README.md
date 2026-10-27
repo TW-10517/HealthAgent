@@ -10,18 +10,13 @@
 
 ## Install
 
-Pick whichever suits you — they install the **same** app with identical features.
+1. Download [`HelixSetup.zip`](https://helix-57o.pages.dev/HelixSetup.zip) (~25 MB).
+2. Unzip it, double-click `HelixSetup.exe`, follow the wizard.
+3. Launch Helix from the Start Menu.
 
-| | Installer (recommended) | Portable |
-|---|---|---|
-| Download | [`HelixSetup.zip`](https://helix-57o.pages.dev/HelixSetup.zip) (~25 MB) | [`Helix.zip`](https://helix-57o.pages.dev/Helix.zip) (~23 MB) |
-| Install flow | Unzip → double-click `HelixSetup.exe` → Windows setup wizard | Unzip → double-click `Helix.exe` |
-| Added to | Start Menu, Settings → Apps, optional desktop shortcut | Nowhere — runs from the folder you drop it in |
-| Admin needed? | No (per-user install into `AppData`) | No |
-| Uninstall | Settings → Apps → Uninstall | Delete the file |
-| User data preserved on uninstall | Yes (`AppData\Local\PCHealthAgent`) | N/A |
+Per-user install into `%LOCALAPPDATA%\Programs\Helix`. No admin rights, no registry pollution, uninstall from Settings → Apps.
 
-Both downloads are served as `.zip` because browsers increasingly block raw `.exe` downloads from unknown publishers (SmartScreen, "This file is uncommon…", etc.). Unzip once, then you'll see one `.exe` to run.
+Served as `.zip` because browsers increasingly block raw `.exe` downloads from unknown publishers (SmartScreen, "This file is uncommon…", etc.). Unzip once, then you'll see one `.exe` to run.
 
 **SmartScreen on first run** will show *"Windows protected your PC"* because the binary isn't code-signed. Click **More info → Run anyway**. We don't yet have a commercial signing cert.
 

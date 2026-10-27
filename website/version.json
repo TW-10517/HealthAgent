@@ -6,14 +6,14 @@
   "setup_url": "https://helix-57o.pages.dev/HelixSetup.exe",
   "setup_zip_url": "https://helix-57o.pages.dev/HelixSetup.zip",
   "website_url": "https://helix-57o.pages.dev",
-  "sha256": "a55a40146f38e0496a1adcdb82fe5ca6bedea65bcb6f4cb0073279b23f835bf0",
-  "size_bytes": 24252249,
-  "zip_sha256": "5534ec0363955bd400a5f4256b1905df5386615966075a196ef7dfe17642049e",
-  "zip_size_bytes": 24056169,
-  "setup_sha256": "692554fa22064304e24fa17937b897df96901b25acf067d7e1c41b4c44d48b01",
-  "setup_size_bytes": 26151708,
-  "setup_zip_sha256": "74292bbbda79c0841aff4ebdf2770af6a9758a970800855ef1964020099bd63a",
-  "setup_zip_size_bytes": 25642336,
+  "sha256": "5a3c2f6ece75333afd1357bdfa4c678547ed0e30a8005c25da80b5f96b693347",
+  "size_bytes": 24252209,
+  "zip_sha256": "58fc9e45faa4d0b2a8bbf7db7404248a9c1f2b614216e081a2482f8488d68873",
+  "zip_size_bytes": 24056398,
+  "setup_sha256": "136d7d5d81a2976714f8c0ed04ca25f0050e7490acb8d77ecde72ad54fb96746",
+  "setup_size_bytes": 26151669,
+  "setup_zip_sha256": "236ccac9852f11b7715b18c8dd5aa1d82cf078a3b060bc2d21d97600fac899d6",
+  "setup_zip_size_bytes": 25642515,
   "min_supported": "1.0.0",
-  "notes": "AI-first features (local Ollama, nothing leaves your PC): (1) \"Can my PC run X?\" advisor with ~75 games including the full Dospara GALLERIA roster. (2) User memory — Helix remembers facts about you across sessions. (3) Morning briefing — once-a-day summary of overnight PC changes. (4) Error triage — paste any crash/BSOD/traceback and get a plain-English explanation with correlated Windows events. Also new: Windows installer (HelixSetup) alongside the portable zip, and all downloads on the website are now served as .zip files to avoid browser SmartScreen blocks on raw .exe files. Removed GitHub link from Settings → About."
+  "notes": "AI-first features (local Ollama, nothing leaves your PC): (1) Can-my-PC-run-X advisor with ~75 games including the full Dospara GALLERIA roster. (2) User memory - Helix remembers facts about you across sessions. (3) Morning briefing - once-a-day summary of overnight PC changes. (4) Error triage - paste any crash/BSOD/traceback and get a plain-English explanation with correlated Windows events. Website simplified to a single installer download. Builds are now produced by GitHub Actions on every push, so the exe always matches the latest source."
 }

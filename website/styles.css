@@ -277,6 +277,10 @@ a:hover { color: var(--brand2); }
 }
 .dl-options { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 24px; text-align: left; }
 @media (max-width: 720px) { .dl-options { grid-template-columns: 1fr; } }
+.dl-single { margin-top: 28px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.dl-single .btn { min-width: 320px; justify-content: center; }
+.dl-single .dl-sub { margin: 8px auto 0; color: var(--fg3); font-size: 13px; max-width: 520px; line-height: 1.6; }
+.dl-single code { font-family: var(--mono); font-size: 12.5px; background: rgba(45,212,192,0.08); padding: 1px 6px; border-radius: 4px; color: var(--brand); }
 .dl-option { background: rgba(7, 9, 13, 0.55); border: 1px solid var(--border); border-radius: 14px; padding: 24px 24px; display: flex; flex-direction: column; min-height: 100%; }
 .dl-option-head { flex: 1; margin-bottom: 20px; }
 .dl-option h3 { font-size: 1.15rem; margin: 10px 0 8px; color: var(--fg); }
