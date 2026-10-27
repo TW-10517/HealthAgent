@@ -4,11 +4,16 @@
   "exe_url": "https://helix-57o.pages.dev/Helix.exe",
   "zip_url": "https://helix-57o.pages.dev/Helix.zip",
   "setup_url": "https://helix-57o.pages.dev/HelixSetup.exe",
+  "setup_zip_url": "https://helix-57o.pages.dev/HelixSetup.zip",
   "website_url": "https://helix-57o.pages.dev",
   "sha256": "a55a40146f38e0496a1adcdb82fe5ca6bedea65bcb6f4cb0073279b23f835bf0",
   "size_bytes": 24252249,
+  "zip_sha256": "5534ec0363955bd400a5f4256b1905df5386615966075a196ef7dfe17642049e",
+  "zip_size_bytes": 24056169,
   "setup_sha256": "692554fa22064304e24fa17937b897df96901b25acf067d7e1c41b4c44d48b01",
   "setup_size_bytes": 26151708,
+  "setup_zip_sha256": "74292bbbda79c0841aff4ebdf2770af6a9758a970800855ef1964020099bd63a",
+  "setup_zip_size_bytes": 25642336,
   "min_supported": "1.0.0",
-  "notes": "AI-first features (local Ollama, nothing leaves your PC): (1) \"Can my PC run X?\" advisor with ~75 games including the full Dospara GALLERIA roster. (2) User memory — Helix remembers facts about you across sessions. (3) Morning briefing — once-a-day summary of overnight PC changes. (4) Error triage — paste any crash/BSOD/traceback and get a plain-English explanation with correlated Windows events. New help: unified 💡 button (top-right) with per-page deep hints + full feature catalog, animated. Also new: Windows installer (HelixSetup.exe) alongside the portable exe — gives a Start Menu entry, Add/Remove Programs listing, and optional desktop shortcut. Removed GitHub link from Settings → About."
+  "notes": "AI-first features (local Ollama, nothing leaves your PC): (1) \"Can my PC run X?\" advisor with ~75 games including the full Dospara GALLERIA roster. (2) User memory — Helix remembers facts about you across sessions. (3) Morning briefing — once-a-day summary of overnight PC changes. (4) Error triage — paste any crash/BSOD/traceback and get a plain-English explanation with correlated Windows events. Also new: Windows installer (HelixSetup) alongside the portable zip, and all downloads on the website are now served as .zip files to avoid browser SmartScreen blocks on raw .exe files. Removed GitHub link from Settings → About."
 }
