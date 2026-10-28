@@ -14,9 +14,6 @@ data/
 logs/
 reports/
 
-# App icon (generated at runtime)
-app_icon.ico
-
 # OS / editor
 .DS_Store
 Thumbs.db
