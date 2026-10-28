@@ -157,6 +157,32 @@ jobs:
           } else { "(no build dir)" >> $env:GITHUB_STEP_SUMMARY }
           '```' >> $env:GITHUB_STEP_SUMMARY
 
+      - name: Push logs to ci-logs branch on failure
+        if: steps.build_exe.outcome == 'failure'
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $logsDir = "ci-logs-staging"
+          New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
+          Copy-Item pyinstaller.log "$logsDir/pyinstaller.log" -EA SilentlyContinue
+          Copy-Item import_test.log "$logsDir/import_test.log" -EA SilentlyContinue
+          $warn = Get-ChildItem build -Recurse -Filter "warn-Helix.txt" -EA SilentlyContinue | Select-Object -First 1
+          if ($warn) { Copy-Item $warn.FullName "$logsDir/warn-Helix.txt" }
+          # Also stash the version + commit info
+          "run_id=${{ github.run_id }}`ncommit=${{ github.sha }}`ndate=$(Get-Date -Format o)" | Out-File "$logsDir/meta.txt"
+
+          # Push to orphan branch (replace every time, no history buildup)
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan ci-logs-new
+          git rm -rf . 2>&1 | Out-Null
+          Copy-Item "$logsDir/*" . -Recurse -Force
+          git add .
+          git commit -m "ci-logs: run ${{ github.run_id }}"
+          git branch -D ci-logs 2>&1 | Out-Null
+          git branch -m ci-logs
+          git push -f origin ci-logs
+
       - name: Fail job if PyInstaller failed
         if: steps.build_exe.outcome == 'failure'
         run: exit 1
