@@ -124,12 +124,17 @@ jobs:
             --distpath "..\dist" `
             --workpath "..\build" `
             --specpath "..\build" `
-            desktop_app.py *> $log
+            desktop_app.py 2>&1 | Out-File -FilePath $log -Encoding utf8
           $exit = $LASTEXITCODE
           Write-Host "PyInstaller exit code: $exit"
+          Write-Host "Log file exists: $(Test-Path $log) | Size: $(if (Test-Path $log) { (Get-Item $log).Length } else { 'N/A' })"
           Write-Host "--- Last 80 lines of pyinstaller.log ---"
-          if (Test-Path $log) { Get-Content $log | Select-Object -Last 80 }
-          else { Write-Host "(no log file - pyinstaller.log was never written)" }
+          if (Test-Path $log) {
+            Get-Content $log | Select-Object -Last 80
+          } else {
+            "PyInstaller produced no output and log file was never created." | Out-File $log -Encoding utf8
+            Write-Host "(no log file - pyinstaller.log was never written)"
+          }
           "PYINSTALLER_EXIT=$exit" | Out-File -FilePath $env:GITHUB_ENV -Append
           exit $exit
 
