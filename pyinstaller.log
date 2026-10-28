@@ -1,0 +1,414 @@
+346 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.9
+346 INFO: Python: 3.12.10
+368 INFO: Platform: Windows-2025Server-10.0.26100-SP0
+368 INFO: Python environment: C:\hostedtoolcache\windows\Python\3.12.10\x64
+368 INFO: wrote D:\a\HealthAgent\HealthAgent\app\Helix.spec
+390 INFO: UPX is available and will be used if enabled on build targets.
+392 INFO: Module search paths (PYTHONPATH):
+['D:\\a\\HealthAgent\\HealthAgent\\app',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\python312.zip',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\DLLs',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages',
+ 'D:\\a\\HealthAgent\\HealthAgent\\app']
+715 INFO: Appending 'datas' from .spec
+715 INFO: checking Analysis
+715 INFO: Building Analysis because Analysis-00.toc is non existent
+715 INFO: Looking for Python shared library...
+715 INFO: Using Python shared library: C:\hostedtoolcache\windows\Python\3.12.10\x64\python312.dll
+715 INFO: Running Analysis Analysis-00.toc
+715 INFO: Target bytecode optimization level: 0
+715 INFO: Initializing module dependency graph...
+719 INFO: Initializing module graph hook caches...
+737 INFO: Analyzing modules for base_library.zip ...
+1693 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+1825 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+3479 INFO: Processing standard module hook 'hook-math.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+3764 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+5644 INFO: Caching module dependency graph...
+5684 INFO: Analyzing D:\a\HealthAgent\HealthAgent\app\desktop_app.py
+5884 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+5957 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+6004 INFO: Processing standard module hook 'hook-psutil.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+6442 INFO: Processing standard module hook 'hook-sqlite3.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+6716 INFO: Processing standard module hook 'hook-PIL.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+6825 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+7166 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+7190 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+7362 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+7765 INFO: Processing standard module hook 'hook-webview.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\webview\\__pyinstaller'
+7980 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+8405 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+9187 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+9187 INFO: SetuptoolsInfo: initializing cached setuptools info...
+10075 INFO: Processing standard module hook 'hook-clr.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\pythonnet\\_pyinstaller'
+10097 INFO: Processing standard module hook 'hook-clr_loader.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+10200 INFO: Processing standard module hook 'hook-pycparser.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+10388 INFO: Processing standard module hook 'hook-setuptools.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+10400 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10472 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+10481 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10481 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+10491 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10491 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+10626 INFO: Processing standard module hook 'hook-_osx_support.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+10640 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10989 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+10991 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10998 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10998 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+11512 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11512 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+12109 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+D:\a\HealthAgent\HealthAgent\app\chat_popup.py:227: SyntaxWarning: invalid escape sequence '\*'
+  .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+12692 INFO: Processing standard module hook 'hook-pystray.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+12981 INFO: Processing pre-safe-import-module hook 'hook-six.moves.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+13032 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+13083 INFO: Analyzing hidden import 'clr_loader.ffi.load'
+13083 ERROR: Hidden import 'clr_loader.ffi.load' not found
+13085 INFO: Processing module hooks (post-graph stage)...
+13085 WARNING: Hidden import "pycparser.lextab" not found!
+13085 WARNING: Hidden import "pycparser.yacctab" not found!
+13365 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+13529 INFO: Performing binary vs. data reclassification (22 entries)
+13537 INFO: Looking for ctypes DLLs
+13623 INFO: Analyzing run-time hooks ...
+13625 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+13629 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+13631 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+13631 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+13641 INFO: Creating base_library.zip...
+13664 INFO: Looking for dynamic libraries
+14090 INFO: Extra DLL search directories (AddDllDirectory): []
+14090 INFO: Extra DLL search directories (PATH): []
+15319 WARNING: Library not found: could not resolve 'python39.dll', dependency of 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cefpython3\\cefpython_py39.pyd'.
+15319 WARNING: Library not found: could not resolve 'python38.dll', dependency of 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cefpython3\\cefpython_py38.pyd'.
+15319 WARNING: Library not found: could not resolve 'python37.dll', dependency of 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cefpython3\\cefpython_py37.pyd'.
+15319 WARNING: Library not found: could not resolve 'python36.dll', dependency of 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cefpython3\\cefpython_py36.pyd'.
+15319 WARNING: Library not found: could not resolve 'python35.dll', dependency of 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cefpython3\\cefpython_py35.pyd'.
+15319 WARNING: Library not found: could not resolve 'MSVCR100.dll', dependency of 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cefpython3\\cefpython_py34.pyd'.
+15321 WARNING: Library not found: could not resolve 'python34.dll', dependency of 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cefpython3\\cefpython_py34.pyd'.
+15321 WARNING: Library not found: could not resolve 'python27.dll', dependency of 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cefpython3\\cefpython_py27.pyd'.
+15321 WARNING: Library not found: could not resolve 'MSVCR90.dll', dependency of 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cefpython3\\cefpython_py27.pyd'.
+15321 WARNING: Library not found: could not resolve 'MSVCR100.dll', dependency of 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cefpython3\\MSVCP100.dll'.
+15321 WARNING: Library not found: could not resolve 'MSVCR90.dll', dependency of 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cefpython3\\MSVCP90.dll'.
+15331 INFO: Warnings written to D:\a\HealthAgent\HealthAgent\build\Helix\warn-Helix.txt
+15391 INFO: Graph cross-reference written to D:\a\HealthAgent\HealthAgent\build\Helix\xref-Helix.html
+15417 INFO: checking PYZ
+15417 INFO: Building PYZ because PYZ-00.toc is non existent
+15417 INFO: Building PYZ (ZlibArchive) D:\a\HealthAgent\HealthAgent\build\Helix\PYZ-00.pyz
+16010 INFO: Building PYZ (ZlibArchive) D:\a\HealthAgent\HealthAgent\build\Helix\PYZ-00.pyz completed successfully.
+16032 INFO: checking PKG
+16032 INFO: Building PKG because PKG-00.toc is non existent
+16032 INFO: Building PKG (CArchive) Helix.pkg
+16037 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\pythonnet\runtime\Python.Runtime.dll
+16055 WARNING: Failed to upx strip on 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\pythonnet\\runtime\\Python.Runtime.dll'!
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\utils.py", line 295, in process_collected_binary
+    p = subprocess.run(
+        ^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['D:\\a\\HealthAgent\\HealthAgent\\upx-dir\\upx-4.2.4-win64\\upx', '--compress-icons=0', '--lzma', '-q', '--strip-loadconf', 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\pythonnet\\runtime\\Python.Runtime.dll']' returned non-zero exit status 1.
+16057 WARNING: Output from upx command:
+                       Ultimate Packer for eXecutables
+                          Copyright (C) 1996 - 2024
+UPX 4.2.4       Markus Oberhumer, Laszlo Molnar & John Reiser    May 9th 2024
+
+        File size         Ratio      Format      Name
+   --------------------   ------   -----------   -----------
+upx: C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\pythonnet\runtime\Python.Runtime.dll: CantPackException: unexpected value in PE header (try --force)
+
+Packed 1 file: 0 ok, 1 error.
+
+16059 INFO: Disabling UPX for C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\webview\lib\runtimes\win-x64\native\WebView2Loader.dll due to CFG!
+16061 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\webview\lib\Microsoft.Web.WebView2.WinForms.dll
+16079 WARNING: Failed to upx strip on 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\webview\\lib\\Microsoft.Web.WebView2.WinForms.dll'!
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\utils.py", line 295, in process_collected_binary
+    p = subprocess.run(
+        ^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['D:\\a\\HealthAgent\\HealthAgent\\upx-dir\\upx-4.2.4-win64\\upx', '--compress-icons=0', '--lzma', '-q', '--strip-loadconf', 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\webview\\lib\\Microsoft.Web.WebView2.WinForms.dll']' returned non-zero exit status 1.
+16079 WARNING: Output from upx command:
+                       Ultimate Packer for eXecutables
+                          Copyright (C) 1996 - 2024
+UPX 4.2.4       Markus Oberhumer, Laszlo Molnar & John Reiser    May 9th 2024
+
+        File size         Ratio      Format      Name
+   --------------------   ------   -----------   -----------
+upx: C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\webview\lib\Microsoft.Web.WebView2.WinForms.dll: CantPackException: unexpected value in PE header (try --force)
+
+Packed 1 file: 0 ok, 1 error.
+
+16085 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\webview\lib\Microsoft.Web.WebView2.Core.dll
+16103 WARNING: Failed to upx strip on 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\webview\\lib\\Microsoft.Web.WebView2.Core.dll'!
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\utils.py", line 295, in process_collected_binary
+    p = subprocess.run(
+        ^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['D:\\a\\HealthAgent\\HealthAgent\\upx-dir\\upx-4.2.4-win64\\upx', '--compress-icons=0', '--lzma', '-q', '--strip-loadconf', 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\webview\\lib\\Microsoft.Web.WebView2.Core.dll']' returned non-zero exit status 1.
+16105 WARNING: Output from upx command:
+                       Ultimate Packer for eXecutables
+                          Copyright (C) 1996 - 2024
+UPX 4.2.4       Markus Oberhumer, Laszlo Molnar & John Reiser    May 9th 2024
+
+        File size         Ratio      Format      Name
+   --------------------   ------   -----------   -----------
+upx: C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\webview\lib\Microsoft.Web.WebView2.Core.dll: CantPackException: unexpected value in PE header (try --force)
+
+Packed 1 file: 0 ok, 1 error.
+
+16107 INFO: Disabling UPX for C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\webview\lib\runtimes\win-x86\native\WebView2Loader.dll due to CFG!
+16109 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\webview\lib\WebBrowserInterop.x64.dll
+16127 WARNING: Failed to upx strip on 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\webview\\lib\\WebBrowserInterop.x64.dll'!
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\utils.py", line 295, in process_collected_binary
+    p = subprocess.run(
+        ^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['D:\\a\\HealthAgent\\HealthAgent\\upx-dir\\upx-4.2.4-win64\\upx', '--compress-icons=0', '--lzma', '-q', '--strip-loadconf', 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\webview\\lib\\WebBrowserInterop.x64.dll']' returned non-zero exit status 1.
+16127 WARNING: Output from upx command:
+                       Ultimate Packer for eXecutables
+                          Copyright (C) 1996 - 2024
+UPX 4.2.4       Markus Oberhumer, Laszlo Molnar & John Reiser    May 9th 2024
+
+        File size         Ratio      Format      Name
+   --------------------   ------   -----------   -----------
+upx: C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\webview\lib\WebBrowserInterop.x64.dll: CantPackException: .NET files are not yet supported
+
+Packed 1 file: 0 ok, 1 error.
+
+16129 INFO: Disabling UPX for C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\webview\lib\runtimes\win-arm64\native\WebView2Loader.dll due to CFG!
+16131 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\webview\lib\WebBrowserInterop.x86.dll
+16148 WARNING: Failed to upx strip on 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\webview\\lib\\WebBrowserInterop.x86.dll'!
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\utils.py", line 295, in process_collected_binary
+    p = subprocess.run(
+        ^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['D:\\a\\HealthAgent\\HealthAgent\\upx-dir\\upx-4.2.4-win64\\upx', '--compress-icons=0', '--lzma', '-q', '--strip-loadconf', 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\webview\\lib\\WebBrowserInterop.x86.dll']' returned non-zero exit status 1.
+16148 WARNING: Output from upx command:
+                       Ultimate Packer for eXecutables
+                          Copyright (C) 1996 - 2024
+UPX 4.2.4       Markus Oberhumer, Laszlo Molnar & John Reiser    May 9th 2024
+
+        File size         Ratio      Format      Name
+   --------------------   ------   -----------   -----------
+upx: C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\webview\lib\WebBrowserInterop.x86.dll: CantPackException: .NET files are not yet supported
+
+Packed 1 file: 0 ok, 1 error.
+
+16398 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\python312.dll
+18683 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\clr_loader\ffi\dlls\amd64\ClrLoader.dll
+18702 WARNING: Failed to upx strip on 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\clr_loader\\ffi\\dlls\\amd64\\ClrLoader.dll'!
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\utils.py", line 295, in process_collected_binary
+    p = subprocess.run(
+        ^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['D:\\a\\HealthAgent\\HealthAgent\\upx-dir\\upx-4.2.4-win64\\upx', '--compress-icons=0', '--lzma', '-q', '--strip-loadconf', 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\clr_loader\\ffi\\dlls\\amd64\\ClrLoader.dll']' returned non-zero exit status 1.
+18702 WARNING: Output from upx command:
+                       Ultimate Packer for eXecutables
+                          Copyright (C) 1996 - 2024
+UPX 4.2.4       Markus Oberhumer, Laszlo Molnar & John Reiser    May 9th 2024
+
+        File size         Ratio      Format      Name
+   --------------------   ------   -----------   -----------
+upx: C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\clr_loader\ffi\dlls\amd64\ClrLoader.dll: CantPackException: .NET files are not yet supported
+
+Packed 1 file: 0 ok, 1 error.
+
+18706 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\clr_loader\ffi\dlls\x86\ClrLoader.dll
+18724 WARNING: Failed to upx strip on 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\clr_loader\\ffi\\dlls\\x86\\ClrLoader.dll'!
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\utils.py", line 295, in process_collected_binary
+    p = subprocess.run(
+        ^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['D:\\a\\HealthAgent\\HealthAgent\\upx-dir\\upx-4.2.4-win64\\upx', '--compress-icons=0', '--lzma', '-q', '--strip-loadconf', 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\clr_loader\\ffi\\dlls\\x86\\ClrLoader.dll']' returned non-zero exit status 1.
+18724 WARNING: Output from upx command:
+                       Ultimate Packer for eXecutables
+                          Copyright (C) 1996 - 2024
+UPX 4.2.4       Markus Oberhumer, Laszlo Molnar & John Reiser    May 9th 2024
+
+        File size         Ratio      Format      Name
+   --------------------   ------   -----------   -----------
+upx: C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\clr_loader\ffi\dlls\x86\ClrLoader.dll: CantPackException: .NET files are not yet supported
+
+Packed 1 file: 0 ok, 1 error.
+
+18727 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_multiprocessing.pyd
+18760 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\pyexpat.pyd
+18840 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\unicodedata.pyd
+19186 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_decimal.pyd
+19281 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_hashlib.pyd
+19320 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_socket.pyd
+19366 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\select.pyd
+19397 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_queue.pyd
+19427 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_lzma.pyd
+19492 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_bz2.pyd
+19538 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_overlapped.pyd
+19575 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_asyncio.pyd
+19615 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_wmi.pyd
+19647 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_ctypes.pyd
+19708 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_cffi_backend.cp312-win_amd64.pyd
+19788 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_elementtree.pyd
+19851 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\cefpython3\cefpython_py39.pyd
+20389 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\cefpython3\cefpython_py38.pyd
+20956 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\cefpython3\cefpython_py37.pyd
+21494 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\cefpython3\cefpython_py36.pyd
+22010 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\cefpython3\cefpython_py35.pyd
+22497 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\cefpython3\cefpython_py34.pyd
+23004 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\cefpython3\cefpython_py27.pyd
+23537 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\PIL\_imagingft.cp312-win_amd64.pyd
+24287 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\PIL\_imaging.cp312-win_amd64.pyd
+25113 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_uuid.pyd
+25139 WARNING: Failed to upx strip on 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\_uuid.pyd'!
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\utils.py", line 295, in process_collected_binary
+    p = subprocess.run(
+        ^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['D:\\a\\HealthAgent\\HealthAgent\\upx-dir\\upx-4.2.4-win64\\upx', '--compress-icons=0', '--lzma', '-q', '--strip-loadconf', 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\_uuid.pyd']' returned non-zero exit status 1.
+25139 WARNING: Output from upx command:
+                       Ultimate Packer for eXecutables
+                          Copyright (C) 1996 - 2024
+UPX 4.2.4       Markus Oberhumer, Laszlo Molnar & John Reiser    May 9th 2024
+
+        File size         Ratio      Format      Name
+   --------------------   ------   -----------   -----------
+upx: C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_uuid.pyd: NotCompressibleException
+
+Packed 1 file: 0 ok, 1 error.
+
+25143 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_ssl.pyd
+25214 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\psutil\_psutil_windows.pyd
+25262 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\PIL\_webp.cp312-win_amd64.pyd
+25409 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\PIL\_imagingtk.cp312-win_amd64.pyd
+25458 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\PIL\_avif.cp312-win_amd64.pyd
+27645 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\PIL\_imagingcms.cp312-win_amd64.pyd
+27744 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\PIL\_imagingmath.cp312-win_amd64.pyd
+27776 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\_sqlite3.pyd
+27829 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-locale-l1-1-0.dll due to CFG!
+27831 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-time-l1-1-0.dll due to CFG!
+27831 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-stdio-l1-1-0.dll due to CFG!
+27831 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-convert-l1-1-0.dll due to CFG!
+27833 INFO: Disabling UPX for C:\hostedtoolcache\windows\Python\3.12.10\x64\VCRUNTIME140.dll due to CFG!
+27833 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-runtime-l1-1-0.dll due to CFG!
+27835 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-string-l1-1-0.dll due to CFG!
+27835 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-process-l1-1-0.dll due to CFG!
+27835 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-environment-l1-1-0.dll due to CFG!
+27837 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-math-l1-1-0.dll due to CFG!
+27837 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-conio-l1-1-0.dll due to CFG!
+27837 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-filesystem-l1-1-0.dll due to CFG!
+27839 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-heap-l1-1-0.dll due to CFG!
+27839 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-crt-utility-l1-1-0.dll due to CFG!
+28059 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\libcrypto-3.dll
+29751 INFO: Disabling UPX for C:\hostedtoolcache\windows\Python\3.12.10\x64\VCRUNTIME140_1.dll due to CFG!
+29753 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\libffi-8.dll
+29787 INFO: Disabling UPX for C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\cefpython3\MSVCP140.dll due to CFG!
+30022 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\cefpython3\libcef.dll
+78320 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\cefpython3\MSVCP100.dll
+78492 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\cefpython3\MSVCP90.dll
+78720 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\libssl-3.dll
+78972 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\python3.dll
+79003 WARNING: Failed to upx strip on 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\python3.dll'!
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\utils.py", line 295, in process_collected_binary
+    p = subprocess.run(
+        ^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['D:\\a\\HealthAgent\\HealthAgent\\upx-dir\\upx-4.2.4-win64\\upx', '--compress-icons=0', '--lzma', '-q', '--strip-loadconf', 'C:\\Users\\runneradmin\\AppData\\Local\\pyinstaller\\bincache01py31264bit\\python3.dll']' returned non-zero exit status 1.
+79003 WARNING: Output from upx command:
+                       Ultimate Packer for eXecutables
+                          Copyright (C) 1996 - 2024
+UPX 4.2.4       Markus Oberhumer, Laszlo Molnar & John Reiser    May 9th 2024
+
+        File size         Ratio      Format      Name
+   --------------------   ------   -----------   -----------
+upx: C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\python3.dll: NotCompressibleException
+
+Packed 1 file: 0 ok, 1 error.
+
+79117 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\sqlite3.dll
+79728 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\ucrtbase.dll due to CFG!
+79732 INFO: Executing: D:\a\HealthAgent\HealthAgent\upx-dir\upx-4.2.4-win64\upx --compress-icons=0 --lzma -q --strip-loadconf C:\Users\runneradmin\AppData\Local\pyinstaller\bincache01py31264bit\cefpython3\chrome_elf.dll
+79928 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-sysinfo-l1-1-0.dll due to CFG!
+79928 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-console-l1-1-0.dll due to CFG!
+79930 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-kernel32-legacy-l1-1-1.dll due to CFG!
+79930 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-namedpipe-l1-1-0.dll due to CFG!
+79930 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-interlocked-l1-1-0.dll due to CFG!
+79932 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-handle-l1-1-0.dll due to CFG!
+79932 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-debug-l1-1-0.dll due to CFG!
+79932 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-datetime-l1-1-0.dll due to CFG!
+79934 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-sysinfo-l1-2-0.dll due to CFG!
+79934 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-file-l1-2-0.dll due to CFG!
+79936 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-errorhandling-l1-1-0.dll due to CFG!
+79936 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-synch-l1-1-0.dll due to CFG!
+79936 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-rtlsupport-l1-1-0.dll due to CFG!
+79938 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-string-l1-1-0.dll due to CFG!
+79938 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-profile-l1-1-0.dll due to CFG!
+79940 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-libraryloader-l1-1-0.dll due to CFG!
+79940 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-timezone-l1-1-0.dll due to CFG!
+79942 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-util-l1-1-0.dll due to CFG!
+79942 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-file-l2-1-0.dll due to CFG!
+79942 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-file-l1-1-0.dll due to CFG!
+79944 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-fibers-l1-1-0.dll due to CFG!
+79944 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-processthreads-l1-1-0.dll due to CFG!
+79946 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-memory-l1-1-0.dll due to CFG!
+79946 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-processthreads-l1-1-1.dll due to CFG!
+79946 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-processenvironment-l1-1-0.dll due to CFG!
+79948 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-localization-l1-2-0.dll due to CFG!
+79948 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-fibers-l1-1-1.dll due to CFG!
+79948 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-synch-l1-2-0.dll due to CFG!
+79950 INFO: Disabling UPX for C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.20-101\x64\bin\api-ms-win-core-heap-l1-1-0.dll due to CFG!
+82494 INFO: Building PKG (CArchive) Helix.pkg completed successfully.
+82496 INFO: Bootloader C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+82496 INFO: checking EXE
+82496 INFO: Building EXE because EXE-00.toc is non existent
+82496 INFO: Building EXE from EXE-00.toc
+82496 INFO: Copying bootloader EXE to D:\a\HealthAgent\HealthAgent\dist\Helix.exe
+82500 INFO: Copying icon to EXE
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\__main__.py", line 321, in <module>
+    run()
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\__main__.py", line 215, in run
+    run_build(pyi_config, spec_file, **vars(args))
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\__main__.py", line 70, in run_build
+    PyInstaller.building.build_main.main(pyi_config, spec_file, **kwargs)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\build_main.py", line 1275, in main
+    build(specfile, distpath, workpath, clean_build)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\build_main.py", line 1213, in build
+    exec(code, spec_namespace)
+  File "D:\a\HealthAgent\HealthAgent\app\Helix.spec", line 19, in <module>
+    exe = EXE(
+          ^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\api.py", line 675, in __init__
+    self.__postinit__()
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\datastruct.py", line 184, in __postinit__
+    self.assemble()
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\api.py", line 788, in assemble
+    self._retry_operation(icon.CopyIcons, build_name, self.icon)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\api.py", line 1058, in _retry_operation
+    return func(*args)
+           ^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\utils\win32\icon.py", line 206, in CopyIcons
+    srcpath = normalize_icon_type(srcpath, ("exe", "ico"), "ico", config.CONF["workpath"])
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\building\icon.py", line 34, in normalize_icon_type
+    raise FileNotFoundError(f"Icon input file {icon_path} not found")
+FileNotFoundError: Icon input file D:\a\HealthAgent\HealthAgent\app\../app_icon.ico not found
