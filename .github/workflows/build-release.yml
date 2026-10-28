@@ -74,14 +74,28 @@ jobs:
           "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host "APP_VERSION = $v"
 
+      - name: Smoke-test desktop_app import before PyInstaller
+        shell: pwsh
+        run: |
+          cd app
+          Write-Host "Attempting plain import of desktop_app to catch missing deps..."
+          python -c "import sys; sys.path.insert(0,'.'); import desktop_app; print('import OK')" 2>&1 | Tee-Object -FilePath ..\import_test.log
+          $ok = Get-Content ..\import_test.log -Raw
+          if (-not $ok.Contains('import OK')) {
+            Write-Host "`n### Import test FAILED - see output above" >> $env:GITHUB_STEP_SUMMARY
+            Get-Content ..\import_test.log | ForEach-Object { "    $_" } >> $env:GITHUB_STEP_SUMMARY
+            throw "desktop_app import failed - PyInstaller would also fail here"
+          }
+          Write-Host "`n### Import test OK" >> $env:GITHUB_STEP_SUMMARY
+
       - name: Build Helix.exe (PyInstaller + UPX)
         id: build_exe
         continue-on-error: true
         shell: pwsh
         run: |
           cd app
-          # Match the exact command we use locally.
-          # --log-level WARN keeps the Actions log readable; stderr always shows.
+          $log = "..\pyinstaller.log"
+          # Capture stdout+stderr to a log file AND stream to console
           python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
             --icon "..\app_icon.ico" `
             --add-data "web;web" `
@@ -96,36 +110,52 @@ jobs:
             --exclude-module=webview.platforms.gtk `
             --exclude-module=webview.platforms.qt `
             --upx-dir "$env:UPX_DIR" `
-            --log-level WARN `
+            --log-level INFO `
             --distpath "..\dist" `
             --workpath "..\build" `
             --specpath "..\build" `
-            desktop_app.py
+            desktop_app.py *>&1 | Tee-Object -FilePath $log
+          $exit = $LASTEXITCODE
+          Write-Host "PyInstaller exit code: $exit"
+          "PYINSTALLER_EXIT=$exit" | Out-File -FilePath $env:GITHUB_ENV -Append
+          exit $exit
 
-      - name: Diagnose build failure (dumps warn-Helix.txt if present)
-        if: steps.build_exe.outcome == 'failure'
+      - name: Dump build log + warn file to Summary (always)
+        if: always()
         shell: pwsh
         run: |
-          Write-Host "=== PyInstaller build failed. Dumping diagnostics ==="
-          Write-Host "`n--- Python / platform ---"
-          python --version
-          python -c "import platform; print(platform.platform())"
-          Write-Host "`n--- Build directory contents ---"
-          if (Test-Path build) { Get-ChildItem build -Recurse | Select-Object FullName,Length | Format-Table }
-          Write-Host "`n--- warn-Helix.txt (hidden-import misses PyInstaller flagged) ---"
+          "## PyInstaller build diagnostics" >> $env:GITHUB_STEP_SUMMARY
+          "Exit code: $env:PYINSTALLER_EXIT" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "### Last 150 lines of pyinstaller.log" >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
+          if (Test-Path pyinstaller.log) {
+            Get-Content pyinstaller.log | Select-Object -Last 150 >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            "(no pyinstaller.log produced - crash before writing)" >> $env:GITHUB_STEP_SUMMARY
+          }
+          '```' >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "### warn-Helix.txt (unresolved imports PyInstaller flagged)" >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
           $warn = Get-ChildItem build -Recurse -Filter "warn-Helix.txt" -EA SilentlyContinue | Select-Object -First 1
           if ($warn) {
-            Get-Content $warn.FullName | Select-Object -First 200
+            Get-Content $warn.FullName >> $env:GITHUB_STEP_SUMMARY
           } else {
-            Write-Host "(no warn file found)"
+            "(no warn file - PyInstaller crashed before analysis stage)" >> $env:GITHUB_STEP_SUMMARY
           }
-          Write-Host "`n--- Any .toc files found ---"
-          Get-ChildItem build -Recurse -Filter "*.toc" -EA SilentlyContinue | Select-Object FullName
-          Write-Host "`n--- Smoke-test: can PyInstaller import the entrypoint at all? ---"
-          cd app
-          python -c "import sys; sys.path.insert(0,'.'); import desktop_app" 2>&1 | Select-Object -First 50
-          # Fail the job explicitly so the overall run is red
-          exit 1
+          '```' >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "### build/ tree" >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
+          if (Test-Path build) {
+            Get-ChildItem build -Recurse | Select-Object FullName,Length >> $env:GITHUB_STEP_SUMMARY
+          } else { "(no build dir)" >> $env:GITHUB_STEP_SUMMARY }
+          '```' >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Fail job if PyInstaller failed
+        if: steps.build_exe.outcome == 'failure'
+        run: exit 1
 
       - name: Verify exe size (must be <= 25 MiB for Cloudflare)
         shell: pwsh
@@ -189,8 +219,9 @@ jobs:
           name: helix-build-${{ steps.ver.outputs.version }}
           path: |
             dist/
-            build/*/warn-Helix.txt
-            build/*/Helix.spec
+            build/
+            pyinstaller.log
+            import_test.log
           if-no-files-found: ignore
           retention-days: 7
 
