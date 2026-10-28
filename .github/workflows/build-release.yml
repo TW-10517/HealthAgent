@@ -33,19 +33,34 @@ jobs:
           python-version: '3.12'
 
       - name: Install Python dependencies
+        shell: pwsh
         run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller==6.22.3 pyinstaller-hooks-contrib pywebview==6.2.1 pystray==0.19.5 Pillow==12.3.0 psutil==7.2.2 pythonnet==3.2.0 clr-loader==0.3.1 proxy-tools==0.1.0
+          python -m pip install --upgrade pip wheel setuptools
+          pip install `
+            pyinstaller==6.22.3 `
+            pyinstaller-hooks-contrib `
+            pywebview==6.2.1 `
+            pystray==0.19.5 `
+            Pillow==12.3.0 `
+            psutil==7.2.2 `
+            pythonnet==3.2.0 `
+            clr-loader==0.3.1 `
+            proxy-tools==0.1.0 `
+            cefpython3==66.1 2>$null
+          # cefpython3 pin is optional - pywebview falls back to WebView2 edgechromium.
+          # If cefpython3 wheel is unavailable for py3.12, ignore and continue.
+          Write-Host "`n--- Installed packages ---"
+          pip freeze | Select-String -Pattern "pywebview|pyinstaller|pythonnet|clr|proxy|pystray|Pillow|psutil|cef"
 
       - name: Install UPX
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-win64.zip" -OutFile upx.zip
-          Expand-Archive upx.zip -DestinationPath upx-dir
+          Expand-Archive upx.zip -DestinationPath upx-dir -Force
           $upxPath = (Get-ChildItem upx-dir -Directory | Select-Object -First 1).FullName
           "UPX_DIR=$upxPath" | Out-File -FilePath $env:GITHUB_ENV -Append
           Write-Host "UPX_DIR = $upxPath"
-          Get-ChildItem $upxPath
+          Get-ChildItem $upxPath -Filter "upx.exe"
 
       - name: Install Inno Setup
         shell: pwsh
@@ -60,15 +75,57 @@ jobs:
           Write-Host "APP_VERSION = $v"
 
       - name: Build Helix.exe (PyInstaller + UPX)
+        id: build_exe
+        continue-on-error: true
         shell: pwsh
         run: |
           cd app
+          # Match the exact command we use locally.
+          # --log-level WARN keeps the Actions log readable; stderr always shows.
           python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
             --icon "..\app_icon.ico" `
             --add-data "web;web" `
-            --collect-all webview --collect-all clr_loader --collect-all pythonnet --collect-all proxy_tools `
+            --collect-all webview `
+            --collect-all clr_loader `
+            --collect-all pythonnet `
+            --collect-all proxy_tools `
+            --hidden-import=webview.platforms.winforms `
+            --hidden-import=webview.platforms.edgechromium `
+            --exclude-module=webview.platforms.android `
+            --exclude-module=webview.platforms.cocoa `
+            --exclude-module=webview.platforms.gtk `
+            --exclude-module=webview.platforms.qt `
             --upx-dir "$env:UPX_DIR" `
-            --distpath "..\dist" desktop_app.py
+            --log-level WARN `
+            --distpath "..\dist" `
+            --workpath "..\build" `
+            --specpath "..\build" `
+            desktop_app.py
+
+      - name: Diagnose build failure (dumps warn-Helix.txt if present)
+        if: steps.build_exe.outcome == 'failure'
+        shell: pwsh
+        run: |
+          Write-Host "=== PyInstaller build failed. Dumping diagnostics ==="
+          Write-Host "`n--- Python / platform ---"
+          python --version
+          python -c "import platform; print(platform.platform())"
+          Write-Host "`n--- Build directory contents ---"
+          if (Test-Path build) { Get-ChildItem build -Recurse | Select-Object FullName,Length | Format-Table }
+          Write-Host "`n--- warn-Helix.txt (hidden-import misses PyInstaller flagged) ---"
+          $warn = Get-ChildItem build -Recurse -Filter "warn-Helix.txt" -EA SilentlyContinue | Select-Object -First 1
+          if ($warn) {
+            Get-Content $warn.FullName | Select-Object -First 200
+          } else {
+            Write-Host "(no warn file found)"
+          }
+          Write-Host "`n--- Any .toc files found ---"
+          Get-ChildItem build -Recurse -Filter "*.toc" -EA SilentlyContinue | Select-Object FullName
+          Write-Host "`n--- Smoke-test: can PyInstaller import the entrypoint at all? ---"
+          cd app
+          python -c "import sys; sys.path.insert(0,'.'); import desktop_app" 2>&1 | Select-Object -First 50
+          # Fail the job explicitly so the overall run is red
+          exit 1
 
       - name: Verify exe size (must be <= 25 MiB for Cloudflare)
         shell: pwsh
@@ -99,7 +156,6 @@ jobs:
           $today = Get-Date -Format 'yyyy-MM-dd'
           function H($p) { (Get-FileHash $p -Algorithm SHA256).Hash.ToLower() }
           function S($p) { (Get-Item $p).Length }
-          # Preserve existing notes field if present, otherwise default message
           $notes = "Automated build from commit ${{ github.sha }}."
           try {
             $prev = Get-Content website\version.json -Raw | ConvertFrom-Json
@@ -126,6 +182,18 @@ jobs:
           } | ConvertTo-Json -Depth 5
           $json | Out-File website\version.json -Encoding utf8
 
+      - name: Upload build artifacts (for debugging)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: helix-build-${{ steps.ver.outputs.version }}
+          path: |
+            dist/
+            build/*/warn-Helix.txt
+            build/*/Helix.spec
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Commit updated binaries back to main
         shell: pwsh
         run: |
@@ -137,6 +205,5 @@ jobs:
             exit 0
           }
           git commit -m "ci: rebuild v${{ steps.ver.outputs.version }} binaries from ${{ github.sha }} [skip ci]"
-          # Pull-rebase in case something else landed meanwhile
           git pull --rebase origin main
           git push origin HEAD:main
