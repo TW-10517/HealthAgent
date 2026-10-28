@@ -99,9 +99,15 @@ jobs:
           # Minimal invocation - rely on pyinstaller-hooks-contrib for webview etc.
           # The android/cocoa/gtk/qt platform submodules do not exist on Windows and
           # trip --collect-all webview, so exclude them explicitly.
+          # Use absolute paths for --add-data because --specpath relocates the
+          # spec file and PyInstaller resolves data source paths relative to it.
+          # Previously "web;web" was being resolved as build/web, not app/web.
+          $appDir = (Resolve-Path .).Path
+          $webSrc = Join-Path $appDir "web"
+          $iconAbs = (Resolve-Path "..\app_icon.ico").Path
           python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
-            --icon "..\app_icon.ico" `
-            --add-data "web;web" `
+            --icon "$iconAbs" `
+            --add-data "${webSrc};web" `
             --hidden-import=webview.platforms.winforms `
             --hidden-import=webview.platforms.edgechromium `
             --hidden-import=clr_loader `
