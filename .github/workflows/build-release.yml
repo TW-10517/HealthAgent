@@ -226,8 +226,8 @@ jobs:
         run: |
           $v = '${{ steps.ver.outputs.version }}'
           $today = Get-Date -Format 'yyyy-MM-dd'
-          function H($p) { (Get-FileHash $p -Algorithm SHA256).Hash.ToLower() }
-          function S($p) { (Get-Item $p).Length }
+          function HashOf($p) { (Get-FileHash $p -Algorithm SHA256).Hash.ToLower() }
+          function SizeOf($p) { (Get-Item $p).Length }
           $notes = "Automated build from commit ${{ github.sha }}."
           try {
             $prev = Get-Content website\version.json -Raw | ConvertFrom-Json
@@ -241,14 +241,14 @@ jobs:
             setup_url            = "https://helix-57o.pages.dev/HelixSetup.exe"
             setup_zip_url        = "https://helix-57o.pages.dev/HelixSetup.zip"
             website_url          = "https://helix-57o.pages.dev"
-            sha256               = H 'website\Helix.exe'
-            size_bytes           = S 'website\Helix.exe'
-            zip_sha256           = H 'website\Helix.zip'
-            zip_size_bytes       = S 'website\Helix.zip'
-            setup_sha256         = H 'website\HelixSetup.exe'
-            setup_size_bytes     = S 'website\HelixSetup.exe'
-            setup_zip_sha256     = H 'website\HelixSetup.zip'
-            setup_zip_size_bytes = S 'website\HelixSetup.zip'
+            sha256               = HashOf 'website\Helix.exe'
+            size_bytes           = SizeOf 'website\Helix.exe'
+            zip_sha256           = HashOf 'website\Helix.zip'
+            zip_size_bytes       = SizeOf 'website\Helix.zip'
+            setup_sha256         = HashOf 'website\HelixSetup.exe'
+            setup_size_bytes     = SizeOf 'website\HelixSetup.exe'
+            setup_zip_sha256     = HashOf 'website\HelixSetup.zip'
+            setup_zip_size_bytes = SizeOf 'website\HelixSetup.zip'
             min_supported        = "1.0.0"
             notes                = $notes
           } | ConvertTo-Json -Depth 5
