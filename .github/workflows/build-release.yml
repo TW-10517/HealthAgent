@@ -124,9 +124,12 @@ jobs:
             --distpath "..\dist" `
             --workpath "..\build" `
             --specpath "..\build" `
-            desktop_app.py *>&1 | Tee-Object -FilePath $log
+            desktop_app.py *> $log
           $exit = $LASTEXITCODE
           Write-Host "PyInstaller exit code: $exit"
+          Write-Host "--- Last 80 lines of pyinstaller.log ---"
+          if (Test-Path $log) { Get-Content $log | Select-Object -Last 80 }
+          else { Write-Host "(no log file - pyinstaller.log was never written)" }
           "PYINSTALLER_EXIT=$exit" | Out-File -FilePath $env:GITHUB_ENV -Append
           exit $exit
 
@@ -168,25 +171,34 @@ jobs:
         shell: pwsh
         continue-on-error: true
         run: |
-          $logsDir = "ci-logs-staging"
-          New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
-          Copy-Item pyinstaller.log "$logsDir/pyinstaller.log" -EA SilentlyContinue
-          Copy-Item import_test.log "$logsDir/import_test.log" -EA SilentlyContinue
-          $warn = Get-ChildItem build -Recurse -Filter "warn-Helix.txt" -EA SilentlyContinue | Select-Object -First 1
-          if ($warn) { Copy-Item $warn.FullName "$logsDir/warn-Helix.txt" }
-          # Also stash the version + commit info
-          "run_id=${{ github.run_id }}`ncommit=${{ github.sha }}`ndate=$(Get-Date -Format o)" | Out-File "$logsDir/meta.txt"
+          # Collect every log we care about into an ISOLATED temp dir OUTSIDE
+          # the git workspace, so the orphan branch commit is just the logs.
+          $staging = "$env:RUNNER_TEMP\ci-logs"
+          if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
 
-          # Push to orphan branch (replace every time, no history buildup)
+          if (Test-Path pyinstaller.log) { Copy-Item pyinstaller.log "$staging\pyinstaller.log" -Force }
+          if (Test-Path import_test.log) { Copy-Item import_test.log "$staging\import_test.log" -Force }
+          $warn = Get-ChildItem build -Recurse -Filter "warn-Helix.txt" -EA SilentlyContinue | Select-Object -First 1
+          if ($warn) { Copy-Item $warn.FullName "$staging\warn-Helix.txt" -Force }
+          "run_id=${{ github.run_id }}`ncommit=${{ github.sha }}`ndate=$(Get-Date -Format o)" | Out-File "$staging\meta.txt" -Encoding utf8
+
+          Write-Host "Collected log files:"
+          Get-ChildItem $staging | ForEach-Object { Write-Host "  $($_.Name) ($($_.Length) bytes)" }
+
+          # Fresh clone into temp so we don't disturb the main workspace
+          $cloneDir = "$env:RUNNER_TEMP\ci-logs-repo"
+          if (Test-Path $cloneDir) { Remove-Item $cloneDir -Recurse -Force }
+          git clone "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" $cloneDir
+          Set-Location $cloneDir
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan ci-logs-new
           git rm -rf . 2>&1 | Out-Null
-          Copy-Item "$logsDir/*" . -Recurse -Force
+          Copy-Item "$staging\*" . -Force
           git add .
-          git commit -m "ci-logs: run ${{ github.run_id }}"
-          git branch -D ci-logs 2>&1 | Out-Null
-          git branch -m ci-logs
+          git commit -m "ci-logs: run ${{ github.run_id }} (sha ${{ github.sha }})"
+          git branch -M ci-logs
           git push -f origin ci-logs
 
       - name: Fail job if PyInstaller failed
