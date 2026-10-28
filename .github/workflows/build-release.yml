@@ -36,6 +36,9 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip wheel setuptools
+          # Exact versions used for the working local build. Do NOT add cefpython3
+          # - we use pywebview with the EdgeChromium backend on Windows and
+          # bundling CEF would bloat the exe past Cloudflare's 25 MiB file cap.
           pip install `
             pyinstaller==6.22.3 `
             pyinstaller-hooks-contrib `
@@ -45,10 +48,7 @@ jobs:
             psutil==7.2.2 `
             pythonnet==3.2.0 `
             clr-loader==0.3.1 `
-            proxy-tools==0.1.0 `
-            cefpython3==66.1 2>$null
-          # cefpython3 pin is optional - pywebview falls back to WebView2 edgechromium.
-          # If cefpython3 wheel is unavailable for py3.12, ignore and continue.
+            proxy-tools==0.1.0
           Write-Host "`n--- Installed packages ---"
           pip freeze | Select-String -Pattern "pywebview|pyinstaller|pythonnet|clr|proxy|pystray|Pillow|psutil|cef"
 
@@ -108,6 +108,8 @@ jobs:
             --exclude-module=webview.platforms.cocoa ^
             --exclude-module=webview.platforms.gtk ^
             --exclude-module=webview.platforms.qt ^
+            --exclude-module=webview.platforms.cef ^
+            --exclude-module=cefpython3 ^
             --upx-dir "%UPX_DIR%" ^
             --log-level INFO ^
             --distpath "..\dist" ^
