@@ -96,15 +96,19 @@ jobs:
           cd app
           $log = "..\pyinstaller.log"
           # Capture stdout+stderr to a log file AND stream to console
+          # Minimal invocation - rely on pyinstaller-hooks-contrib for webview etc.
+          # The android/cocoa/gtk/qt platform submodules do not exist on Windows and
+          # trip --collect-all webview, so exclude them explicitly.
           python -m PyInstaller --noconfirm --onefile --windowed --name Helix `
             --icon "..\app_icon.ico" `
             --add-data "web;web" `
-            --collect-all webview `
-            --collect-all clr_loader `
-            --collect-all pythonnet `
-            --collect-all proxy_tools `
             --hidden-import=webview.platforms.winforms `
             --hidden-import=webview.platforms.edgechromium `
+            --hidden-import=clr_loader `
+            --hidden-import=clr_loader.ffi `
+            --hidden-import=clr_loader.ffi.load `
+            --hidden-import=pythonnet `
+            --hidden-import=proxy_tools `
             --exclude-module=webview.platforms.android `
             --exclude-module=webview.platforms.cocoa `
             --exclude-module=webview.platforms.gtk `
