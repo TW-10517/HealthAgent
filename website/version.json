@@ -1,5 +1,5 @@
 {
-  "version": "1.1.2",
+  "version": "1.1.3",
   "released": "2026-10-29",
   "exe_url": "https://helix-57o.pages.dev/Helix.exe",
   "zip_url": "https://helix-57o.pages.dev/Helix.zip",
@@ -15,5 +15,5 @@
   "setup_zip_sha256": "7fc88385418d02046bb29c5d67aeb6bd05c3502d705293660b1c6a22da511265",
   "setup_zip_size_bytes": 18377830,
   "min_supported": "1.0.0",
-  "notes": "Updater hardening — no more terminal windows during an upgrade. Three independent defenses: (1) Python-side re-entry guard refuses a second call to download_and_install_update while a download or install is already in flight, so a double-click can no longer spawn two installers. (2) Filesystem lockfile inside the updates folder: if a second apply_update.cmd ever starts, it sees the lock and exits immediately rather than fighting over the file move. (3) The installer cmd no longer mixes DETACHED_PROCESS with CREATE_NO_WINDOW, and the relaunch uses start /B so no console window can appear. Update confirm dialog no longer claims unsaved work will be lost — all settings, scan history and memories are preserved on upgrade. Plus three new AI-first features: live 'Why is my PC slow?' triage, battery coach with per-discharge-cycle de-duplication, and the game and heavy-app narrator with full Dospara GALLERIA roster. Non-intrusive by design: all background daemons suppress toasts during fullscreen apps and back off when the CPU is busy. First-time users see a one-shot help coachmark. XSS audit converted eleven user-controllable render sites to safe-escape. Narrate-only rule enforced: new features never open or close any app, they only describe."
+  "notes": "Faster, cancellable updates — the download no longer gets stuck when the Cloudflare CDN or a corporate antivirus trickle-feeds the connection. Per-read socket timeout dropped to 3 seconds, a 10-second 'less than 1 MB/10 s' stall watchdog aborts a slow stream automatically, and the download now retries up to three times before surfacing an error. New Cancel button on the progress bar lets you abort cleanly at any time before the point of no return; cancel also deletes the partial staged file. Keeps the 1.1.2 updater hardening (Python re-entry guard, filesystem lockfile, start /B relaunch, no DETACHED_PROCESS mixing), the three AI-first features (live triage, battery coach, game and heavy-app narrator with full Dospara GALLERIA roster), non-intrusive daemons (fullscreen suppression and CPU-busy back-off), the first-run help coachmark, the eleven XSS fixes, and the preserved-user-work dialog copy."
 }

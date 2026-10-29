@@ -1924,7 +1924,10 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
             </div>
             <div id="update-progress-wrap" style="display:none;margin-top:10px">
               <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div id="update-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#2DD4C0,#8AF0FF);transition:width .25s"></div></div>
-              <div id="update-progress-msg" style="margin-top:6px;font-size:11.5px;color:var(--fg2)">Starting…</div>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                <div id="update-progress-msg" style="flex:1;font-size:11.5px;color:var(--fg2)">Starting…</div>
+                <button class="btn btn-secondary btn-sm" id="btn-cancel-update" onclick="cancelUpdate()" style="font-size:11px;padding:3px 10px"><span class="en">Cancel</span><span class="ja">キャンセル</span></button>
+              </div>
             </div>
           </div>
           <div id="whats-new-row" style="display:none;margin-top:12px;padding:12px 14px;background:linear-gradient(135deg,rgba(45,212,176,0.08),rgba(125,179,255,0.06));border:1px solid var(--border2);border-radius:8px">
@@ -4597,17 +4600,30 @@ function _pollUpdateProgress(){
   window.pywebview.api.get_update_progress().then(st=>{
     const bar=document.getElementById('update-progress-bar');
     const msg=document.getElementById('update-progress-msg');
+    const cancelBtn=document.getElementById('btn-cancel-update');
     if(bar) bar.style.width=(st.pct||0)+'%';
     if(msg) msg.textContent=st.msg||st.phase||'…';
     if(st.phase==='installing'){
       if(msg) msg.textContent='Restarting Helix with the new version…';
+      // Point of no return — the swap script is running; hide Cancel.
+      if(cancelBtn) cancelBtn.style.display='none';
     } else if(st.phase==='error'){
       clearInterval(_updPollTimer); _updPollTimer=null;
-      showToast('Update failed: '+(st.msg||'unknown'),'error');
+      const isCancel=(st.msg||'').toLowerCase().indexOf('cancel')>=0;
+      showToast(isCancel?'Update cancelled.':'Update failed: '+(st.msg||'unknown'), isCancel?'info':'error');
       const wrap=document.getElementById('update-progress-wrap'); if(wrap) wrap.style.display='none';
       const getBtn=document.getElementById('btn-get-update'); if(getBtn) getBtn.disabled=false;
+      const checkBtn=document.getElementById('btn-check-update'); if(checkBtn) checkBtn.disabled=false;
+      if(cancelBtn) cancelBtn.style.display='';
     }
   });
+}
+function cancelUpdate(){
+  if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.cancel_update) return;
+  const btn=document.getElementById('btn-cancel-update');
+  if(btn){ btn.disabled=true; btn.textContent='Cancelling…'; }
+  window.pywebview.api.cancel_update().catch(()=>{});
+  // The next poll tick picks up phase='error' and tears the UI down.
 }
 function installUpdate(){
   if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.download_and_install_update) return;

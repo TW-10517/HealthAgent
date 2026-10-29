@@ -809,6 +809,7 @@ class AgentAPI:
 
     # ── Updates ──────────────────────────────────────────────────────────────
     _update_state = {"phase": "idle", "pct": 0, "msg": "", "tmp_exe": None, "latest": None}
+    _update_cancel = False
 
     # Only exe URLs on this exact host are accepted. Prevents a tampered
     # manifest from redirecting the download to an attacker's server.
@@ -868,6 +869,23 @@ class AgentAPI:
         """Polling endpoint for the UI during download/apply."""
         return dict(self._update_state)
 
+    def cancel_update(self):
+        """Cooperative cancel for the Install Update flow.
+
+        Sets a flag the download loop checks on every iteration. The loop
+        raises RuntimeError('cancelled by user'), the partial staged file
+        gets cleaned up, and the UI reads back phase='error' with a
+        friendly message so the Install button becomes clickable again.
+        A cancel after phase='ready' (download verified, cmd script about
+        to run) is best-effort: the exe swap may already be in flight,
+        but no new terminals can spawn thanks to the lockfile.
+        """
+        self._update_cancel = True
+        st = self._update_state
+        if st.get("phase") in ("downloading", "ready"):
+            st.update({"phase": "error", "pct": 0, "msg": "cancelled by user"})
+        return {"ok": True}
+
     def download_and_install_update(self):
         """Download the new Helix.exe and launch an updater that swaps + relaunches.
 
@@ -923,31 +941,84 @@ class AgentAPI:
                 except Exception: pass
             new_exe = upd_dir / f"Helix-new-{int(_time.time())}.exe"
 
+            # Reset cancel flag at the start of a fresh install attempt.
+            self._update_cancel = False
             st.update({"phase": "downloading", "pct": 0, "msg": "Starting download…"})
             ctx = ssl.create_default_context()
-            req = urllib.request.Request(exe_url, headers={"User-Agent": f"{APP_NAME}/{APP_VERSION}"})
-            # Hash the download as it streams in; refuse to install if hash doesn't match.
-            hasher = hashlib.sha256()
+            # Download tuning:
+            #   PER_READ_TIMEOUT   — if the socket is silent for 3 s, retry.
+            #   STALL_WATCHDOG_S   — if a whole MB takes more than 10 s to arrive,
+            #                        treat the connection as stalled (keep-alive
+            #                        trickle from a corporate AV MITM looks live
+            #                        to urllib but never finishes).
+            #   MAX_ATTEMPTS       — three total shots at the download before we
+            #                        surface an error to the UI.
+            PER_READ_TIMEOUT = 3.0
+            STALL_WATCHDOG_S = 10.0
+            MAX_ATTEMPTS = 3
             # Cap download size so a malicious manifest can't make us fill the disk.
-            # 128 MiB is >>5x the current ~17 MB exe; well under any reasonable future growth.
             MAX_DOWNLOAD = 128 * 1024 * 1024
-            with urllib.request.urlopen(req, timeout=15, context=ctx) as r, open(new_exe, "wb") as out:
-                total = int(r.headers.get("Content-Length") or expected_size or 0)
-                read = 0
-                chunk = 1024 * 128
-                while True:
-                    buf = r.read(chunk)
-                    if not buf: break
-                    read += len(buf)
-                    if read > MAX_DOWNLOAD:
-                        raise RuntimeError(f"download exceeded size cap ({MAX_DOWNLOAD} bytes)")
-                    out.write(buf)
-                    hasher.update(buf)
-                    if total:
-                        st["pct"] = int(read * 100 / total)
-                        st["msg"] = f"Downloading… {read // (1024*1024)} / {total // (1024*1024)} MB"
-                    else:
-                        st["msg"] = f"Downloading… {read // (1024*1024)} MB"
+            attempt = 0
+            last_err: Exception | None = None
+            hasher = hashlib.sha256()
+            while attempt < MAX_ATTEMPTS:
+                attempt += 1
+                if self._update_cancel:
+                    raise RuntimeError("cancelled by user")
+                if attempt > 1:
+                    st["pct"] = 0
+                    st["msg"] = f"Download stalled — retrying ({attempt}/{MAX_ATTEMPTS})…"
+                try:
+                    hasher = hashlib.sha256()  # restart hash on each attempt
+                    req = urllib.request.Request(exe_url, headers={"User-Agent": f"{APP_NAME}/{APP_VERSION}"})
+                    with urllib.request.urlopen(req, timeout=PER_READ_TIMEOUT, context=ctx) as r, open(new_exe, "wb") as out:
+                        total = int(r.headers.get("Content-Length") or expected_size or 0)
+                        read = 0
+                        last_mb = 0
+                        last_mb_ts = _time.time()
+                        chunk = 1024 * 128
+                        while True:
+                            if self._update_cancel:
+                                raise RuntimeError("cancelled by user")
+                            # Stall watchdog — the socket may still look alive
+                            # (keep-alive heartbeat under 3 s) while real progress
+                            # has halted. If no new MB in STALL_WATCHDOG_S, bail.
+                            if _time.time() - last_mb_ts > STALL_WATCHDOG_S and read > 0:
+                                raise TimeoutError(
+                                    f"download stalled — less than 1 MB in "
+                                    f"{int(_time.time() - last_mb_ts)} s"
+                                )
+                            buf = r.read(chunk)
+                            if not buf:
+                                break
+                            read += len(buf)
+                            if read > MAX_DOWNLOAD:
+                                raise RuntimeError(f"download exceeded size cap ({MAX_DOWNLOAD} bytes)")
+                            out.write(buf)
+                            hasher.update(buf)
+                            mb_now = read // (1024 * 1024)
+                            if mb_now > last_mb:
+                                last_mb = mb_now
+                                last_mb_ts = _time.time()
+                            if total:
+                                st["pct"] = int(read * 100 / total)
+                                st["msg"] = f"Downloading… {read // (1024*1024)} / {total // (1024*1024)} MB"
+                            else:
+                                st["msg"] = f"Downloading… {read // (1024*1024)} MB"
+                    # Reached here → download finished cleanly on this attempt.
+                    last_err = None
+                    break
+                except RuntimeError:
+                    # RuntimeError is used for cancel + size-cap; don't retry.
+                    raise
+                except Exception as e:
+                    last_err = e
+                    # Clean the partial file so the next attempt starts fresh.
+                    try: new_exe.unlink()
+                    except Exception: pass
+                    _time.sleep(1.0)
+            if last_err is not None:
+                raise last_err
             if new_exe.stat().st_size < 1_000_000:
                 raise RuntimeError(f"downloaded file too small ({new_exe.stat().st_size} bytes)")
 
