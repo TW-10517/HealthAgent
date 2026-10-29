@@ -10,13 +10,76 @@ The repo/package id remains `PCHealthAgent`.
 **GitHub**: `https://github.com/TW-10517/HealthAgent.git` (branch `main`)
 **Live site**: https://helix-57o.pages.dev (Cloudflare Pages, free tier, unlimited bandwidth)
 **Download URLs**: `/Helix.exe` (23 MiB, UPX-compressed), `/Helix.zip`, `/version.json`
-**Current released version**: `1.0.1` (bumped from 1.0.0 on 2026-10-26 — fixes blank System Info tab + delete-on-OneDrive)
+**Current released version**: `1.1.1` (deployed to Cloudflare 2026-10-28; verify with `curl https://helix-57o.pages.dev/version.json` before assuming users are on it)
+
+## Session handoff — 2026-10-28 → 2026-10-29 (unpushed candidate 1.1.2)
+
+The previous session batched four improvements over the live 1.1.1 release but did NOT push. The working tree carries all of them. In a fresh chat, running `git diff --stat` shows the staged state. Bump `APP_VERSION` to `1.1.2` only at push time (user's standing rule).
+
+**Changes in the working tree (ready to ship):**
+
+1. **Updater — endless-terminals fix** (`app/desktop_app.py` `download_and_install_update`): the `apply_update.cmd` script was rewritten with a bounded 20-try `move` loop, `timeout /t` instead of `ping` as the sleep, and the parent `subprocess.Popen(["cmd.exe", "/c", ...])` now sets `CREATE_NO_WINDOW | DETACHED_PROCESS | NEW_GROUP`. Root cause the user hit in 1.1.1: unbounded retry loop + missing CREATE_NO_WINDOW on cmd.exe = terminal windows opening forever during update.
+2. **No Ollama warmup on startup** (`_preload_hw_cache`): removed the proactive `ollama_chat("ok", context="warmup", ...)` call. First Assistant chat now takes the one-time 5–10 s model-load hit; everyone else saves CPU + fan + RAM. User-reported "fan speed increasing when app opens" was this.
+3. **BELOW_NORMAL CPU + IOPRIO_LOW** at the top of `run()` right after `SetCurrentProcessExplicitAppUserModelID`. Helix now yields to any foreground app automatically. Verified at smoke test: launched exe shows `priority=BelowNormal`.
+4. **Updater security hardening** (`AgentAPI.check_for_update` + `download_and_install_update`):
+   - `_TRUSTED_UPDATE_HOST = "helix-57o.pages.dev"` — exe URL parsed, rejected unless scheme=https AND hostname matches exactly (subdomain-trick safe).
+   - Mandatory sha256 verification: manifest must carry a 64-hex-char `sha256`; downloaded exe is streamed through `hashlib.sha256` and compared; mismatch → staged file deleted, install refused.
+   - 128 MiB download cap guards against disk-fill via hostile manifest.
+   - Trusted `sha256`, `exe_url`, `size` stashed in private `_update_state["_expected_*"]` so a JS-side forged info dict can't bypass checks.
+   - `_show_notification` rewritten to use `-EncodedCommand` with the title/message as PS here-string literals — PowerShell injection now impossible regardless of input.
+5. **"What's new" after-upgrade popup** (new API: `get_whats_new`, `acknowledge_whats_new`; new settings keys: `last_known_version`, `last_update_version`, `last_update_notes`, `last_update_date`, `whats_new_popup_pending`): on launch, `_detect_fresh_update()` compares `APP_VERSION` to the previous launch's version; on upgrade it quietly fetches release notes from the manifest and sets a pending-popup flag. First JS poll of `get_whats_new()` fires the `#whats-new-modal` once per upgrade, then `acknowledge_whats_new()` clears the flag. A gradient `#whats-new-row` strip in Settings → About stays visible for 3 days (configurable via `_WHATS_NEW_DAYS = 3`) regardless of popup state. Notes rendered via `textContent` (no XSS from manifest text).
+6. **Syntax-warning cleanup** (`app/chat_popup.py`): `CHAT_POPUP_HTML` string prefix changed from `"""` to `r"""` — removes the Python 3.12 SyntaxWarning on `\*` inside the embedded JS regex.
+
+**QA passed (127/127 tests on 2026-10-28)**:
+- 47 pytest
+- 25 AST parse + 25 module import
+- 22 functional (DB settings/history, user_memory CRUD, action_planner, protected 3-layer, scanner.is_protected, sys_executor._clean, open_path refusal, monitor.collect_metrics, get_hardware_info WMI, check_for_update, updater URL-trust refusal, get_about, whats_new default + fresh-upgrade + acknowledge, list_profiles, thresholds, fmt_size, event_analyzer live query, error_triage detector, game_advisor resolve_name, scan history CRUD)
+- 8 security grep + lint
+- 1 production PyInstaller build (23.13 MiB in 49 s)
+- 1 launch smoke (BelowNormal confirmed, 0 Helix-parented conhosts)
+
+**At-push checklist for the next session:**
+1. Confirm user says "push".
+2. Bump `app/metadata.py` `APP_VERSION` from `1.1.1` → `1.1.2` ONCE.
+3. Rewrite the `notes:` string in `website/version.json` (CI will regenerate but seed it with the four batched improvements so the "What's new" popup is meaningful).
+4. `git add -A ; git commit -m "..."` (single commit summarizing the four improvements).
+5. `git push origin main`.
+6. Watch CI run → auto-commit of binaries → `helix-57o.pages.dev/version.json` serves 1.1.2 (watch for the Cloudflare git-connect flakiness noted in CI/release lesson #6).
+
+**Still open from this session:**
+- Known SPA XSS exposure (141 `innerHTML` sites, user-controlled text in some). Pre-existing. Needs its own audit cycle.
+- 25-ish `unused import` pyflakes warnings. Cosmetic. Not fixed.
 
 ## Working rules
 
 - **Never auto-deploy.** Do not run `wrangler pages deploy …` and do not `git push origin main` unless the user explicitly says "deploy", "push", "ship it" or similar. Build locally, commit locally if asked, then **stop and wait**. The user keeps a stated rule about this; it's in auto-memory too (`feedback_no_auto_deploy.md`).
 - **Website binaries live in `website/`** and are committed to git (so Cloudflare git-connected auto-deploy sees them). This is intentional — do not add `website/Helix.*` to `.gitignore`.
 - **Never remove the Vercel references assuming they're stale**: Vercel is fully deleted. Only Cloudflare Pages serves the site now.
+
+## No-visible-terminals rule (CRITICAL — do NOT regress)
+
+The `--windowed` PyInstaller build has NO console. Every subprocess MUST be launched with `CREATE_NO_WINDOW` (0x08000000) or the user sees a flashing black window — in the worst case (a retry loop), windows open forever and the user cannot stop it. This happened in v1.1.1: `apply_update.cmd` was launched with `DETACHED_PROCESS` only, and its unbounded `move` retry loop fired `ping 127.0.0.1 -n 2` on every miss while a visible cmd console was attached. The user could not close it.
+
+**Rules for every new subprocess call:**
+1. **Default to `run_hidden.run()` / `run_hidden.Popen()`** instead of raw `subprocess.*`. The helper lives in `app/run_hidden.py` and injects `CREATE_NO_WINDOW` when the target is a console tool.
+2. **If you must call `subprocess.Popen` with custom `creationflags`** (e.g. `DETACHED_PROCESS`, `CREATE_NEW_PROCESS_GROUP`), **OR in `CREATE_NO_WINDOW` explicitly** — `run_hidden` SKIPS injection when the caller already sets `creationflags`. One missed `| 0x08000000` = visible terminal.
+3. **No `ping` as sleep.** Use `timeout /t N /nobreak >nul 2>&1` in `.cmd` scripts. Reasons: (a) less alarming to a user who sees it, (b) `ping` output goes to a console even with `>nul` in some edge cases, (c) doesn't look like a network probe.
+4. **Every retry loop MUST have a hard cap.** No infinite `goto try_X`. The updater's move loop caps at 20 attempts (20s); after that it writes a staged file and exits silently so the next launch picks up the update.
+5. **New console-spawning tools** (powershell.exe, cmd.exe, powercfg.exe, typeperf.exe, wmic.exe, etc.) must be added to `_CONSOLE_EXES` in `run_hidden.py` AND the call site should prefer the helper.
+
+Before shipping any change that spawns a process, grep `subprocess\.(Popen|run|call)` across `app/` and verify every hit either goes through `run_hidden` OR explicitly sets `creationflags` with `CREATE_NO_WINDOW` ORed in.
+
+## CI/release lessons (keep these — hard-earned)
+
+Mistakes made during the GitHub Actions build-release pipeline rollout. Avoid repeating them:
+
+1. **`app_icon.ico` MUST stay tracked in git.** It is not generated at runtime (comment was wrong). PyInstaller crashes `FileNotFoundError: Icon input file ...app_icon.ico not found` if it's gitignored. If you see "generated at runtime" next to a static asset in `.gitignore`, verify before trusting the comment.
+2. **No `cefpython3` in CI pip install.** pywebview uses EdgeChromium on Windows, not CEF. Adding `cefpython3` bloats the exe past Cloudflare's 25 MiB cap. Add `--exclude-module=cefpython3` to the PyInstaller command and leave it out of `pip install`.
+3. **Beware single-letter PowerShell functions.** `function H` collides with the built-in `Get-History` alias — the parser binds `H 'file.exe'` to `Get-History -Id 'file.exe'` → "Cannot convert to Int64". Use descriptive names (`HashOf`, `SizeOf`). Same risk for `R`, `S`, `D`, etc.
+4. **Build step must use `shell: cmd` with `> file 2>&1`.** PowerShell's `Tee-Object` / `*> file` / `2>&1 | Out-File` all silently drop PyInstaller's output on GitHub Actions. cmd.exe redirection is the only reliable way to capture `pyinstaller.log`.
+5. **GitHub API from unauthenticated polling gets rate-limited fast.** Prefer `git fetch origin main ci-logs` to check if CI auto-committed (success) or pushed logs (failure) — no API quota needed.
+6. **Cloudflare Pages git-connected auto-deploy can silently fail.** A green CI build with a `[skip ci]` auto-commit to `main` does NOT guarantee Cloudflare rebuilt. Always verify by curling `https://helix-57o.pages.dev/version.json` after a release. If it's stale >5 min, the Pages ↔ GitHub connection likely needs manual retry or reconnection in the Cloudflare dashboard.
+7. **Bump `APP_VERSION` in `app/metadata.py` ONLY at push time, not on every edit.** Accumulate multiple fixes under the current version in-progress; right before `git push`, bump once to the next version with notes covering everything in the batch. Reasons: (a) one version = one user-visible update; three bumps in a day creates three "Install update" prompts for the same work, (b) the user explicitly asked for this (2026-10-28). Without any bump at push time, CI rebuilds the exe but `version.json` stays at the current version and the in-app updater never advertises an update — so still bump exactly once at the push step.
 
 ## Architecture
 
@@ -102,6 +165,26 @@ PCHealthAgent/
 - **Ollama status**: `_check_ollama_status()` daemon pings Ollama 3s after startup; result exposed via `get_ai_status()`. Status pill on Assistant page turns green/red.
 - **Subprocess encoding**: All `subprocess.run()` calls use `encoding='utf-8', errors='replace'` to prevent `UnicodeDecodeError` on Japanese Windows (cp932 default).
 - **Subprocess no-window**: `desktop_app.py` patches `subprocess.Popen.__init__` at import to force `CREATE_NO_WINDOW` (0x08000000) on every child unless the caller set `creationflags`. The `--windowed` exe has no console, so without this every powershell/cmd/powercfg call flashes a black window. One patch covers every module (they share the `subprocess` module object). New subprocess calls need nothing extra.
+
+## Update-pipeline security (MUST follow — hard-coded invariants)
+
+The auto-updater ships a new executable to users' machines. Weakening any of these turns Helix into a malware delivery vector. Do not bypass "for debugging".
+
+1. **`AgentAPI._TRUSTED_UPDATE_HOST = "helix-57o.pages.dev"`** — exe URL is parsed and REJECTED if its scheme isn't `https` or its hostname isn't exactly this host. If the host ever changes, update it in exactly one place and also in `_TRUSTED_UPDATE_HOST`.
+2. **`UPDATE_MANIFEST_URL` must be HTTPS.** Enforced at runtime in `check_for_update`.
+3. **sha256 is required.** A manifest without a valid 64-hex-char `sha256` field is rejected. The downloaded exe is streamed through `hashlib.sha256` and compared against the manifest value BEFORE anything else can happen with the file. On mismatch: delete the staged exe, write `phase=error`, return.
+4. **sha256 and exe_url are stashed privately in `_update_state["_expected_sha256"]` / `_expected_exe_url` by `check_for_update`.** `download_and_install_update` reads from those private fields, NOT from an `info` dict a caller could forge. Do not pass expected hash from the JS side.
+5. **Download size is capped at 128 MiB** so a hostile manifest can't fill the disk. Bump the cap if the exe ever grows past ~50 MiB; never remove it.
+6. **TLS cert + hostname verification stays on.** `ssl.create_default_context()` is correct — don't swap it for an unverified context "to fix a connection issue". A real TLS issue means investigating the issue, not disabling verification.
+7. **Downloaded exe is never executed by `download_and_install_update` directly** — the swap goes through `apply_update.cmd` which runs after the main process exits. If someone proposes "just subprocess.Popen the new exe to test it", refuse.
+
+## PowerShell injection guard (MUST follow)
+
+Any user-controllable string that reaches PowerShell MUST either (a) be passed as a named parameter via `-File` / `-EncodedCommand`, or (b) be sanitized against `[\r\n;&$`"']` AND wrapped in a here-string. Replacing `"` and `'` alone is NOT enough — backtick, `$`, `;`, and newline can all break out. `_show_notification` uses `-EncodedCommand` with the title/message as literal here-string contents, which is the preferred pattern for new call sites. If a new call site inlines any variable into a `powershell -Command` string, flag it.
+
+## Known SPA XSS exposure (triage item)
+
+`app/web/index.html` uses `innerHTML` in ~141 places. Several render user-controllable text (filenames from scans, event-log messages, chat content, Ollama replies). A hostile file with a name like `<img src=x onerror=…>` could XSS the SPA and call `window.pywebview.api.*`. This is a known gap, not yet fixed — needs its own audit pass. When adding a new render path, prefer `textContent =` over `innerHTML =` for anything derived from scan data, file names, event text, or chat input. If `innerHTML` is unavoidable (e.g. you need HTML structure), run the user-sourced parts through a small escape helper (`.replace(/[&<>"']/g, …)`) first.
 
 ## Security constraints (MUST follow)
 
@@ -311,6 +394,8 @@ Edit `website/index.html` or `website/styles.css` → commit → push (on user g
 | `get_about()` / `open_error_log()` | Version info + opener for `<BASE>/logs/error.log` |
 | `report_js_error(msg, src, line, col, stack)` | JS → Python error pipe to `logs/js-errors.log` |
 | `check_for_update(force=False)` | GET `UPDATE_MANIFEST_URL` (4 s timeout), semver-compare → `{ok, current, latest, has_update, exe_url, notes, size_bytes, can_install, website_url}` |
+| `get_whats_new()` | Returns `{ok, version, notes, date, within_window, days_remaining, show_popup}`. `show_popup=true` ONCE per upgrade (within 3 days of the upgrade). Notes remain available via `within_window` for 3 days total. |
+| `acknowledge_whats_new()` | Clear the one-time popup flag after the UI has displayed the modal. |
 | `get_update_progress()` | Poll endpoint: `{phase, pct, msg, tmp_exe, latest}` where phase ∈ `idle`/`downloading`/`ready`/`installing`/`error` |
 | `download_and_install_update()` | Frozen-only: stream exe to `BASE/updates/`, write `apply_update.cmd`, detach-spawn it, `os._exit(0)` after 1.2 s |
 
@@ -346,6 +431,11 @@ Edit `website/index.html` or `website/styles.css` → commit → push (on user g
 | `schedule_last_run` | ISO timestamp | Last scheduler run time |
 | `profiles_json` | JSON | Named settings-preset dictionaries |
 | `active_profile` | profile name | Currently applied preset |
+| `last_known_version` | semver | Version seen on the previous launch; used to detect fresh upgrades |
+| `last_update_version` | semver | Version from the manifest at the moment of the detected upgrade |
+| `last_update_notes` | text | Release notes captured from `version.json` after upgrade |
+| `last_update_date` | `YYYY-MM-DD` | When the upgrade was detected; "What's new" strip hides after 3 days |
+| `whats_new_popup_pending` | `true`/`false` | Fires the one-time modal; `acknowledge_whats_new()` flips it to false |
 
 ## Analysis panels
 
@@ -433,6 +523,8 @@ Root cause of a 74%→0% CPU fix on 2026-10 — three invariants to preserve:
 2. **No `typeperf` child per tick.** `monitor.py` must not spawn `typeperf` (or any native perfcounter) in `_collect_*`. The Step-15 GPU sampler was removed for this.
 3. **Idle-aware monitor sampler.** `monitor.request_samples()` is called by UI on each sidebar/live-pill refresh. Without recent calls the worker sleeps `_IDLE_INTERVAL` (30s) instead of `_ACTIVE_INTERVAL` (3s). Don't delete `request_samples()` plumbing when wiring new live panels — call it on refresh.
 4. **psutil CPU meter primed at import** and `_collect_cpu_ram` uses `interval=0.15` (NOT `interval=None`) — otherwise first sample is 0 and the Live gauges show 0,0,0.
+5. **No proactive Ollama warmup on startup.** Loading qwen2.5:3b on CPU pins the CPU for 5-10s and spins the fan on every launch, even when the user never opens Assistant that session. Keep the model lazy — let the first real chat take the one-time load hit. If someone adds back a startup warmup `_asst.ollama_chat("ok", context="warmup", ...)`, delete it. The user explicitly flagged this (2026-10-28) as "fan speed increasing" when the app opens.
+6. **Helix process runs at BELOW_NORMAL CPU priority and IOPRIO_LOW disk priority** (set in `run()` right after `SetCurrentProcessExplicitAppUserModelID`). This is deliberate: Helix must never slow down whatever the user is actively using — a game, Teams call, VS Code build, browser video. On an idle system Helix still gets full CPU and feels native-fast; the only effect is that when another app needs CPU/disk, Windows gives it to that app first. Do NOT raise this to NORMAL to "make Helix feel faster" — the user explicitly asked for this behavior (2026-10-28). If a specific operation is too slow at low priority (e.g. a scan feels sluggish on an otherwise idle system), diagnose that operation; don't bump global priority.
 
 ## JS defensive patterns (do NOT regress)
 

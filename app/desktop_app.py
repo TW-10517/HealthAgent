@@ -122,21 +122,41 @@ def make_ico_file():
 
 
 def _show_notification(title: str, message: str):
+    """Show a Windows balloon-tip notification.
+
+    Security note: title + message are passed to PowerShell as an
+    EncodedCommand (UTF-16-LE base64), not interpolated into the script
+    string. This makes PowerShell injection impossible regardless of what
+    characters the caller passes — no backtick, $, ;, quote, or newline
+    tricks can escape the string context, because there is no string
+    context on the command line to escape.
+    """
     try:
-        import subprocess
-        safe_title = title.replace('"', '').replace("'", "")
-        safe_msg   = message.replace('"', '').replace("'", "")
-        ps = (
+        import subprocess, base64
+        # Build the PowerShell program entirely from literals, then base64 it.
+        # The two user strings become literal here-string contents inside PS.
+        def _ps_literal(s: str) -> str:
+            # @'…'@ is a PowerShell literal here-string; the only way to end
+            # it is '@ at the start of a line. We filter that pattern and
+            # also strip control characters to keep output tidy.
+            s = (s or "").replace("\r", " ").replace("\n", " ")
+            s = s.replace("'@", "' @")   # defuse the only here-string terminator
+            return "@'\n" + s + "\n'@"
+        ps_source = (
             "Add-Type -AssemblyName System.Windows.Forms;"
+            "$t=" + _ps_literal(title) + ";"
+            "$m=" + _ps_literal(message) + ";"
             "$n=New-Object System.Windows.Forms.NotifyIcon;"
             "$n.Icon=[System.Drawing.SystemIcons]::Shield;"
             "$n.Visible=$true;"
-            f'$n.ShowBalloonTip(4000,"{safe_title}","{safe_msg}",'
+            "$n.ShowBalloonTip(4000,$t,$m,"
             "[System.Windows.Forms.ToolTipIcon]::Info);"
             "Start-Sleep 5;$n.Dispose()"
         )
+        encoded = base64.b64encode(ps_source.encode("utf-16-le")).decode("ascii")
         subprocess.Popen(
-            ["powershell", "-WindowStyle", "Hidden", "-Command", ps],
+            ["powershell", "-NoProfile", "-WindowStyle", "Hidden",
+             "-EncodedCommand", encoded],
             creationflags=0x08000000,
         )
     except Exception:
@@ -162,9 +182,89 @@ class AgentAPI:
     def set_window(self, w):
         self._window = w
         self._start_health_watch()
+        self._battery_popup_pending = None   # set by watcher, cleared by acknowledge_battery_popup
+        self._battery_last_popup_pct = None  # suppresses repeat popups on same discharge cycle
+        self._start_battery_coach_watch()
+        self._start_app_watch()
         self._start_schedule_watch()
         threading.Thread(target=self._check_ollama_status, daemon=True).start()
         threading.Thread(target=self._preload_hw_cache, daemon=True).start()
+        self._detect_fresh_update()
+
+    # ── "What's new" after an update ─────────────────────────────────────────
+    _WHATS_NEW_DAYS = 3
+
+    def _detect_fresh_update(self):
+        """If APP_VERSION differs from the last version seen on this machine,
+        record today's date + fetch the manifest notes so the UI can show a
+        one-time popup and keep the notes in Settings for 3 days."""
+        try:
+            last_seen = db.get_setting("last_known_version") or ""
+            if last_seen == APP_VERSION:
+                return  # same build as last launch — nothing to announce
+            # Fresh install OR fresh upgrade. Only show the popup on upgrade.
+            is_upgrade = bool(last_seen) and last_seen != APP_VERSION
+            db.set_setting("last_known_version", APP_VERSION)
+            if not is_upgrade:
+                return
+            # Capture release notes from the public manifest, best-effort.
+            def _grab_notes():
+                try:
+                    info = self.check_for_update(force=True)
+                    notes = (info or {}).get("notes") or ""
+                except Exception:
+                    notes = ""
+                try:
+                    db.set_setting("last_update_notes", notes)
+                    db.set_setting("last_update_date",
+                                   datetime.now().strftime("%Y-%m-%d"))
+                    db.set_setting("last_update_version", APP_VERSION)
+                    db.set_setting("whats_new_popup_pending", "true")
+                except Exception:
+                    pass
+            threading.Thread(target=_grab_notes, daemon=True).start()
+        except Exception:
+            pass
+
+    def get_whats_new(self) -> dict:
+        """Return the latest release notes if we're still within the 3-day
+        window after an update. show_popup=True fires ONCE after an upgrade,
+        then is cleared by acknowledge_whats_new()."""
+        try:
+            version = db.get_setting("last_update_version") or ""
+            notes   = db.get_setting("last_update_notes") or ""
+            date    = db.get_setting("last_update_date") or ""
+            popup   = (db.get_setting("whats_new_popup_pending") or "false").lower() == "true"
+            days_remaining = 0
+            within_window = False
+            if date:
+                try:
+                    d = datetime.strptime(date, "%Y-%m-%d")
+                    elapsed = (datetime.now() - d).days
+                    days_remaining = max(0, self._WHATS_NEW_DAYS - elapsed)
+                    within_window = elapsed < self._WHATS_NEW_DAYS
+                except Exception:
+                    pass
+            return {
+                "ok":              True,
+                "version":         version,
+                "notes":           notes,
+                "date":            date,
+                "within_window":   within_window,
+                "days_remaining":  days_remaining,
+                "show_popup":      bool(popup and within_window and notes),
+            }
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def acknowledge_whats_new(self) -> dict:
+        """Call once after the popup has been shown. Notes still stay visible
+        in Settings → About until the 3-day window elapses."""
+        try:
+            db.set_setting("whats_new_popup_pending", "false")
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def _preload_hw_cache(self):
         import time as _t
@@ -176,15 +276,10 @@ class AgentAPI:
             _ga.get_pc_specs()
         except Exception:
             pass
-        # Pre-warm Ollama so the first real chat query doesn't hit a 60-90 s
-        # model-load wait. A tiny ping loads qwen2.5:3b into memory; it stays
-        # resident for the OLLAMA_KEEP_ALIVE window (default 5 min, kept warm
-        # by subsequent chat traffic).
-        try:
-            import assistant as _asst
-            _asst.ollama_chat("ok", context="warmup", lang="en", history=None)
-        except Exception:
-            pass
+        # Ollama is lazy-warmed on first real chat. A proactive warmup here
+        # would pin the CPU for 5-10 s on every launch (3B model load on CPU),
+        # waste fan cycles for users who never open Assistant that session,
+        # and hold ~2 GB RAM for 5 min. First chat takes the one-time hit.
 
     def _check_ollama_status(self):
         import urllib.request, time as _t
@@ -299,6 +394,15 @@ class AgentAPI:
                     ram_pct   = ram.percent
                     thr_disk  = float(settings.get("health_watch_disk_gb",  "5"))
                     thr_ram   = float(settings.get("health_watch_ram_pct",  "92"))
+                    # Don't steal focus from fullscreen apps (games, slideshow,
+                    # full-screen video). The next 14-min tick will re-check
+                    # and fire the toast then.
+                    try:
+                        import focus_detect as _fd
+                        if _fd.is_fullscreen_foreground():
+                            continue
+                    except Exception:
+                        pass
                     if disk_gb < thr_disk:
                         _show_notification(
                             "PC Health — Low Disk Space",
@@ -540,6 +644,94 @@ class AgentAPI:
         import error_triage as _et
         return _et.triage(text, narrate=narrate)
 
+    # ── Live triage: "Why is my PC slow right now?" (Feature #8) ──
+    def triage_live(self, narrate: bool = True):
+        import live_triage as _lt
+        return _lt.triage_live(narrate_=narrate)
+
+    # ── Battery coaching (Feature #11) ──
+    def battery_coach(self, narrate: bool = True):
+        import battery_coach as _bc
+        return _bc.coach(narrate_=narrate)
+
+    def has_battery(self) -> dict:
+        import battery_coach as _bc
+        return {"has_battery": _bc.has_battery()}
+
+    def get_battery_popup_pending(self) -> dict:
+        """UI polls this; when non-None the modal fires once and acknowledges."""
+        snap = self._battery_popup_pending
+        if snap:
+            return {"pending": True, "snapshot": snap}
+        return {"pending": False}
+
+    def acknowledge_battery_popup(self) -> dict:
+        self._battery_popup_pending = None
+        return {"ok": True}
+
+    # ── Game / heavy-app launch narrator (Feature #6) ──
+    def _start_app_watch(self):
+        """Narrate-only daemon. NEVER opens or closes anything."""
+        try:
+            import app_watch as _aw
+        except Exception:
+            return
+        _aw.start_watcher(
+            notify=lambda title, msg: _show_notification(title, msg),
+            settings_fn=db.get_all_settings,
+        )
+
+    def _start_battery_coach_watch(self):
+        """Daemon: watches battery, fires one popup per discharge cycle when
+        unplugged charge drops at or below the user's threshold."""
+        def _watch():
+            import time as _time
+            _time.sleep(90)  # don't poke the user right after launch
+            while True:
+                _time.sleep(120)  # 2-minute cadence
+                try:
+                    settings = db.get_all_settings()
+                    if (settings.get("battery_coach_enabled") or "true").lower() != "true":
+                        continue
+                    import battery_coach as _bc
+                    if not _bc.has_battery():
+                        continue
+                    import psutil
+                    b = psutil.sensors_battery()
+                    if b is None:
+                        continue
+                    pct = float(b.percent)
+                    plugged = bool(b.power_plugged)
+                    # Reset the "already popped" tracker whenever we're plugged in,
+                    # so the next discharge cycle can fire a fresh popup.
+                    if plugged:
+                        self._battery_last_popup_pct = None
+                        continue
+                    threshold = float(settings.get("battery_coach_threshold") or "20")
+                    if pct > threshold:
+                        continue
+                    # Suppress repeat popups within the same discharge cycle until
+                    # the user has drained another 10% below the last popup level.
+                    last = self._battery_last_popup_pct
+                    if last is not None and pct >= last - 10:
+                        continue
+                    # Don't interrupt fullscreen apps — defer the popup until
+                    # the user is back on the desktop. State is unchanged so
+                    # the next tick re-evaluates.
+                    try:
+                        import focus_detect as _fd
+                        if _fd.is_fullscreen_foreground():
+                            continue
+                    except Exception:
+                        pass
+                    # Build a snapshot + narration and stash for the UI poller.
+                    snap = _bc.coach(narrate_=True)
+                    self._battery_popup_pending = snap
+                    self._battery_last_popup_pct = pct
+                except Exception:
+                    pass
+        threading.Thread(target=_watch, daemon=True).start()
+
     def report_js_error(self, info: dict):
         """JS global error handler calls here; written to logs/js-errors.log."""
         try:
@@ -582,7 +774,9 @@ class AgentAPI:
                     "health_watch_enabled","health_watch_disk_gb","health_watch_ram_pct",
                     "protected_apps_defaults","protected_apps_extra","ai_enabled",
                     "onboarded_mode","schedule_enabled","schedule_cadence",
-                    "schedule_actions","schedule_last_run"}
+                    "schedule_actions","schedule_last_run",
+                    "battery_coach_enabled","battery_coach_threshold",
+                    "app_narrator_enabled","app_narrator_heavy_mb"}
         filtered = {k: v for k, v in settings.items() if k in allowed}
         db.set_settings(filtered)
         return {"ok": True}
@@ -616,6 +810,10 @@ class AgentAPI:
     # ── Updates ──────────────────────────────────────────────────────────────
     _update_state = {"phase": "idle", "pct": 0, "msg": "", "tmp_exe": None, "latest": None}
 
+    # Only exe URLs on this exact host are accepted. Prevents a tampered
+    # manifest from redirecting the download to an attacker's server.
+    _TRUSTED_UPDATE_HOST = "helix-57o.pages.dev"
+
     def check_for_update(self, force: bool = False):
         """Fetch the version manifest from the public site and compare.
 
@@ -623,24 +821,41 @@ class AgentAPI:
         worker thread). 4s connect+read timeout; failures return ok=false so
         the UI can quietly fall back to the local version.
         """
-        import urllib.request, json as _json, ssl
+        import urllib.request, urllib.parse, json as _json, ssl
         def _parse(v: str):
             try: return tuple(int(x) for x in str(v).strip().lstrip("v").split(".")[:4])
             except Exception: return (0,)
         try:
+            # Manifest URL must be HTTPS and on the trusted host.
+            if not UPDATE_MANIFEST_URL.startswith("https://"):
+                return {"ok": False, "error": "manifest URL must be HTTPS", "current": APP_VERSION}
             req = urllib.request.Request(
                 UPDATE_MANIFEST_URL,
                 headers={"User-Agent": f"{APP_NAME}/{APP_VERSION}"},
             )
-            ctx = ssl.create_default_context()
+            ctx = ssl.create_default_context()  # verifies cert + hostname
             with urllib.request.urlopen(req, timeout=4, context=ctx) as r:
                 data = _json.loads(r.read().decode("utf-8"))
             latest = str(data.get("version", "0.0.0"))
             exe    = str(data.get("exe_url", WEBSITE_URL + "/Helix.exe"))
             notes  = str(data.get("notes", ""))
             size   = int(data.get("size_bytes", 0) or 0)
-            has    = _parse(latest) > _parse(APP_VERSION)
+            sha256 = str(data.get("sha256", "") or "").lower().strip()
+
+            # Reject exe URLs that are not HTTPS or not on the trusted host.
+            parsed = urllib.parse.urlparse(exe)
+            if parsed.scheme != "https" or parsed.hostname != self._TRUSTED_UPDATE_HOST:
+                return {"ok": False, "error": "update URL failed trust check", "current": APP_VERSION}
+            # Reject manifests without a sha256 — refuse to install anything we can't verify.
+            if len(sha256) != 64 or not all(c in "0123456789abcdef" for c in sha256):
+                return {"ok": False, "error": "manifest missing valid sha256", "current": APP_VERSION}
+
+            has = _parse(latest) > _parse(APP_VERSION)
             self._update_state["latest"] = latest
+            # sha256 is stashed privately so the UI can't fabricate it for download_and_install_update.
+            self._update_state["_expected_sha256"] = sha256
+            self._update_state["_expected_exe_url"] = exe
+            self._update_state["_expected_size"] = size
             return {"ok": True, "current": APP_VERSION, "latest": latest,
                     "has_update": has, "exe_url": exe, "notes": notes,
                     "size_bytes": size,
@@ -664,11 +879,14 @@ class AgentAPI:
           4. Deletes the staged file + the script.
         Then this process exits.
         """
-        import urllib.request, ssl, subprocess, time as _time
+        import urllib.request, urllib.parse, ssl, subprocess, hashlib, time as _time
         if not getattr(sys, "frozen", False):
             return {"ok": False, "error": "Updates can only be installed in the packaged build."}
         st = self._update_state
         try:
+            # Re-fetch the manifest with verification. check_for_update stashes the
+            # trusted sha256 + exe URL privately so the install path can't be
+            # tricked by a UI-side forged info dict.
             info = self.check_for_update(force=True)
             if not info.get("ok"):
                 st.update({"phase": "error", "msg": info.get("error") or "manifest unreachable"})
@@ -677,7 +895,18 @@ class AgentAPI:
                 st.update({"phase": "idle", "msg": "already up to date"})
                 return {"ok": False, "error": "already up to date"}
 
-            exe_url = info["exe_url"]
+            exe_url  = st.get("_expected_exe_url") or ""
+            expected = (st.get("_expected_sha256") or "").lower()
+            expected_size = int(st.get("_expected_size") or 0)
+            # Belt-and-suspenders: re-check URL trust at install time.
+            parsed = urllib.parse.urlparse(exe_url)
+            if parsed.scheme != "https" or parsed.hostname != self._TRUSTED_UPDATE_HOST:
+                st.update({"phase": "error", "msg": "update URL failed trust check"})
+                return {"ok": False, "error": st["msg"]}
+            if len(expected) != 64:
+                st.update({"phase": "error", "msg": "no verified sha256 to check against"})
+                return {"ok": False, "error": st["msg"]}
+
             cur_exe = Path(sys.executable).resolve()
             upd_dir = BASE / "updates"
             upd_dir.mkdir(parents=True, exist_ok=True)
@@ -690,15 +919,23 @@ class AgentAPI:
             st.update({"phase": "downloading", "pct": 0, "msg": "Starting download…"})
             ctx = ssl.create_default_context()
             req = urllib.request.Request(exe_url, headers={"User-Agent": f"{APP_NAME}/{APP_VERSION}"})
+            # Hash the download as it streams in; refuse to install if hash doesn't match.
+            hasher = hashlib.sha256()
+            # Cap download size so a malicious manifest can't make us fill the disk.
+            # 128 MiB is >>5x the current ~17 MB exe; well under any reasonable future growth.
+            MAX_DOWNLOAD = 128 * 1024 * 1024
             with urllib.request.urlopen(req, timeout=15, context=ctx) as r, open(new_exe, "wb") as out:
-                total = int(r.headers.get("Content-Length") or info.get("size_bytes") or 0)
+                total = int(r.headers.get("Content-Length") or expected_size or 0)
                 read = 0
                 chunk = 1024 * 128
                 while True:
                     buf = r.read(chunk)
                     if not buf: break
-                    out.write(buf)
                     read += len(buf)
+                    if read > MAX_DOWNLOAD:
+                        raise RuntimeError(f"download exceeded size cap ({MAX_DOWNLOAD} bytes)")
+                    out.write(buf)
+                    hasher.update(buf)
                     if total:
                         st["pct"] = int(read * 100 / total)
                         st["msg"] = f"Downloading… {read // (1024*1024)} / {total // (1024*1024)} MB"
@@ -707,32 +944,53 @@ class AgentAPI:
             if new_exe.stat().st_size < 1_000_000:
                 raise RuntimeError(f"downloaded file too small ({new_exe.stat().st_size} bytes)")
 
-            st.update({"phase": "ready", "pct": 100, "msg": "Download complete. Installing…", "tmp_exe": str(new_exe)})
+            # Verify sha256 BEFORE anything else is launched. If the hash doesn't
+            # match the trusted manifest, delete the staged file and refuse to install.
+            got = hasher.hexdigest().lower()
+            if got != expected:
+                try: new_exe.unlink()
+                except Exception: pass
+                st.update({"phase": "error",
+                           "msg": f"sha256 mismatch (expected {expected[:12]}…, got {got[:12]}…)"})
+                return {"ok": False, "error": st["msg"]}
+
+            st.update({"phase": "ready", "pct": 100, "msg": "Download verified. Installing…", "tmp_exe": str(new_exe)})
 
             # Build the updater .cmd. We write to a .cmd (not .bat) and use quoted paths.
+            # Hard-bounded retry (max 20 x 1s = 20s) so a locked exe can't loop forever.
+            # Uses `timeout` instead of `ping` so no network-shaped command appears to the user.
             cmd_path = upd_dir / "apply_update.cmd"
             script = (
                 '@echo off\r\n'
                 'setlocal\r\n'
-                'rem Wait a few seconds for Helix to exit cleanly.\r\n'
-                'ping 127.0.0.1 -n 3 >nul\r\n'
+                'rem Wait a few seconds for Helix to exit cleanly (silent).\r\n'
+                'timeout /t 3 /nobreak >nul 2>&1\r\n'
+                'set /a tries=0\r\n'
                 ':try_move\r\n'
                 f'move /Y "{new_exe}" "{cur_exe}" >nul 2>&1\r\n'
-                'if errorlevel 1 (\r\n'
-                '  ping 127.0.0.1 -n 2 >nul\r\n'
-                '  goto try_move\r\n'
-                ')\r\n'
+                'if not errorlevel 1 goto done\r\n'
+                'set /a tries+=1\r\n'
+                'if %tries% geq 20 goto fail\r\n'
+                'timeout /t 1 /nobreak >nul 2>&1\r\n'
+                'goto try_move\r\n'
+                ':fail\r\n'
+                'rem Could not replace the exe; leave staged file for next launch and exit silently.\r\n'
+                '(goto) 2>nul & del "%~f0"\r\n'
+                'exit /b 1\r\n'
+                ':done\r\n'
                 f'start "" "{cur_exe}"\r\n'
                 '(goto) 2>nul & del "%~f0"\r\n'
             )
             cmd_path.write_text(script, encoding="ascii", newline="")
 
-            # Detach from this process; CREATE_NEW_PROCESS_GROUP + DETACHED_PROCESS
+            # Detach from this process AND hide the console window.
+            # CREATE_NO_WINDOW is critical — without it cmd.exe + timeout flash a visible terminal.
             DETACHED = 0x00000008
             NEW_GROUP = 0x00000200
+            CREATE_NO_WINDOW = 0x08000000
             subprocess.Popen(
                 ["cmd.exe", "/c", str(cmd_path)],
-                creationflags=DETACHED | NEW_GROUP,
+                creationflags=DETACHED | NEW_GROUP | CREATE_NO_WINDOW,
                 close_fds=True, cwd=str(upd_dir),
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
@@ -1726,7 +1984,7 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
     # ── Security / Software queries ───────────────────────────────────────────
     def get_scheduled_tasks(self) -> dict:
         """Return non-Microsoft scheduled tasks via PowerShell."""
-        import subprocess, json as _json
+        import json as _json
         ps = r"""
 $ErrorActionPreference='SilentlyContinue'
 Get-ScheduledTask | Where-Object {
@@ -1758,7 +2016,7 @@ Get-ScheduledTask | Where-Object {
 
     def get_installed_software(self, days: int = 90) -> dict:
         """Return software installed in the last N days."""
-        import subprocess, json as _json
+        import json as _json
         ps = f"""
 $ErrorActionPreference='SilentlyContinue'
 $cutoff=(Get-Date).AddDays(-{int(days)})
@@ -1790,7 +2048,7 @@ Sort-Object InstallDate -Descending | Select-Object -First 50 | ConvertTo-Json -
 
     def get_windows_update_status(self) -> dict:
         """Return last update date and pending update count."""
-        import subprocess, json as _json
+        import json as _json
         ps = r"""
 $ErrorActionPreference='SilentlyContinue'
 $sess=New-Object -ComObject Microsoft.Update.Session
@@ -1816,7 +2074,7 @@ try{$pending=($searcher.Search("IsInstalled=0 and IsHidden=0")).Updates.Count}ca
     # ── Performance queries ───────────────────────────────────────────────────
     def get_boot_times(self) -> dict:
         """Return last 10 boot times from Windows event log (Event ID 100)."""
-        import subprocess, json as _json
+        import json as _json
         ps = r"""
 $ErrorActionPreference='SilentlyContinue'
 Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorAction SilentlyContinue |
@@ -1842,7 +2100,7 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
 
     def get_power_plans(self) -> dict:
         """Return available power plans and the active one."""
-        import subprocess, re as _re
+        import re as _re
         try:
             r = run_hidden.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",
                                 "powercfg /list"],
@@ -1862,7 +2120,7 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
 
     def set_power_plan(self, guid: str) -> dict:
         """Switch to a different power plan (low-risk action)."""
-        import re as _re, subprocess
+        import re as _re
         if not _re.fullmatch(r'[0-9a-f-]{36}', guid.lower()):
             return {"ok": False, "msg": "Invalid GUID format."}
         try:
@@ -2256,7 +2514,7 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
 
     def get_smart_info(self) -> dict:
         """Return basic drive health via WMI SMART status."""
-        import subprocess, json as _json
+        import json as _json
         ps = r"""
 $ErrorActionPreference='SilentlyContinue'
 Get-WmiObject -Namespace root\wmi -Class MSStorageDriver_FailurePredictStatus -ErrorAction SilentlyContinue |
@@ -3109,6 +3367,22 @@ def run():
     # Give this process its own taskbar identity (prevents grouping under python.exe)
     try:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("PCHealthAgent.App")
+    except Exception:
+        pass
+
+    # Yield CPU + disk to whatever the user is actively using. BELOW_NORMAL
+    # priority means Helix only takes CPU time other apps don't need; a game,
+    # Teams call, or heavy build will never be slowed down by Helix background
+    # polling, scans, or AI inference. IOPRIO_LOW does the same for disk IO,
+    # so scans don't fight the user's active app for SSD bandwidth. On an idle
+    # system Helix still gets full CPU; the user sees no difference.
+    try:
+        import psutil as _ps
+        _p = _ps.Process()
+        try: _p.nice(_ps.BELOW_NORMAL_PRIORITY_CLASS)
+        except Exception: pass
+        try: _p.ionice(_ps.IOPRIO_LOW)
+        except Exception: pass
     except Exception:
         pass
 

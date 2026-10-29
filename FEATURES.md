@@ -13,6 +13,9 @@
 | Feature | Module | Status | Notes |
 |---|---|---|---|
 | **Overview page — idle state** | desktop_app.py HTML | ✅ PASS | Dark theme, shield icon, scan buttons render |
+| **Live triage ("Why is my PC slow right now?")** | live_triage.py | ✅ PASS | Snapshot top 5 CPU / top 5 RAM + disk busy % + net Mbps; Ollama narration optional; narrative-only. Overview button + Ctrl+K. |
+| **Battery coach** | battery_coach.py | ✅ PASS | Live pct / plugged / time-left / WMI wear % + top CPU drain procs; Ollama coaching optional. Background daemon fires modal once per discharge cycle below threshold (default 20%); Overview button hidden on desktops. |
+| **Game & heavy-app narrator** | app_watch.py | ✅ PASS | Baselines PIDs at startup; narrates new game-starts (via game_advisor catalog) and new heavy apps (>1 GB RAM or >25% CPU after 10 s settle) via one-line Windows toast. Ollama narration optional with 3 s thread timeout. **Narrate-only — never opens or closes any application.** Dedupe by exe name per session, 50-toast session cap. |
 | **Overview page — post-scan state** | desktop_app.py | ✅ PASS | Health score, issue list, freeable data shown |
 | **Full Scan** | scanner.py | ✅ PASS | All 5 steps run; result stored in SQLite DB |
 | **Quick Scan** | scanner.py | ✅ PASS | Skips duplicate scan, faster execution |

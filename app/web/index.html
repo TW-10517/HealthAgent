@@ -46,6 +46,14 @@ button{font-family:var(--font)}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18)}
 
 /* ── Title bar ──────────────────────────────────────────────────────────── */
+/* ── First-run help coachmark (anchors to #btn-page-hint, one-shot) ── */
+#help-coachmark{position:absolute;top:calc(var(--tb-h) + 8px);right:14px;z-index:400;width:280px;animation:hcmIn .25s ease-out both}
+@keyframes hcmIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+#help-coachmark .hcm-arrow{position:absolute;top:-7px;right:18px;width:14px;height:14px;background:var(--surface);border-left:1px solid var(--border2);border-top:1px solid var(--border2);transform:rotate(45deg)}
+#help-coachmark .hcm-body{position:relative;background:var(--surface);border:1px solid var(--border2);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.45);padding:12px 14px}
+#help-coachmark .hcm-title{font-size:12.5px;font-weight:700;color:var(--brand);margin-bottom:4px}
+#help-coachmark .hcm-msg{font-size:11.5px;color:var(--fg2);line-height:1.5;margin-bottom:10px}
+#help-coachmark .hcm-ok{width:100%;justify-content:center;padding:6px 10px;font-size:12px}
 .titlebar{height:var(--tb-h);background:var(--bg2);
   border-bottom:1px solid var(--border);
   display:flex;align-items:center;padding:0 16px 0 14px;flex-shrink:0;gap:10px;z-index:10}
@@ -422,7 +430,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
 @keyframes idleFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 .idle-title{font-size:24px;font-weight:600;letter-spacing:-.01em;color:var(--fg)}
 .idle-sub{font-size:13px;color:var(--fg2);max-width:380px;line-height:1.65}
-.idle-actions{display:flex;gap:10px;margin-top:6px}
+.idle-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:6px}
 
 /* ── System info ─────────────────────────────────────────────────────────── */
 .sysinfo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -906,7 +914,15 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
     <!-- hidden for JS compat -->
     <button id="btn-theme" onclick="toggleTheme()" style="display:none"></button>
     <div style="display:none"><button id="btn-en" onclick="setLang('en')">EN</button><button id="btn-ja" onclick="setLang('ja')">日本語</button></div>
-    <button class="btn btn-ghost btn-sm" id="btn-page-hint" onclick="openPageHint()" title="Help: this page + all features / ヘルプ" style="width:30px;padding:0;justify-content:center;font-size:14px">💡</button>
+    <button class="btn btn-ghost btn-sm" id="btn-page-hint" onclick="openPageHint();_dismissHelpCoachmark()" title="Help: this page + all features / ヘルプ" style="width:30px;padding:0;justify-content:center;font-size:14px;position:relative">💡</button>
+    <div id="help-coachmark" style="display:none">
+      <div class="hcm-arrow"></div>
+      <div class="hcm-body">
+        <div class="hcm-title"><span class="en">New here?</span><span class="ja">はじめての方へ</span></div>
+        <div class="hcm-msg"><span class="en">Click the 💡 button anytime to learn what Helix can do — a short tutorial of every feature.</span><span class="ja">💡ボタンを押すと、Helixの機能を一通り学べる短いチュートリアルが開きます。</span></div>
+        <button class="btn btn-primary btn-sm hcm-ok" onclick="_dismissHelpCoachmark()"><span class="en">Got it</span><span class="ja">了解</span></button>
+      </div>
+    </div>
     <button class="btn btn-secondary btn-sm" id="btn-fast" onclick="startScan(true)"
       data-tip="Skips the duplicate-file hash step (~15s). You still get disk usage, temp/cache size and startup counts, so the Overview score updates — but duplicates on Storage won't."
       data-tip-ja="重複ファイルのハッシュ計算（約15秒）を省略。ディスク使用量・一時/キャッシュ・起動アプリ数は取得でき概要スコアも更新しますが、ストレージの重複は空のままです。">
@@ -1053,6 +1069,12 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
             <button class="btn btn-secondary" onclick="openBoost()"
               data-tip="Shows the top RAM-eating apps. You pick which to close. Freeing a 2 GB tab-heavy Chrome brings idle RAM back from ~85% to ~55% on 8 GB laptops."
               data-tip-ja="メモリを多く使うアプリ上位を表示し、閉じるものを選べます。2GB消費のChromeを閉じると8GBノートPCで使用率85%→55%に回復します。">🚀 <span class="en">Boost</span><span class="ja">ブースト</span></button>
+            <button class="btn btn-secondary" onclick="openSlowTriage()"
+              data-tip="Snapshots CPU, RAM, disk and network, then narrates in plain English what's slowing the PC right now."
+              data-tip-ja="CPU・RAM・ディスク・ネットワークのスナップショットを取得し、現在PCを遅くしている原因を日本語で説明します。">🩺 <span class="en">Why is it slow?</span><span class="ja">なぜ遅い？</span></button>
+            <button id="btn-battery-coach" class="btn btn-secondary" onclick="openBatteryCoach()" style="display:none"
+              data-tip="Reads your current battery state and the biggest power-draw processes, then gives a short coaching tip."
+              data-tip-ja="現在のバッテリー状態と電力を最も消費しているプロセスを確認し、短い助言を表示します。">🔋 <span class="en">Battery coach</span><span class="ja">バッテリーコーチ</span></button>
           </div>
           <div style="display:flex;gap:12px;margin-top:12px;width:100%;max-width:520px">
             <div style="flex:1;padding:12px 14px;background:var(--brand-dim);border:1px solid var(--brand-border);border-radius:var(--r-lg)">
@@ -1905,6 +1927,15 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
               <div id="update-progress-msg" style="margin-top:6px;font-size:11.5px;color:var(--fg2)">Starting…</div>
             </div>
           </div>
+          <div id="whats-new-row" style="display:none;margin-top:12px;padding:12px 14px;background:linear-gradient(135deg,rgba(45,212,176,0.08),rgba(125,179,255,0.06));border:1px solid var(--border2);border-radius:8px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:13px;font-weight:600;color:var(--brand)"><span class="en">What's new</span><span class="ja">新機能</span></span>
+              <span id="whats-new-ver" style="font-size:11px;color:var(--fg3)"></span>
+              <span style="flex:1"></span>
+              <span id="whats-new-days" style="font-size:11px;color:var(--fg3)"></span>
+            </div>
+            <div id="whats-new-text" style="font-size:12.5px;color:var(--fg2);line-height:1.5;white-space:pre-wrap"></div>
+          </div>
           <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="toggleAboutDetail()"><span class="en">Details</span><span class="ja">詳細</span></button>
         </div>
       </div>
@@ -2227,6 +2258,66 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
   </div>
 </div>
 
+<!-- ── Slow-triage modal: "Why is my PC slow right now?" ───────────────── -->
+<div id="slow-triage-modal" onclick="if(event.target===this)closeSlowTriage()"
+     style="position:fixed;inset:0;z-index:325;display:none;align-items:center;justify-content:center;background:rgba(5,9,18,.72);backdrop-filter:blur(6px);padding:24px">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);width:min(640px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="font-size:22px">🩺</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--fg)"><span class="en">Why is my PC slow right now?</span><span class="ja">なぜPCが遅い？</span></div>
+        <div style="font-size:12px;color:var(--fg3)"><span class="en">Live snapshot of CPU, RAM, disk and network — narrated in plain English.</span><span class="ja">CPU・RAM・ディスク・ネットワークのスナップショットを分かりやすく説明します。</span></div>
+      </div>
+      <button class="btn btn-ghost" style="width:30px;height:30px;padding:0;justify-content:center;border-radius:8px" onclick="closeSlowTriage()">✕</button>
+    </div>
+    <div id="slow-triage-body" style="overflow-y:auto;padding:14px 22px 22px"></div>
+    <div style="padding:12px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" onclick="_slowTriageLoad()"><span class="en">Refresh</span><span class="ja">更新</span></button>
+      <button class="btn btn-secondary btn-sm" onclick="closeSlowTriage()"><span class="en">Done</span><span class="ja">完了</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Battery coach modal (Feature #11) ────────────────────────────────── -->
+<div id="battery-coach-modal" onclick="if(event.target===this)closeBatteryCoach()"
+     style="position:fixed;inset:0;z-index:326;display:none;align-items:center;justify-content:center;background:rgba(5,9,18,.72);backdrop-filter:blur(6px);padding:24px">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);width:min(560px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="font-size:22px">🔋</div>
+      <div style="flex:1">
+        <div id="battery-coach-title" style="font-size:16px;font-weight:700;color:var(--fg)"><span class="en">Battery coach</span><span class="ja">バッテリーコーチ</span></div>
+        <div style="font-size:12px;color:var(--fg3)"><span class="en">Live state + biggest power-draw processes.</span><span class="ja">現在の状態と最も電力を消費しているプロセス。</span></div>
+      </div>
+      <button class="btn btn-ghost" style="width:30px;height:30px;padding:0;justify-content:center;border-radius:8px" onclick="closeBatteryCoach()">✕</button>
+    </div>
+    <div id="battery-coach-body" style="overflow-y:auto;padding:14px 22px 22px"></div>
+    <div style="padding:12px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" onclick="_batteryCoachLoad()"><span class="en">Refresh</span><span class="ja">更新</span></button>
+      <button class="btn btn-secondary btn-sm" onclick="closeBatteryCoach()"><span class="en">Done</span><span class="ja">完了</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ── What's new popup (one-time after update) ────────────────────────── -->
+<div id="whats-new-modal" onclick="if(event.target===this)closeWhatsNew()"
+     style="position:fixed;inset:0;z-index:340;display:none;align-items:center;justify-content:center;background:rgba(5,9,18,.72);backdrop-filter:blur(6px);padding:24px">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);width:min(560px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="font-size:22px">✨</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--fg)"><span class="en">What's new in Helix</span><span class="ja">Helixの新機能</span></div>
+        <div id="whats-new-modal-ver" style="font-size:12px;color:var(--fg3);margin-top:2px"></div>
+      </div>
+      <button class="btn btn-ghost" style="width:30px;height:30px;padding:0;justify-content:center;border-radius:8px" onclick="closeWhatsNew()">✕</button>
+    </div>
+    <div id="whats-new-modal-body" style="overflow-y:auto;padding:16px 22px 20px;font-size:13px;color:var(--fg2);line-height:1.6;white-space:pre-wrap"></div>
+    <div style="padding:12px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;align-items:center">
+      <div style="flex:1;font-size:11px;color:var(--fg3)"><span class="en">Also available in Settings → About for 3 days.</span><span class="ja">設定 → バージョン情報 で3日間確認できます。</span></div>
+      <button class="btn btn-primary btn-sm" onclick="closeWhatsNew()"><span class="en">Got it</span><span class="ja">了解</span></button>
+    </div>
+  </div>
+</div>
+
 <!-- ── First-run mode picker ───────────────────────────────────────────── -->
 <div id="frm-overlay">
   <div id="frm-box">
@@ -2504,7 +2595,7 @@ function onScanDone(d){
   setTimeout(animateBars,100);
   showToast(d.issues===0?'No issues found!':'Scan complete — '+d.issues+' issue(s)', d.issues===0?'success':'info');
 }
-function onScanError(msg){ _stopProgressPoll(); resetScanUI(); document.getElementById('s-text').innerHTML=`<span style="color:var(--error)">Error: ${msg}</span>`; showToast('Scan failed: '+msg,'error'); }
+function onScanError(msg){ _stopProgressPoll(); resetScanUI(); document.getElementById('s-text').innerHTML=`<span style="color:var(--error)">Error: ${esc(String(msg||''))}</span>`; showToast('Scan failed: '+msg,'error'); }
 function onScanCancelled(){ _stopProgressPoll(); resetScanUI(); document.getElementById('s-text').innerHTML=`<span class="en">Scan cancelled</span><span class="ja">キャンセル</span>`; showToast('Scan cancelled','info'); }
 function resetScanUI(){ _scanRunning=false; ['btn-scan','btn-fast'].forEach(id=>document.getElementById(id).disabled=false); const o=document.getElementById('progress-overlay'); o.classList.remove('show'); o.style.display=''; document.getElementById('s-dot').classList.remove('scanning'); }
 
@@ -2515,8 +2606,8 @@ function renderOverview(d){
   // Hero banner text
   const heroEN=d.score>=80?'Your PC is protected and performing well.':d.score>=60?'Your PC is in good shape.':d.score>=40?'Some areas need your attention.':'Your PC needs maintenance.';
   const heroJA=d.score>=80?'PCは保護され、良好な状態です。':d.score>=60?'PCは良好な状態です。':d.score>=40?'いくつかの箇所に注意が必要です。':'PCのメンテナンスが必要です。';
-  document.getElementById('ov-hero-title').innerHTML=`<span class="en">${heroEN}</span><span class="ja">${heroJA}</span>`;
-  document.getElementById('ov-hero-sub').innerHTML=`<span class="en">Last scan: ${d.at} · ${d.issues===0?'No critical issues found':d.issues+' issue(s) detected'}</span><span class="ja">最終スキャン: ${d.at} · ${d.issues===0?'重大な問題なし':d.issues+'件検出'}</span>`;
+  document.getElementById('ov-hero-title').innerHTML=`<span class="en">${esc(String(heroEN||''))}</span><span class="ja">${esc(String(heroJA||''))}</span>`;
+  document.getElementById('ov-hero-sub').innerHTML=`<span class="en">Last scan: ${esc(String(d.at||''))} · ${d.issues===0?'No critical issues found':d.issues+' issue(s) detected'}</span><span class="ja">最終スキャン: ${esc(String(d.at||''))} · ${d.issues===0?'重大な問題なし':d.issues+'件検出'}</span>`;
 
   const offset=CIRC_60*(1-d.score/100);
   const el=document.getElementById('hs-circle');
@@ -2525,7 +2616,7 @@ function renderOverview(d){
   setTimeout(()=>{el.style.strokeDashoffset=offset;},80);
   const n=document.getElementById('hs-number'); animateNum(n,d.score,700); n.style.color=col;
   const lb=document.getElementById('hs-label'); lb.style.color=col;
-  lb.innerHTML=`<span class="en">${d.scoreLabel}</span><span class="ja">${d.scoreLabelJa}</span>`;
+  lb.innerHTML=`<span class="en">${esc(String(d.scoreLabel||''))}</span><span class="ja">${esc(String(d.scoreLabelJa||''))}</span>`;
   const descs={en:{100:'Excellent condition.',80:'Performing very well.',60:'In good shape.',40:'Needs attention.',20:'Maintenance needed.',0:'Action required.'},
     ja:{100:'優秀。',80:'とても良い。',60:'良好。',40:'注意が必要。',20:'メンテナンス必要。',0:'対処が必要。'}};
   const sk=Math.floor(d.score/20)*20;
@@ -2533,7 +2624,11 @@ function renderOverview(d){
 
   const il=document.getElementById('issues-list');
   if(d.issueDetails&&d.issueDetails.length>0){
-    il.innerHTML=d.issueDetails.map(i=>`<div class="issue-item sev-${i.sev}" onclick="showPage('${i.page||'overview'}')"><div class="issue-dot"></div><span class="issue-text en">${i.en}</span><span class="issue-text ja">${i.ja}</span><span class="issue-arrow">›</span></div>`).join('');
+    il.innerHTML=d.issueDetails.map(i=>{
+      const sev=esc(String(i.sev||'')).replace(/[^a-z0-9_-]/gi,'');
+      const page=(i.page||'overview').replace(/[^a-z0-9_-]/gi,'');
+      return `<div class="issue-item sev-${sev}" onclick="showPage('${page}')"><div class="issue-dot"></div><span class="issue-text en">${esc(i.en||'')}</span><span class="issue-text ja">${esc(i.ja||'')}</span><span class="issue-arrow">›</span></div>`;
+    }).join('');
   } else { il.innerHTML=`<div class="issue-item sev-ok"><div class="issue-dot"></div><span class="issue-text en">No issues — your PC is in great shape</span><span class="issue-text ja">問題なし — PCは素晴らしい状態です</span></div>`; }
 
   const dCol=d.diskPctFree<10?'var(--error)':d.diskPctFree<20?'var(--warn)':'inherit';
@@ -2741,6 +2836,7 @@ const _CMD_ITEMS=[
   {label:'Run Full Scan',icon:'🔍',action:()=>startScan(false)},
   {label:'Run Quick Scan',icon:'⚡',action:()=>startScan(true)},
   {label:'Boost — Free Memory',icon:'🚀',action:()=>openBoost()},
+  {label:'Why is my PC slow right now?',icon:'🩺',action:()=>openSlowTriage()},
   {label:'Toggle Light/Dark Mode',icon:'🌙',action:()=>toggleTheme()},
   {label:'Show Keyboard Shortcuts',icon:'⌨',action:()=>openShortcuts()},
   {label:'Open Chat Popup',icon:'💬',action:()=>openChatPopup()},
@@ -2828,6 +2924,9 @@ const _GUIDE=[
     ['🧿',['Floating Launcher','フローティングランチャー'],['Draggable desktop icon with a 6-segment radial menu: Open App · Quick Chat · Run Scan · Monitor HUD · Hide · Exit.','ドラッグ可能なアイコンに6セグメントの放射状メニュー：アプリ起動・クイックチャット・スキャン・HUD・非表示・終了。']],
     ['💬',['Assistant','アシスタント'],['Plain requests: “check my cpu”, “find resume.docx”, “open edge”, “go to storage”, “run a scan”. Multi-step: “find a PDF then open it”. Offline for commands; Ollama needed for free-form answers.','自然な言葉で：「CPUを確認」「resume.docxを探す」「edgeを開く」「ストレージへ」「スキャン実行」。「PDFを探して開く」のような複数ステップも可能。コマンドはオフライン、自由回答にはOllama。']],
     ['🚀',['Boost','ブースト'],['Overview button (and Ctrl+K) → lists memory-hog processes, lets you close any (IT-protected names refused). Never auto-closes.','概要ボタンまたはCtrl+Kから、メモリを大量消費するプロセスを一覧表示。IT保護対象は閉じられません。']],
+    ['🩺',['Why is it slow?','なぜ遅い？'],['Live snapshot of CPU, RAM, disk and network with the top 5 CPU and top 5 RAM processes, narrated in plain English by local Ollama when available. Overview button or Ctrl+K.','CPU・RAM・ディスク・ネットワークと上位プロセスを即時スナップショットし、Ollamaで日本語に解説。概要ボタンまたはCtrl+Kから。']],
+    ['🔋',['Battery coach','バッテリーコーチ'],['Reads current battery %, time remaining, wear % and the biggest power-draw processes, then narrates a short coaching tip. Pops up automatically on low battery. Hidden on desktops.','現在のバッテリー残量・残り時間・劣化率・電力消費上位プロセスを読み取り、短い助言を表示。残量低下時に自動表示。デスクトップPCでは非表示。']],
+    ['🎮',['Game &amp; heavy-app narrator','ゲーム・重アプリ通知'],['Background watcher. When a known game or any process using >1 GB RAM / sustained CPU launches, Helix fires a one-line Windows toast ("Elden Ring launched. CPU 42%, RAM 65% — biggest background: chrome 1.8 GB."). Narrate-only — never opens or closes anything.','バックグラウンド監視。既知のゲームや1GB超のRAM／継続的な高CPUを使う新規プロセスの起動時に、短いWindows通知を表示（例「Elden Ringを起動。CPU 42%、RAM 65% — 最大のバックグラウンド：chrome 1.8GB」）。情報表示のみで、起動・終了は一切行いません。']],
   ]},
   {t:['History, Settings &amp; About','履歴・設定・情報'],items:[
     ['🕑',['History','履歴'],['Your past scans and health-score trend over time.','過去のスキャンとヘルススコアの推移。']],
@@ -2889,7 +2988,7 @@ async function loadCoreDetail(){
   }).join('');
   const hints=document.getElementById('mon-cores-hints');
   const sevColor={info:'var(--info)',warn:'var(--warn)',error:'var(--err)'};
-  hints.innerHTML=(r.hints||[]).map(h=>`<div style="padding:10px 12px;background:var(--bg2);border-left:3px solid ${sevColor[h.severity]||'var(--info)'};border-radius:var(--r);font-size:12px;line-height:1.5"><span class="en">${h.en}</span><span class="ja">${h.ja}</span></div>`).join('')
+  hints.innerHTML=(r.hints||[]).map(h=>`<div style="padding:10px 12px;background:var(--bg2);border-left:3px solid ${sevColor[h.severity]||'var(--info)'};border-radius:var(--r);font-size:12px;line-height:1.5"><span class="en">${esc(h.en||'')}</span><span class="ja">${esc(h.ja||'')}</span></div>`).join('')
     + `<div style="font-size:11px;color:var(--fg3);margin-top:4px"><span class="en">Context switches: ${r.ctx_switches_per_sec.toLocaleString()}/s · Interrupts: ${r.interrupts_per_sec.toLocaleString()}/s</span><span class="ja">コンテキストスイッチ: ${r.ctx_switches_per_sec.toLocaleString()}/秒 · 割り込み: ${r.interrupts_per_sec.toLocaleString()}/秒</span></div>`;
   if(typeof _enhanceSelects==='function') _enhanceSelects();
 }
@@ -2902,7 +3001,7 @@ async function _boostLoad(){
   if(!window.pywebview){ return; }
   let r;
   try{ r=await window.pywebview.api.boost_preview(); }
-  catch(e){ body.innerHTML='<div style="color:var(--error);padding:14px">'+String(e)+'</div>'; return; }
+  catch(e){ body.innerHTML='<div style="color:var(--error);padding:14px">'+esc(String(e))+'</div>'; return; }
   const cands=(r&&r.candidates)||[];
   if(!cands.length){
     body.innerHTML='<div style="padding:30px;text-align:center;color:var(--fg2)">'
@@ -2955,6 +3054,255 @@ async function _boostClose(name,pid){
   }
 }
 
+// ── Slow-triage (Feature #8): "Why is my PC slow right now?" ──────────────
+function openSlowTriage(){ document.getElementById('slow-triage-modal').style.display='flex'; _slowTriageLoad(); }
+function closeSlowTriage(){ document.getElementById('slow-triage-modal').style.display='none'; }
+function _stPct(v){ v=Math.max(0,Math.min(100,v||0)); const c=v>=85?'var(--error)':v>=60?'var(--warn)':'var(--brand)'; return {w:v,c:c}; }
+function _stProcCard(title,titleJa,rows,metric){
+  // metric: 'cpu' or 'mem_mb'. Builds DOM via textContent to avoid XSS from process names.
+  const wrap=document.createElement('div');
+  wrap.className='card';
+  wrap.style.cssText='padding:12px 14px';
+  const h=document.createElement('div');
+  h.style.cssText='font-size:12px;font-weight:700;color:var(--fg2);margin-bottom:8px';
+  h.innerHTML='<span class="en"></span><span class="ja"></span>';
+  h.querySelector('.en').textContent=title;
+  h.querySelector('.ja').textContent=titleJa;
+  wrap.appendChild(h);
+  if(!rows||!rows.length){
+    const empty=document.createElement('div');
+    empty.style.cssText='font-size:11px;color:var(--fg3)';
+    empty.textContent='—';
+    wrap.appendChild(empty);
+    return wrap;
+  }
+  rows.forEach(r=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px';
+    const name=document.createElement('div');
+    name.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)';
+    name.textContent=r.name||'(unknown)';
+    const val=document.createElement('div');
+    val.style.cssText='color:var(--fg2);font-variant-numeric:tabular-nums';
+    val.textContent=metric==='cpu'?((r.cpu||0).toFixed(0)+'%'):(Math.round(r.mem_mb||0).toLocaleString()+' MB');
+    row.appendChild(name); row.appendChild(val);
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+async function _slowTriageLoad(){
+  const body=document.getElementById('slow-triage-body');
+  body.innerHTML='<div style="padding:30px;text-align:center;color:var(--fg3)"><span class="en">Taking live snapshot…</span><span class="ja">スナップショット取得中…</span></div>';
+  if(!window.pywebview){ return; }
+  let r;
+  try{ r=await window.pywebview.api.triage_live(true); }
+  catch(e){ body.innerHTML='<div style="color:var(--error);padding:14px"></div>'; body.firstChild.textContent=String(e); return; }
+  if(!r||!r.available){
+    body.innerHTML='<div style="padding:30px;text-align:center;color:var(--fg3)"><span class="en">Snapshot unavailable.</span><span class="ja">スナップショットを取得できませんでした。</span></div>';
+    return;
+  }
+  body.innerHTML='';
+  // Narration (if any) — textContent to prevent XSS from Ollama output.
+  if(r.narrated){
+    const nar=document.createElement('div');
+    nar.className='card';
+    nar.style.cssText='padding:14px;margin-bottom:12px;border-left:3px solid var(--brand);line-height:1.6;color:var(--fg);font-size:13px';
+    nar.textContent=r.narrated;
+    body.appendChild(nar);
+  } else {
+    // Offline fallback: show highlights as plain bullets.
+    const hl=document.createElement('div');
+    hl.className='card';
+    hl.style.cssText='padding:12px 14px;margin-bottom:12px;font-size:12px;color:var(--fg2)';
+    (r.highlights||[]).forEach(h=>{
+      const line=document.createElement('div');
+      line.style.cssText='padding:3px 0';
+      line.textContent='• '+h;
+      hl.appendChild(line);
+    });
+    body.appendChild(hl);
+  }
+  // Overall meters: CPU, RAM, Disk, Net.
+  const cpuM=_stPct(r.cpu_overall), ramM=_stPct(r.ram_overall);
+  const diskLabel=(r.disk_busy_pct==null)?'—':(r.disk_busy_pct.toFixed(0)+'%');
+  const netLabel=(r.net_mbps==null)?'—':(r.net_mbps.toFixed(1)+' Mbps');
+  const meters=document.createElement('div');
+  meters.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px';
+  meters.innerHTML=
+    `<div class="card" style="padding:10px 12px">
+       <div style="font-size:11px;color:var(--fg3);display:flex;justify-content:space-between"><span>CPU</span><span style="color:${cpuM.c};font-weight:600">${cpuM.w.toFixed(0)}%</span></div>
+       <div class="lv-bar" style="margin-top:6px"><div class="lv-bar-fill" style="width:${cpuM.w}%;background:${cpuM.c}"></div></div>
+     </div>
+     <div class="card" style="padding:10px 12px">
+       <div style="font-size:11px;color:var(--fg3);display:flex;justify-content:space-between"><span>RAM</span><span style="color:${ramM.c};font-weight:600">${ramM.w.toFixed(0)}%</span></div>
+       <div class="lv-bar" style="margin-top:6px"><div class="lv-bar-fill" style="width:${ramM.w}%;background:${ramM.c}"></div></div>
+     </div>
+     <div class="card" style="padding:10px 12px">
+       <div style="font-size:11px;color:var(--fg3)">Disk busy</div>
+       <div style="font-size:15px;font-weight:600;color:var(--fg);margin-top:2px">${diskLabel}</div>
+     </div>
+     <div class="card" style="padding:10px 12px">
+       <div style="font-size:11px;color:var(--fg3)">Network</div>
+       <div style="font-size:15px;font-weight:600;color:var(--fg);margin-top:2px">${netLabel}</div>
+     </div>`;
+  body.appendChild(meters);
+  // Top CPU + top RAM cards (textContent for process names).
+  const grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px';
+  grid.appendChild(_stProcCard('Top CPU','CPU上位',r.top_cpu||[],'cpu'));
+  grid.appendChild(_stProcCard('Top RAM','RAM上位',r.top_ram||[],'mem_mb'));
+  body.appendChild(grid);
+  // Timestamp footer.
+  const ts=document.createElement('div');
+  ts.style.cssText='font-size:11px;color:var(--fg3);margin-top:12px;text-align:right';
+  ts.textContent=r.ts||'';
+  body.appendChild(ts);
+}
+
+// ── Battery coach (Feature #11) ──────────────────────────────────────────
+function openBatteryCoach(fromPopup){
+  document.getElementById('battery-coach-modal').style.display='flex';
+  if(fromPopup && fromPopup.snapshot){ _batteryCoachRender(fromPopup.snapshot); }
+  else { _batteryCoachLoad(); }
+}
+function closeBatteryCoach(){ document.getElementById('battery-coach-modal').style.display='none'; }
+async function _batteryCoachLoad(){
+  const body=document.getElementById('battery-coach-body');
+  body.innerHTML='<div style="padding:30px;text-align:center;color:var(--fg3)"><span class="en">Reading battery…</span><span class="ja">バッテリー確認中…</span></div>';
+  if(!window.pywebview){ return; }
+  let r;
+  try{ r=await window.pywebview.api.battery_coach(true); }
+  catch(e){ body.innerHTML='<div style="color:var(--error);padding:14px"></div>'; body.firstChild.textContent=String(e); return; }
+  _batteryCoachRender(r);
+}
+function _batteryCoachRender(r){
+  const body=document.getElementById('battery-coach-body');
+  body.innerHTML='';
+  if(!r||!r.available){
+    body.innerHTML='<div style="padding:30px;text-align:center;color:var(--fg3)"><span class="en">Snapshot unavailable.</span><span class="ja">スナップショットを取得できませんでした。</span></div>';
+    return;
+  }
+  if(!r.has_battery){
+    const d=document.createElement('div');
+    d.style.cssText='padding:30px;text-align:center;color:var(--fg2)';
+    d.innerHTML='<div style="font-size:36px;margin-bottom:8px">🖥️</div><div style="font-weight:600;margin-bottom:4px"><span class="en">No battery detected</span><span class="ja">バッテリーが見つかりません</span></div><div style="font-size:12px;color:var(--fg3)"><span class="en">This machine looks like a desktop.</span><span class="ja">このPCはデスクトップのようです。</span></div>';
+    body.appendChild(d);
+    return;
+  }
+  // Narration (textContent to avoid XSS from Ollama output).
+  if(r.narrated){
+    const nar=document.createElement('div');
+    nar.className='card';
+    nar.style.cssText='padding:14px;margin-bottom:12px;border-left:3px solid var(--brand);line-height:1.6;color:var(--fg);font-size:13px';
+    nar.textContent=r.narrated;
+    body.appendChild(nar);
+  } else {
+    const hl=document.createElement('div');
+    hl.className='card';
+    hl.style.cssText='padding:12px 14px;margin-bottom:12px;font-size:12px;color:var(--fg2)';
+    (r.highlights||[]).forEach(h=>{
+      const line=document.createElement('div');
+      line.style.cssText='padding:3px 0';
+      line.textContent='• '+h;
+      hl.appendChild(line);
+    });
+    body.appendChild(hl);
+  }
+  // Battery meter card.
+  const pct=Math.max(0,Math.min(100,r.percent||0));
+  const pctColor=r.plugged?'var(--brand)':(pct<=20?'var(--error)':(pct<=40?'var(--warn)':'var(--brand)'));
+  const tl=(r.time_left_min==null)?'—':((Math.floor(r.time_left_min/60))+'h '+(r.time_left_min%60)+'m');
+  const wear=(r.wear_pct==null)?'—':(r.wear_pct+'%');
+  const meter=document.createElement('div');
+  meter.className='card';
+  meter.style.cssText='padding:12px 14px;margin-bottom:10px';
+  meter.innerHTML=
+    `<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--fg3)">
+       <span>${r.plugged?'Charging':'On battery'}</span>
+       <span style="color:${pctColor};font-weight:600">${pct.toFixed(0)}%</span>
+     </div>
+     <div class="lv-bar" style="margin-top:6px"><div class="lv-bar-fill" style="width:${pct}%;background:${pctColor}"></div></div>
+     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;font-size:11px;color:var(--fg3)">
+       <div><span>Time left</span><div style="font-size:14px;font-weight:600;color:var(--fg);margin-top:2px">${tl}</div></div>
+       <div><span>Wear</span><div style="font-size:14px;font-weight:600;color:var(--fg);margin-top:2px">${wear}</div></div>
+     </div>`;
+  body.appendChild(meter);
+  // Top drain card (textContent for proc names).
+  const drainWrap=document.createElement('div');
+  drainWrap.className='card';
+  drainWrap.style.cssText='padding:12px 14px';
+  const hdr=document.createElement('div');
+  hdr.style.cssText='font-size:12px;font-weight:700;color:var(--fg2);margin-bottom:8px';
+  hdr.innerHTML='<span class="en">Top power draw (by CPU)</span><span class="ja">電力消費上位（CPU基準）</span>';
+  drainWrap.appendChild(hdr);
+  const drain=r.top_drain||[];
+  if(!drain.length){
+    const em=document.createElement('div');
+    em.style.cssText='font-size:11px;color:var(--fg3)';
+    em.textContent='—';
+    drainWrap.appendChild(em);
+  } else {
+    drain.forEach(p=>{
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px';
+      const nm=document.createElement('div');
+      nm.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)';
+      nm.textContent=p.name||'(unknown)';
+      const v=document.createElement('div');
+      v.style.cssText='color:var(--fg2);font-variant-numeric:tabular-nums';
+      v.textContent=(p.cpu||0).toFixed(0)+'% CPU';
+      row.appendChild(nm); row.appendChild(v);
+      drainWrap.appendChild(row);
+    });
+  }
+  body.appendChild(drainWrap);
+  const ts=document.createElement('div');
+  ts.style.cssText='font-size:11px;color:var(--fg3);margin-top:12px;text-align:right';
+  ts.textContent=r.ts||'';
+  body.appendChild(ts);
+}
+// Hide the Overview button on desktops with no battery.
+async function _batteryCoachGate(){
+  if(!window.pywebview) return;
+  try{
+    const r=await window.pywebview.api.has_battery();
+    const btn=document.getElementById('btn-battery-coach');
+    if(btn && r && r.has_battery){ btn.style.display=''; }
+  }catch(e){}
+}
+// Poll for the background watcher's low-battery popup trigger.
+async function _batteryCoachPopupPoll(){
+  if(!window.pywebview) return;
+  try{
+    const r=await window.pywebview.api.get_battery_popup_pending();
+    if(r && r.pending){
+      await window.pywebview.api.acknowledge_battery_popup();
+      openBatteryCoach(r);
+    }
+  }catch(e){}
+}
+
+// ── First-run help coachmark ─────────────────────────────────────────────
+// One-shot bubble pointing at the 💡 titlebar button so first-time users
+// discover the feature tutorial. Dismissed by Got-it, by opening the hint
+// itself, or automatically on the second launch.
+function _maybeShowHelpCoachmark(){
+  try{
+    if(_lsGet('pcha_help_coachmark_seen')==='1') return;
+  }catch(_){ /* localStorage disabled → still OK to show once */ }
+  const el=document.getElementById('help-coachmark');
+  const btn=document.getElementById('btn-page-hint');
+  if(!el||!btn) return;
+  el.style.display='block';
+  // Auto-dismiss after 20 s so it never lingers forever.
+  setTimeout(()=>{ if(el.style.display!=='none') _dismissHelpCoachmark(); }, 20000);
+}
+function _dismissHelpCoachmark(){
+  const el=document.getElementById('help-coachmark');
+  if(el) el.style.display='none';
+  try{ _lsSet('pcha_help_coachmark_seen','1'); }catch(_){}
+}
+
 // ── Onboarding ────────────────────────────────────────────────────────────
 const _OB_STEPS=4;
 let _obStep=0;
@@ -3000,10 +3348,10 @@ function loadSysInfo(force){
   });
 }
 function _hwCard(accentColor,label,name,specs,badge){
-  const specRows=specs.map(s=>`<div class="hw-spec"><span>${s[0]}</span><span class="hw-spec-val">${s[1]}</span></div>`).join('');
+  const specRows=specs.map(s=>`<div class="hw-spec"><span>${esc(String(s[0]||''))}</span><span class="hw-spec-val">${esc(String(s[1]||''))}</span></div>`).join('');
   return `<div class="hw-card"><div class="hw-card-accent" style="background:linear-gradient(90deg,${accentColor},transparent)"></div>`
-    +`<div class="hw-label">${label}</div><div class="hw-name">${name}</div>`
-    +specRows+(badge?`<div class="hw-badge">${badge}</div>`:'')+`</div>`;
+    +`<div class="hw-label">${esc(String(label||''))}</div><div class="hw-name">${esc(String(name||''))}</div>`
+    +specRows+(badge?`<div class="hw-badge">${esc(String(badge||''))}</div>`:'')+`</div>`;
 }
 function _renderHW(d){
   const cpu=d.cpu||{};
@@ -3054,7 +3402,9 @@ function loadHistory(){
       const col=sc>=80?'var(--success)':sc>=60?'var(--brand)':sc>=40?'var(--warn)':'var(--error)';
       const bg=sc>=80?'rgba(52,211,153,.1)':sc>=60?'rgba(96,165,250,.1)':sc>=40?'rgba(251,191,36,.1)':'rgba(248,113,113,.1)';
       const dur=r.duration_ms?`${(r.duration_ms/1000).toFixed(1)}s`:'—';
-      return`<div class="hist-card" onclick="showHistDetail('${r.id}')"><div class="hist-score" style="background:${bg};color:${col}">${sc}</div><div class="hist-body"><div class="hist-time">${esc(r.start_time||'')} <span style="color:var(--fg3);font-size:10px">${dur}</span></div><div class="hist-summary">${r.issues!=null?r.issues:'—'} issue(s) · ${esc(r.summary||r.status||'')}</div></div><div class="hist-actions"><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();showHistDetail('${r.id}')"><span class="en">Details</span><span class="ja">詳細</span></button>${r.report_path?`<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openHistReport('${esc(r.report_path)}')">📄</button>`:''}<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteHistory('${r.id}')" title="Delete">🗑</button></div></div>`;
+      const idSafe=String(r.id||'').replace(/[^a-z0-9_-]/gi,'');
+      const rpJs=String(r.report_path||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return`<div class="hist-card" onclick="showHistDetail('${idSafe}')"><div class="hist-score" style="background:${bg};color:${col}">${esc(String(sc))}</div><div class="hist-body"><div class="hist-time">${esc(r.start_time||'')} <span style="color:var(--fg3);font-size:10px">${esc(dur)}</span></div><div class="hist-summary">${r.issues!=null?esc(String(r.issues)):'—'} issue(s) · ${esc(r.summary||r.status||'')}</div></div><div class="hist-actions"><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();showHistDetail('${idSafe}')"><span class="en">Details</span><span class="ja">詳細</span></button>${r.report_path?`<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openHistReport('${rpJs}')">📄</button>`:''}<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteHistory('${idSafe}')" title="Delete">🗑</button></div></div>`;
     }).join('')+'</div>';
     renderScoreTrend(rows);
   });
@@ -3718,6 +4068,41 @@ const _PAGE_HINTS = {
         ],
         example:'Discord           742 MB   [Close]\nSpotify           318 MB   [Close]\nSlack             287 MB   [Close]\nFigma Desktop     201 MB   [Close]',
         try:{label:'Open Boost', run:()=>{closePageHint(); if(typeof openBoost==='function')openBoost();}}},
+      {icon:'🩺', name:'Why is my PC slow right now?', tag:'NEW',
+        short:'On-demand live triage — top offenders plus an Ollama narration.',
+        detail:'Takes a point-in-time snapshot (~0.3 s) of overall CPU, RAM, disk busy %, and network throughput, plus the top 5 CPU processes and top 5 RAM processes. If Ollama is up, Helix adds a 2-3 sentence plain-English explanation naming the specific apps weighing the system down right now. If Ollama is offline, the modal still works — it shows the raw snapshot and fact-based highlights instead. Narrative only: no auto-close, no shell commands. Open Boost from the same page if you want to actually close something.',
+        steps:[
+          'Click the 🩺 Why is it slow? button on the Overview idle state (or Ctrl+K → Why is my PC slow right now?)',
+          'Wait ~0.3 s for the snapshot to prime per-process CPU meters',
+          'Read the narration (teal strip) for a short explanation, or the bulleted highlights if Ollama is offline',
+          'Scan the Top CPU / Top RAM cards to see which specific apps are heaviest',
+          'Click Refresh to re-sample; close the modal and open Boost to actually close an app'
+        ],
+        example:'CPU 82% · RAM 71% · Disk 14% · Net 2.1 Mbps\n\nTop CPU: msedgewebview2 42%, Teams 18%, Code 9%\nTop RAM: Code 1.6 GB, chrome 1.1 GB, Teams 820 MB',
+        try:{label:'Open live triage', run:()=>{closePageHint(); if(typeof openSlowTriage==='function')openSlowTriage();}}},
+      {icon:'🔋', name:'Battery coach', tag:'NEW',
+        short:'Live battery state with a short coaching tip. Pops up when the battery drops low.',
+        detail:'Reads current charge %, plugged-in state, time remaining, and battery wear % (WMI design vs. full-charge capacity). Lists the top 5 processes by CPU as a proxy for power draw — Windows does not expose per-process watts. Ollama narrates a 2-3 sentence coaching tip grounded in those numbers; without Ollama, the modal shows the facts as bullets. A background daemon polls battery every 2 minutes and fires the modal once per discharge cycle when charge drops at or below your threshold (default 20%). The alert resets when you plug in, and will not repeat until you drain another 10% below the last trigger. The Overview button is hidden on desktops.',
+        steps:[
+          'Click the 🔋 Battery coach button on the Overview idle state (shown only when a battery is detected)',
+          'Read the narration or the bulleted highlights (plugged / unplugged / time left / wear)',
+          'Check the Top power-draw card for the specific apps costing you battery',
+          'Turn the auto-popup off in Settings → Battery coach, or raise the threshold',
+          'Close drains manually via Boost — the coach never closes anything for you'
+        ],
+        example:'🔋 42% · On battery · 1h 50m left · Wear 12%\n\nTop drain: msedgewebview2 28% CPU, Teams 14% CPU',
+        try:{label:'Open Battery coach', run:()=>{closePageHint(); if(typeof openBatteryCoach==='function')openBatteryCoach();}}},
+      {icon:'🎮', name:'Game & heavy-app narrator', tag:'NEW',
+        short:'Fires a one-line Windows toast when a game or heavy app launches. Narrate-only — never closes or opens anything.',
+        detail:'A background daemon baselines every process already running when Helix starts and ignores them for the whole session. From then on, each new process is checked against two rules. First, the lowercase exe name is matched against normalized tokens from the ~75-title game catalog in game_advisor (plus every alias) — any match fires a game toast immediately. Second, non-game processes are observed for 10 s to settle; if their RSS is at or above the heavy threshold (default 1024 MB) or sustained CPU is ≥25%, a heavy-app toast fires. Each exe name notifies at most once per Helix session, and the overall cap is 50 toasts per session.\n\nThe toast content is 2-3 sentences max: the app name, overall CPU/RAM at that instant, and the biggest background RAM user from a live triage snapshot. Ollama can rewrite the line into a more natural sentence; the daemon gives it a hard 3-second timeout, after which the canned template fires instead so the toast is never late.\n\nThe narrator never opens, closes, kills, or launches anything. It only tells you what the system looks like. You act via Task Manager, Boost (Overview), or just by alt-tabbing to the app.',
+        steps:[
+          'Launch Helix — the daemon settles for 30 s so pre-existing processes don\'t fire',
+          'Start a known game or a heavy app (e.g. a build, Blender render, VS Code with many extensions)',
+          'A Windows toast appears with the one-line narration (game-starts fire immediately; heavy apps after a 10 s settle)',
+          'Each exe name only ever fires once per Helix session — no toast spam',
+          'Settings → "App launch narrator" to disable, or raise the heavy threshold (app_narrator_heavy_mb)'
+        ],
+        example:'🎮 Helix — Game launched\nElden Ring launched. CPU 42%, RAM 65% — biggest\nbackground: chrome.exe (1.8 GB).'},
       {icon:'⚙️', name:'Scan controls',
         short:'Start quick or full scans; cancel in-progress scans.',
         detail:'Two scan modes. Quick scan (~5 s) checks disk free, startup apps, Windows events, and recent crashes. Full scan (~30–60 s) adds temp-file discovery, duplicate detection, large-file enumeration, and the complete problems pass. The progress ring overlays the whole Overview page during a scan so other pages stay usable; the sidebar shows live scan % too.\n\nAll scan work happens in a daemon thread — the UI never freezes. Cancel aborts cleanly at the next checkpoint without corrupting any state.',
@@ -4158,6 +4543,44 @@ function _setUpdateUI(info){
   }
 }
 function _escHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ── "What's new" after an update ──────────────────────────────────────────
+async function _loadWhatsNew(){
+  try{
+    if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.get_whats_new) return;
+    const r = await window.pywebview.api.get_whats_new();
+    if(!r||!r.ok||!r.within_window||!r.notes) return;
+    // Fill Settings → About strip (textContent → no XSS risk from notes).
+    const row = document.getElementById('whats-new-row');
+    const ver = document.getElementById('whats-new-ver');
+    const txt = document.getElementById('whats-new-text');
+    const days= document.getElementById('whats-new-days');
+    if(row){ row.style.display='block'; }
+    if(ver){ ver.textContent = 'v'+(r.version||''); }
+    if(txt){ txt.textContent = r.notes||''; }
+    if(days){
+      const d = r.days_remaining;
+      const en = d<=1 ? 'Hides tomorrow' : ('Hides in '+d+' days');
+      const ja = d<=1 ? '明日で非表示' : (d+'日後に非表示');
+      days.innerHTML = '<span class="en">'+_escHtml(en)+'</span><span class="ja">'+_escHtml(ja)+'</span>';
+    }
+    // Fire the one-time popup if pending.
+    if(r.show_popup){
+      const mver = document.getElementById('whats-new-modal-ver');
+      const body = document.getElementById('whats-new-modal-body');
+      if(mver) mver.textContent = 'v'+(r.version||'');
+      if(body) body.textContent = r.notes||'';
+      const modal = document.getElementById('whats-new-modal');
+      if(modal) modal.style.display='flex';
+      try{ await window.pywebview.api.acknowledge_whats_new(); }catch(_){}
+    }
+  }catch(_){}
+}
+function closeWhatsNew(){
+  const m = document.getElementById('whats-new-modal');
+  if(m) m.style.display='none';
+}
+
 function checkForUpdate(interactive){
   if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.check_for_update) return;
   const checkBtn=document.getElementById('btn-check-update');
@@ -4748,10 +5171,10 @@ function renderOrgFromScan(orgInfo){
   const entries=Object.entries(orgInfo.categories);
   catEl.innerHTML=entries.map(([name,cat])=>`
     <div class="card" style="margin-bottom:8px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-      <span style="font-size:18px">${cat.icon}</span>
+      <span style="font-size:18px">${esc(cat.icon||'')}</span>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:600;color:var(--fg)">${name}</div>
-        <div style="font-size:11px;color:var(--fg3)">${cat.count} ${lang==='ja'?'ファイル':'files'} · ${cat.total_fmt}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--fg)">${esc(name)}</div>
+        <div style="font-size:11px;color:var(--fg3)">${esc(String(cat.count||''))} ${lang==='ja'?'ファイル':'files'} · ${esc(cat.total_fmt||'')}</div>
       </div>
     </div>`).join('');
   // Add a hint to do full org scan for details
@@ -4791,22 +5214,26 @@ function renderOrgCategories(cats){
   let html='';
   const entries=Object.entries(cats);
   entries.forEach(([name,cat],idx)=>{
-    const fileRows=cat.files.map((f,fi)=>`
-      <div class="ii-row" style="display:flex;align-items:center;gap:8px;padding:5px 8px;font-size:11px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer" onclick="openPath('${f.path.replace(/\\/g,'\\\\')}')">
-        <span style="flex:1;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2)">${f.name}</span>
-        <span style="color:var(--fg3);white-space:nowrap">${f.fmt}</span>
-        <span style="color:var(--fg3);white-space:nowrap;font-size:10px">${f.modified}</span>
-      </div>`).join('');
+    const nameEsc=esc(name);
+    const nameJs=(name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const fileRows=cat.files.map((f,fi)=>{
+      const sp=(f.path||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `
+      <div class="ii-row" style="display:flex;align-items:center;gap:8px;padding:5px 8px;font-size:11px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer" onclick="openPath('${sp}')">
+        <span style="flex:1;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2)">${esc(f.name||'')}</span>
+        <span style="color:var(--fg3);white-space:nowrap">${esc(f.fmt||'')}</span>
+        <span style="color:var(--fg3);white-space:nowrap;font-size:10px">${esc(f.modified||'')}</span>
+      </div>`;}).join('');
 
     html+=`
     <div class="card" style="margin-bottom:8px;overflow:hidden">
       <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer" onclick="toggleOrgCat(${idx})">
-        <span style="font-size:18px">${cat.icon}</span>
+        <span style="font-size:18px">${esc(cat.icon||'')}</span>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;color:var(--fg)">${name}</div>
-          <div style="font-size:11px;color:var(--fg3)">${cat.count} ${lang==='ja'?'ファイル':'files'} · ${cat.total_fmt}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--fg)">${nameEsc}</div>
+          <div style="font-size:11px;color:var(--fg3)">${esc(String(cat.count||''))} ${lang==='ja'?'ファイル':'files'} · ${esc(cat.total_fmt||'')}</div>
         </div>
-        <button class="btn btn-primary btn-sm" style="font-size:10px;padding:4px 12px" onclick="event.stopPropagation();orgApply('${name}',${idx})">
+        <button class="btn btn-primary btn-sm" style="font-size:10px;padding:4px 12px" onclick="event.stopPropagation();orgApply('${nameJs}',${idx})">
           <span class="en">Organize</span><span class="ja">整理する</span>
         </button>
         <svg class="org-chevron" id="org-chev-${idx}" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--fg3)" stroke-width="2" stroke-linecap="round" style="transition:transform .2s"><polyline points="4,6 8,10 12,6"/></svg>
@@ -5263,7 +5690,8 @@ async function runDiagnose(){
       const aDesc=lang==='ja'?(a.description_ja||a.description||''):a.description||'';
       const safety=a.safety||'read_only';
       const btnClass=safety==='confirm'?'btn-secondary':'btn-primary';
-      return `<button class="btn ${btnClass} btn-sm" onclick="requestAction('${a.id}',${safety==='confirm'})" title="${esc(aDesc)}" style="font-size:12px">${esc(aLabel)}</button>`;
+      const aidSafe=String(a.id||'').replace(/[^a-z0-9_-]/gi,'');
+      return `<button class="btn ${btnClass} btn-sm" onclick="requestAction('${aidSafe}',${safety==='confirm'})" title="${esc(aDesc)}" style="font-size:12px">${esc(aLabel)}</button>`;
     }).join('');
     return `<div class="card" style="padding:16px 18px;margin-bottom:10px;border-left:4px solid ${sevColor}">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -5334,6 +5762,7 @@ window.addEventListener('pywebviewready',()=>{loadSettings();loadHistory();setTi
   setTimeout(loadBriefing, 1900);
   setTimeout(_maybeShowFirstRunPicker, 1800);
   setTimeout(()=>checkForUpdate(false), 2500);
+  setTimeout(_loadWhatsNew, 3000);
   setTimeout(_enhanceSelects, 50);
   document.querySelectorAll('.kpi.clickable').forEach(el=>el.addEventListener('click',addRipple));
   const saved=_lsGet('orgFolder');
@@ -5342,6 +5771,10 @@ window.addEventListener('pywebviewready',()=>{loadSettings();loadHistory();setTi
   window.pywebview.api.start_monitoring();
   setTimeout(_initOnboarding, 1200);
   setTimeout(_pollAiStatus, 4000);
+  setTimeout(_batteryCoachGate, 1600);
+  setInterval(_batteryCoachPopupPoll, 60000);
+  setTimeout(_batteryCoachPopupPoll, 5000);
+  setTimeout(_maybeShowHelpCoachmark, 2600);
 });
 
 // Poll Ollama status forever. First few probes are quick so the pill flips
@@ -5402,6 +5835,8 @@ document.addEventListener('keydown',function(e){
     if(document.getElementById('cmd-palette-backdrop').classList.contains('open')){closeCmdPalette();return;}
     if(document.getElementById('guide-modal').style.display==='flex'){closeGuide();return;}
     if(document.getElementById('boost-modal').style.display==='flex'){closeBoost();return;}
+    if(document.getElementById('slow-triage-modal').style.display==='flex'){closeSlowTriage();return;}
+    if(document.getElementById('battery-coach-modal').style.display==='flex'){closeBatteryCoach();return;}
     if(document.getElementById('shortcuts-modal').classList.contains('open')){closeShortcuts();return;}
     if(document.getElementById('onboard-overlay').classList.contains('open')){finishOnboarding();return;}
   }

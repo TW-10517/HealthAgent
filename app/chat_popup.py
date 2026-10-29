@@ -67,7 +67,7 @@ class ChatPopupAPI:
 
 # ── Chat popup HTML ────────────────────────────────────────────────────────────
 
-CHAT_POPUP_HTML = """<!DOCTYPE html>
+CHAT_POPUP_HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">

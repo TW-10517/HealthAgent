@@ -1,6 +1,6 @@
 {
-  "version": "1.1.1",
-  "released": "2026-10-28",
+  "version": "1.1.2",
+  "released": "2026-10-29",
   "exe_url": "https://helix-57o.pages.dev/Helix.exe",
   "zip_url": "https://helix-57o.pages.dev/Helix.zip",
   "setup_url": "https://helix-57o.pages.dev/HelixSetup.exe",
@@ -15,5 +15,5 @@
   "setup_zip_sha256": "3a35788c55fbec40aba817f3a7a8f6d8df6d81ac0fe81907f4b8156a16fcb2aa",
   "setup_zip_size_bytes": 18343575,
   "min_supported": "1.0.0",
-  "notes": "Automated build from commit e75719ddb842f2a88d23d266e6d539034bf9d817."
+  "notes": "Three new AI-first features (all local Ollama, nothing leaves your PC): (1) 'Why is my PC slow right now?' - live triage snapshot of top CPU/RAM/disk/network offenders with a plain-English narration. (2) Battery coach - unplugged-battery popup names the biggest power drain and offers coaching, with per-discharge-cycle de-duplication. (3) Game and heavy-app narrator - a single Windows toast when a known game launches or a new app becomes resource-heavy, with full Dospara GALLERIA 推奨PC roster coverage including katakana aliases. Non-intrusive by design: all three background daemons now suppress toasts and popups while you are in a fullscreen app (gaming, slideshow, full-screen video), and the heavy-app probe backs off while the CPU is already busy. First-time users see a one-shot help coachmark pointing at the tutorial button. XSS audit converted eleven user-controllable render sites to safe-escape. Seven dead subprocess imports removed. Narrate-only rule enforced: new features never open or close any app, they only describe."
 }
