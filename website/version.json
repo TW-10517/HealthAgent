@@ -1,5 +1,5 @@
 {
-  "version": "1.1.3",
+  "version": "1.1.4",
   "released": "2026-10-29",
   "exe_url": "https://helix-57o.pages.dev/Helix.exe",
   "zip_url": "https://helix-57o.pages.dev/Helix.zip",
@@ -15,5 +15,5 @@
   "setup_zip_sha256": "533779e7a5dbb71c46e2be5b05a946324131a41b786d224739a7451c4618e47d",
   "setup_zip_size_bytes": 18378269,
   "min_supported": "1.0.0",
-  "notes": "Faster, cancellable updates — the download no longer gets stuck when the Cloudflare CDN or a corporate antivirus trickle-feeds the connection. Per-read socket timeout dropped to 3 seconds, a 10-second 'less than 1 MB/10 s' stall watchdog aborts a slow stream automatically, and the download now retries up to three times before surfacing an error. New Cancel button on the progress bar lets you abort cleanly at any time before the point of no return; cancel also deletes the partial staged file. Keeps the 1.1.2 updater hardening (Python re-entry guard, filesystem lockfile, start /B relaunch, no DETACHED_PROCESS mixing), the three AI-first features (live triage, battery coach, game and heavy-app narrator with full Dospara GALLERIA roster), non-intrusive daemons (fullscreen suppression and CPU-busy back-off), the first-run help coachmark, the eleven XSS fixes, and the preserved-user-work dialog copy."
+  "notes": "Felt-speed bundle. First Assistant chat is faster: Ollama warms up on page open instead of at app launch, and a central prompt budget keeps every request under ~800 tokens. Overview gets a daily Today card above the hero. Every data page shows a 'Last updated · Refresh' chip, and Monitor adds a Disk sparkline next to CPU and RAM plus tiny strips on the sidebar live pills. Settings has a left nav rail that scrollspies between sections. Updates now try a small delta patch when the manifest offers one and fall back cleanly to the full download. UX cleanup: Overview no longer repeats the Quick/Full Scan buttons (they live in the title bar); History tiles are renamed Free Disk Space, Temp & Cache Size, Duplicate Files, Startup Apps; Storage and Security replay the last scan on page open instead of showing empty cards; Quick vs Full Scan is explained with durations and a one-line description of what each covers; the AI Assistant example chips are trimmed from 20 to 6. Keeps every 1.1.3 security invariant (trusted host, SHA256-verified download, 128 MiB cap, no visible terminals, below-normal CPU and I/O priority)."
 }

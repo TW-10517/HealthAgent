@@ -5,7 +5,7 @@
 ; for users who prefer no-install.
 
 #define MyAppName       "Helix"
-#define MyAppVersion    "1.1.0"
+#define MyAppVersion    "1.1.4"
 #define MyAppPublisher  "Thirdwave Corporation"
 #define MyAppExeName    "Helix.exe"
 #define MyAppId         "{{E3B7A9F0-5C1D-4A28-8F91-6B4E2D7C8A10}"

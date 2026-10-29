@@ -145,6 +145,12 @@ button{font-family:var(--font)}
 .page{display:none;flex:1;overflow-y:auto;padding:22px 28px;flex-direction:column;gap:24px}
 .page.active{display:flex}
 .page-hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;margin-bottom:8px}
+.sb-spark{opacity:.75;margin-left:4px;flex-shrink:0}
+.updated-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--fg3);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px 10px}
+.updated-chip .uc-dot{width:5px;height:5px;border-radius:50%;background:var(--fg3)}
+.updated-chip.fresh .uc-dot{background:var(--brand)}
+.updated-chip .uc-refresh{background:transparent;border:none;color:var(--brand);cursor:pointer;font-size:11px;padding:0 2px;font-weight:600}
+.updated-chip .uc-refresh:hover{text-decoration:underline}
 .page-title{font-size:24px;font-weight:600;letter-spacing:-.01em;color:var(--fg)}
 .page-sub{font-size:13px;color:var(--fg2);margin-top:4px}
 .page-actions{display:flex;align-items:center;gap:8px}
@@ -335,6 +341,13 @@ button{font-family:var(--font)}
 .hist-list{display:flex;flex-direction:column;gap:6px}
 
 /* ── Settings ────────────────────────────────────────────────────────────── */
+.set-wrap{display:flex;gap:16px;align-items:flex-start;flex:1;min-height:0}
+.set-rail{position:sticky;top:0;flex:0 0 170px;max-height:calc(100vh - 90px);overflow-y:auto;padding:4px 2px;display:flex;flex-direction:column;gap:2px}
+.set-rail-link{display:block;padding:7px 12px;font-size:12.5px;color:var(--fg3);text-decoration:none;border-radius:var(--r);border-left:2px solid transparent;cursor:pointer;transition:color .15s,background .15s,border-color .15s}
+.set-rail-link:hover{color:var(--fg);background:var(--surface)}
+.set-rail-link.active{color:var(--brand);background:var(--surface2);border-left-color:var(--brand)}
+.set-content{flex:1;min-width:0;overflow-y:auto;max-height:calc(100vh - 90px);scroll-behavior:smooth;padding-right:4px}
+@media(max-width:900px){.set-wrap{flex-direction:column}.set-rail{position:static;flex:none;max-height:none;flex-direction:row;flex-wrap:wrap;overflow:visible}.set-rail-link{border-left:0;border-bottom:2px solid transparent}.set-rail-link.active{border-left-color:transparent;border-bottom-color:var(--brand)}.set-content{max-height:none}}
 .setting-group{padding:16px 0;border-bottom:1px solid rgba(255,255,255,.04)}
 .setting-group:last-child{border-bottom:none}
 .setting-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 0}
@@ -983,16 +996,19 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <div class="sb-metric">
           <span class="sb-metric-label">CPU</span>
           <div class="sb-metric-bar-wrap"><div class="sb-metric-bar" id="lp-cpu-bar" style="background:var(--brand)"></div></div>
+          <svg class="sb-spark" id="lp-cpu-spark" width="36" height="14" viewBox="0 0 36 14" preserveAspectRatio="none"></svg>
           <span class="sb-metric-val" id="lp-cpu-v">—%</span>
         </div>
         <div class="sb-metric">
           <span class="sb-metric-label">RAM</span>
           <div class="sb-metric-bar-wrap"><div class="sb-metric-bar" id="lp-ram-bar" style="background:#A78BFA"></div></div>
+          <svg class="sb-spark" id="lp-ram-spark" width="36" height="14" viewBox="0 0 36 14" preserveAspectRatio="none"></svg>
           <span class="sb-metric-val" id="lp-ram-v">—%</span>
         </div>
         <div class="sb-metric">
           <span class="sb-metric-label">Disk</span>
           <div class="sb-metric-bar-wrap"><div class="sb-metric-bar" id="lp-disk-bar" style="background:var(--accent)"></div></div>
+          <svg class="sb-spark" id="lp-disk-spark" width="36" height="14" viewBox="0 0 36 14" preserveAspectRatio="none"></svg>
           <span class="sb-metric-val" id="lp-disk-v">—%</span>
         </div>
       </a>
@@ -1037,6 +1053,18 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
       <div class="scan-step" id="prog-step"><span class="en">Initializing scan…</span><span class="ja">スキャンを開始中…</span></div>
       <button class="btn btn-secondary btn-sm" onclick="cancelScan()" id="btn-cancel-scan"><span class="en">Cancel</span><span class="ja">キャンセル</span></button>
     </div>
+      <!-- Today card: shows the once-daily briefing above both idle-state and
+           scan-results so users see the overnight narrative regardless of
+           whether they've scanned yet. loadBriefing() fires on overview show. -->
+      <div id="briefing-card" style="display:none;max-width:720px;margin:0 auto 14px;background:linear-gradient(135deg,rgba(45,212,176,0.08),rgba(45,212,176,0.02));border:1px solid var(--brand-border);border-radius:var(--r-lg);padding:14px 18px;position:relative">
+        <button onclick="dismissBriefing()" aria-label="Dismiss" style="position:absolute;top:8px;right:8px;background:none;border:none;color:var(--fg3);cursor:pointer;font-size:16px;padding:4px 8px">✕</button>
+        <div style="font-size:11px;font-weight:700;color:var(--brand);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">
+          <span class="en">Today</span><span class="ja">今日のブリーフィング</span>
+          <span id="briefing-date" style="color:var(--fg3);font-weight:500;letter-spacing:0;text-transform:none;margin-left:6px"></span>
+        </div>
+        <div id="briefing-narration" style="font-size:13px;color:var(--fg);line-height:1.55;margin-bottom:10px"></div>
+        <ul id="briefing-highlights" style="margin:0;padding-left:18px;font-size:12px;color:var(--fg2);line-height:1.6"></ul>
+      </div>
       <div id="idle-state">
         <!-- Slim hint strip: one-liner pointing to the 💡 button for first-time users -->
         <div id="feature-overview-card" style="display:none;max-width:720px;margin:0 auto 10px;background:transparent;border:1px dashed var(--border);border-radius:999px;padding:6px 14px;position:relative;animation:ph-pop .3s ease">
@@ -1047,25 +1075,14 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
             <button onclick="dismissFeatureOverview()" style="background:transparent;border:none;color:var(--fg4);cursor:pointer;font-size:14px;padding:0 4px" title="Dismiss">✕</button>
           </div>
         </div>
-        <div id="briefing-card" style="display:none;max-width:720px;margin:0 auto 14px;background:linear-gradient(135deg,rgba(45,212,176,0.08),rgba(45,212,176,0.02));border:1px solid var(--brand-border);border-radius:var(--r-lg);padding:14px 18px;position:relative">
-          <button onclick="dismissBriefing()" aria-label="Dismiss" style="position:absolute;top:8px;right:8px;background:none;border:none;color:var(--fg3);cursor:pointer;font-size:16px;padding:4px 8px">✕</button>
-          <div style="font-size:11px;font-weight:700;color:var(--brand);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">
-            <span class="en">Morning briefing</span><span class="ja">朝のブリーフィング</span>
-            <span id="briefing-date" style="color:var(--fg3);font-weight:500;letter-spacing:0;text-transform:none;margin-left:6px"></span>
-          </div>
-          <div id="briefing-narration" style="font-size:13px;color:var(--fg);line-height:1.55;margin-bottom:10px"></div>
-          <ul id="briefing-highlights" style="margin:0;padding-left:18px;font-size:12px;color:var(--fg2);line-height:1.6"></ul>
-        </div>
         <div class="idle-screen">
           <div class="idle-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M5.9 17.1 A 8.5 8.5 0 1 1 18.1 17.1" stroke="#2DD4C0" stroke-width="2.6" stroke-linecap="round"/><polyline points="6,12 9.3,12 10.8,8.8 12.8,15.2 14.2,12 16.7,12" stroke="#8AF0FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="16.9" cy="12" r="1.35" fill="#FFFFFF"/></svg></div>
           <div class="idle-title"><span class="en">Your PC, Protected</span><span class="ja">あなたのPC、保護されています</span></div>
           <div class="idle-sub"><span class="en">Run a health scan to analyze disk, temp files, startup apps, memory, and duplicates. Everything stays local on this machine.</span><span class="ja">ディスク・一時ファイル・起動アプリ・メモリ・重複を分析。すべてこのPC上で処理されます。</span></div>
           <div class="idle-actions">
-            <button class="btn btn-primary" style="padding:9px 24px;font-size:13px" onclick="startScan(false)">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="7" cy="7" r="5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
-              <span class="en">Full Scan</span><span class="ja">フルスキャン</span>
-            </button>
-            <button class="btn btn-secondary" onclick="startScan(true)">⚡ <span class="en">Quick Scan</span><span class="ja">クイックスキャン</span></button>
+            <!-- Scan buttons live in the title bar (always visible). The idle
+                 hero no longer duplicates them — the two info cards below still
+                 explain what Full and Quick cover. -->
             <button class="btn btn-secondary" onclick="openBoost()"
               data-tip="Shows the top RAM-eating apps. You pick which to close. Freeing a 2 GB tab-heavy Chrome brings idle RAM back from ~85% to ~55% on 8 GB laptops."
               data-tip-ja="メモリを多く使うアプリ上位を表示し、閉じるものを選べます。2GB消費のChromeを閉じると8GBノートPCで使用率85%→55%に回復します。">🚀 <span class="en">Boost</span><span class="ja">ブースト</span></button>
@@ -1076,19 +1093,27 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
               data-tip="Reads your current battery state and the biggest power-draw processes, then gives a short coaching tip."
               data-tip-ja="現在のバッテリー状態と電力を最も消費しているプロセスを確認し、短い助言を表示します。">🔋 <span class="en">Battery coach</span><span class="ja">バッテリーコーチ</span></button>
           </div>
-          <div style="display:flex;gap:12px;margin-top:12px;width:100%;max-width:520px">
+          <div style="display:flex;gap:12px;margin-top:12px;width:100%;max-width:580px">
             <div style="flex:1;padding:12px 14px;background:var(--brand-dim);border:1px solid var(--brand-border);border-radius:var(--r-lg)">
-              <div style="font-size:11px;font-weight:700;color:var(--brand);margin-bottom:6px"><span class="en">Full Scan</span><span class="ja">フルスキャン</span></div>
+              <div style="font-size:11px;font-weight:700;color:var(--brand);margin-bottom:4px"><span class="en">Full Scan · ~30–60 s</span><span class="ja">フルスキャン · 約30〜60秒</span></div>
+              <div style="font-size:10px;color:var(--fg3);line-height:1.5;margin-bottom:6px">
+                <span class="en">Everything Quick does, plus it hashes files in Downloads to find duplicates taking up space.</span>
+                <span class="ja">クイックの内容に加え、ダウンロード内のファイルをハッシュして重複を検出します。</span>
+              </div>
               <div style="font-size:10px;color:var(--fg2);line-height:1.6">
-                <span class="en">✓ Disk usage<br>✓ Temp &amp; cache files<br>✓ Startup apps<br>✓ RAM processes<br>✓ Duplicate files in Downloads</span>
-                <span class="ja">✓ ディスク使用量<br>✓ 一時・キャッシュ<br>✓ スタートアップ<br>✓ RAMプロセス<br>✓ ダウンロードの重複ファイル</span>
+                <span class="en">✓ Disk usage · temp &amp; cache · startup apps · RAM processes<br>✓ <strong>Duplicate files in Downloads</strong></span>
+                <span class="ja">✓ ディスク・一時・キャッシュ・起動アプリ・RAM<br>✓ <strong>ダウンロードの重複ファイル</strong></span>
               </div>
             </div>
             <div style="flex:1;padding:12px 14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-lg)">
-              <div style="font-size:11px;font-weight:700;color:var(--fg);margin-bottom:6px"><span class="en">Quick Scan</span><span class="ja">クイックスキャン</span></div>
+              <div style="font-size:11px;font-weight:700;color:var(--fg);margin-bottom:4px"><span class="en">Quick Scan · ~10–15 s</span><span class="ja">クイックスキャン · 約10〜15秒</span></div>
+              <div style="font-size:10px;color:var(--fg3);line-height:1.5;margin-bottom:6px">
+                <span class="en">Fast health check. Skips the duplicate-file hash step — pick this when you just want the score updated.</span>
+                <span class="ja">高速ヘルスチェック。重複ハッシュを省略し、スコア更新だけ必要なときに最適。</span>
+              </div>
               <div style="font-size:10px;color:var(--fg2);line-height:1.6">
-                <span class="en">✓ Disk usage<br>✓ Temp &amp; cache files<br>✓ Startup apps<br>✓ RAM processes<br><span style="color:var(--fg3)">✗ Skips duplicate scan (faster)</span></span>
-                <span class="ja">✓ ディスク使用量<br>✓ 一時・キャッシュ<br>✓ スタートアップ<br>✓ RAMプロセス<br><span style="color:var(--fg3)">✗ 重複スキャンなし（高速）</span></span>
+                <span class="en">✓ Disk usage · temp &amp; cache · startup apps · RAM processes<br><span style="color:var(--fg3)">✗ No duplicate detection</span></span>
+                <span class="ja">✓ ディスク・一時・キャッシュ・起動アプリ・RAM<br><span style="color:var(--fg3)">✗ 重複検出なし</span></span>
               </div>
             </div>
           </div>
@@ -1213,7 +1238,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
     <!-- ══ PAGE: Storage ═══════════════════════════════════════════════════ -->
     <div class="page" id="page-storage">
       <div class="page-hdr"><div><div class="page-title"><span class="en">Storage</span><span class="ja">ストレージ</span></div><div class="page-sub"><span class="en">Disk usage and reclaimable files</span><span class="ja">ディスク使用状況と解放可能なファイル</span></div></div>
-        <div class="page-actions"><button class="btn btn-primary btn-sm" id="btn-cleanup" style="display:none" onclick="showCleanupDialog()"
+        <div class="page-actions"><span class="updated-chip" id="uc-storage"><span class="uc-dot"></span><span class="uc-time"></span><button class="uc-refresh" onclick="loadRecycleBin()"><span class="en">Refresh</span><span class="ja">更新</span></button></span><button class="btn btn-primary btn-sm" id="btn-cleanup" style="display:none" onclick="showCleanupDialog()"
           data-tip="Opens a dialog where you pick what to remove (temp, cache, duplicates, Recycle Bin). Shows exactly how many MB will be freed before you confirm — nothing is deleted until you press Delete Selected."
           data-tip-ja="削除項目（一時／キャッシュ／重複／ゴミ箱）を選ぶダイアログを開き、実行前に開放予定MBを表示します。確定するまで削除されません。">🧹 <span class="en">Clean Up</span><span class="ja">クリーンアップ</span></button></div></div>
       <div class="tab-bar">
@@ -1542,7 +1567,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
       </div>
 
       <!-- Sparkline charts -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
         <div class="card" style="padding:14px">
           <div style="font-size:10px;color:var(--fg3);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px"><span class="en">CPU History</span><span class="ja">CPU履歴</span></div>
           <canvas id="mon-cpu-chart" width="400" height="80" style="width:100%;height:80px"></canvas>
@@ -1550,6 +1575,10 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <div class="card" style="padding:14px">
           <div style="font-size:10px;color:var(--fg3);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px"><span class="en">RAM History</span><span class="ja">メモリ履歴</span></div>
           <canvas id="mon-ram-chart" width="400" height="80" style="width:100%;height:80px"></canvas>
+        </div>
+        <div class="card" style="padding:14px">
+          <div style="font-size:10px;color:var(--fg3);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px"><span class="en">Disk History</span><span class="ja">ディスク履歴</span></div>
+          <canvas id="mon-disk-chart" width="400" height="80" style="width:100%;height:80px"></canvas>
         </div>
       </div>
 
@@ -1591,6 +1620,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
           <div class="page-sub"><span class="en">Browser cache, active connections &amp; sensitive files</span><span class="ja">ブラウザキャッシュ、ネットワーク接続、機密ファイル</span></div>
         </div>
         <div class="page-actions">
+          <span class="updated-chip" id="uc-privacy"><span class="uc-dot"></span><span class="uc-time"></span><button class="uc-refresh" onclick="loadPrivacy()"><span class="en">Refresh</span><span class="ja">更新</span></button></span>
           <button class="btn btn-primary btn-sm" id="btn-priv-scan" onclick="loadPrivacy()"
             data-tip="Lists browser caches (size per browser), currently established network connections (who your PC is talking to), and files with risky names (password lists etc.). Read-only — nothing is sent anywhere."
             data-tip-ja="ブラウザキャッシュ容量、現在の通信接続先、機密と疑われるファイル名を表示。読み取り専用で外部送信はありません。">
@@ -1699,6 +1729,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
     <div class="page" id="page-events">
       <div class="page-hdr"><div><div class="page-title"><span class="en">Event Log</span><span class="ja">イベントログ</span></div><div class="page-sub"><span class="en">Windows errors, crashes &amp; warnings</span><span class="ja">Windowsのエラー・クラッシュ・警告</span></div></div>
         <div class="page-actions">
+          <span class="updated-chip" id="uc-events"><span class="uc-dot"></span><span class="uc-time"></span><button class="uc-refresh" onclick="loadEvents()"><span class="en">Refresh</span><span class="ja">更新</span></button></span>
           <select class="setting-select" id="evt-hours" onchange="loadEvents()" style="font-size:13px;padding:5px 10px">
             <option value="24">Last 24 hours</option><option value="72">Last 3 days</option><option value="168" selected>Last 7 days</option><option value="720">Last 30 days</option>
           </select>
@@ -1781,48 +1812,24 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
               <span class="ja">Helixです。下の例をタップするか、自由に質問してください。</span>
               <div class="sample-q-wrap" style="margin-top:10px;display:flex;flex-direction:column;gap:10px">
                 <div class="sample-q-group">
+                  <div class="sample-q-title">⚡ <span class="en">PC health</span><span class="ja">PC診断</span></div>
+                  <div class="sample-q-row">
+                    <button class="sample-q" onclick="sampleAsk('How is my PC doing?')">How is my PC doing?</button>
+                    <button class="sample-q" onclick="sampleAsk('Run a quick scan')">Run a quick scan</button>
+                  </div>
+                </div>
+                <div class="sample-q-group">
                   <div class="sample-q-title">🎮 <span class="en">Can my PC run…?</span><span class="ja">このPCで動く?</span></div>
                   <div class="sample-q-row">
                     <button class="sample-q" onclick="sampleAsk('Can my PC run Valorant?')">Can my PC run Valorant?</button>
                     <button class="sample-q" onclick="sampleAsk('Can my PC run FFXIV?')">Can my PC run FFXIV?</button>
-                    <button class="sample-q" onclick="sampleAsk('Can my PC run Elden Ring?')">Can my PC run Elden Ring?</button>
-                    <button class="sample-q" onclick="sampleAsk('Will Cyberpunk 2077 run on my laptop?')">Will Cyberpunk 2077 run on my laptop?</button>
                   </div>
                 </div>
                 <div class="sample-q-group">
-                  <div class="sample-q-title">🧠 <span class="en">What do you remember?</span><span class="ja">記憶について</span></div>
+                  <div class="sample-q-title">🧠 <span class="en">Memory &amp; briefing</span><span class="ja">記憶・ブリーフィング</span></div>
                   <div class="sample-q-row">
-                    <button class="sample-q" onclick="sampleAsk('Remember that I play Apex Legends')">Remember that I play Apex Legends</button>
                     <button class="sample-q" onclick="sampleAsk('What do you know about me?')">What do you know about me?</button>
-                    <button class="sample-q" onclick="sampleAsk('I use VS Code and Chrome daily')">I use VS Code and Chrome daily</button>
-                    <button class="sample-q" onclick="sampleAsk('Forget that I play Apex Legends')">Forget that I play Apex Legends</button>
-                  </div>
-                </div>
-                <div class="sample-q-group">
-                  <div class="sample-q-title">☀️ <span class="en">Morning briefing</span><span class="ja">今朝のまとめ</span></div>
-                  <div class="sample-q-row">
-                    <button class="sample-q" onclick="sampleAsk('Give me the morning briefing')">Morning briefing</button>
-                    <button class="sample-q" onclick="sampleAsk(&quot;What's new today?&quot;)">What's new today?</button>
-                    <button class="sample-q" onclick="sampleAsk('Daily briefing')">Daily briefing</button>
-                  </div>
-                </div>
-                <div class="sample-q-group">
-                  <div class="sample-q-title">💥 <span class="en">Explain a crash or error</span><span class="ja">クラッシュを説明</span></div>
-                  <div class="sample-q-row">
-                    <button class="sample-q" onclick="sampleAsk('Why did my PC crash?')">Why did my PC crash?</button>
-                    <button class="sample-q" onclick="sampleAsk('Help me understand this error')">Help me understand this error</button>
-                    <button class="sample-q" onclick="sampleAsk('What does this stack trace mean?')">Explain a stack trace</button>
-                  </div>
-                </div>
-                <div class="sample-q-group">
-                  <div class="sample-q-title">⚡ <span class="en">PC health</span><span class="ja">PC診断</span></div>
-                  <div class="sample-q-row">
-                    <button class="sample-q" onclick="sampleAsk('How is my PC doing?')">How is my PC doing?</button>
-                    <button class="sample-q" onclick="sampleAsk('Check my RAM')">Check my RAM</button>
-                    <button class="sample-q" onclick="sampleAsk('What is my CPU usage?')">CPU usage?</button>
-                    <button class="sample-q" onclick="sampleAsk('Show disk space')">Show disk space</button>
-                    <button class="sample-q" onclick="sampleAsk('How long has my PC been on?')">Uptime?</button>
-                    <button class="sample-q" onclick="sampleAsk('Run a quick scan')">Run a quick scan</button>
+                    <button class="sample-q" onclick="sampleAsk('Morning briefing')">Morning briefing</button>
                   </div>
                 </div>
               </div>
@@ -1857,7 +1864,20 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
     <!-- ══ PAGE: Settings ══════════════════════════════════════════════════ -->
     <div class="page" id="page-settings">
       <div class="page-hdr"><div><div class="page-title"><span class="en">Settings</span><span class="ja">設定</span></div><div class="page-sub"><span class="en">Application preferences</span><span class="ja">アプリケーション設定</span></div></div></div>
-      <div class="card">
+      <div class="set-wrap">
+      <nav class="set-rail" id="set-rail" aria-label="Settings sections">
+        <a class="set-rail-link active" href="#set-sec-general" data-sec="set-sec-general"><span class="en">General</span><span class="ja">一般</span></a>
+        <a class="set-rail-link" href="#set-sec-launcher" data-sec="set-sec-launcher"><span class="en">Launcher</span><span class="ja">ランチャー</span></a>
+        <a class="set-rail-link" href="#set-sec-health" data-sec="set-sec-health"><span class="en">Health watch</span><span class="ja">バックグラウンド監視</span></a>
+        <a class="set-rail-link" href="#set-sec-setup" data-sec="set-sec-setup"><span class="en">Setup mode</span><span class="ja">セットアップ</span></a>
+        <a class="set-rail-link" href="#set-sec-protected" data-sec="set-sec-protected"><span class="en">Protected apps</span><span class="ja">保護対象</span></a>
+        <a class="set-rail-link" href="#set-sec-profiles" data-sec="set-sec-profiles"><span class="en">Profiles</span><span class="ja">プロファイル</span></a>
+        <a class="set-rail-link" href="#set-sec-browser" data-sec="set-sec-browser"><span class="en">Browser cache</span><span class="ja">ブラウザキャッシュ</span></a>
+        <a class="set-rail-link" href="#set-sec-schedule" data-sec="set-sec-schedule"><span class="en">Scheduler</span><span class="ja">スケジュール</span></a>
+        <a class="set-rail-link" href="#set-sec-chat" data-sec="set-sec-chat"><span class="en">Quick chat</span><span class="ja">クイックチャット</span></a>
+      </nav>
+      <div class="set-content" id="set-content">
+      <div class="card" id="set-sec-general">
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Language</span><span class="ja">言語</span></div><div class="setting-desc"><span class="en">Display language</span><span class="ja">表示言語</span></div></div><div class="setting-control"><select class="setting-select" id="set-lang" onchange="saveSetting('language',this.value);setLang(this.value)"><option value="en">English</option><option value="ja">日本語 (Japanese)</option></select></div></div></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Minimize to tray on close</span><span class="ja">閉じる時にトレイに最小化</span></div><div class="setting-desc"><span class="en">Keep running in the system tray</span><span class="ja">システムトレイで実行を継続</span></div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="set-tray" onchange="saveSetting('tray_on_close',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div></div></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Notifications</span><span class="ja">通知</span></div><div class="setting-desc"><span class="en">Show notifications after scan</span><span class="ja">スキャン完了後に通知を表示</span></div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="set-notify" onchange="saveSetting('show_notifications',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div></div></div>
@@ -1943,7 +1963,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         </div>
       </div>
       <!-- Floating Launcher settings -->
-      <div class="card" style="margin-top:12px">
+      <div class="card" id="set-sec-launcher" style="margin-top:12px">
         <div class="card-title"><span class="en">Floating Launcher</span><span class="ja">フローティングランチャー</span></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Enable floating icon</span><span class="ja">フローティングアイコンを有効化</span></div><div class="setting-desc"><span class="en">Show a draggable launcher on desktop</span><span class="ja">デスクトップにドラッグ可能なランチャーを表示</span></div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="set-launcher" onchange="toggleLauncher(this.checked)"><span class="toggle-slider"></span></label></div></div></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Show / Hide now</span><span class="ja">今すぐ表示/非表示</span></div><div class="setting-desc"><span class="en">Toggle visibility without disabling</span><span class="ja">無効化せずに表示切替</span></div></div><div class="setting-control"><button class="btn btn-secondary btn-sm" id="btn-launcher-vis" onclick="toggleLauncherVis()"><span class="en">Show</span><span class="ja">表示</span></button></div></div></div>
@@ -1951,20 +1971,20 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Reset position</span><span class="ja">位置をリセット</span></div><div class="setting-desc"><span class="en">Move icon back to default corner</span><span class="ja">アイコンをデフォルト位置に戻す</span></div></div><div class="setting-control"><button class="btn btn-secondary btn-sm" onclick="resetLauncherPos()"><span class="en">Reset</span><span class="ja">リセット</span></button></div></div></div>
       </div>
       <!-- Health Watch -->
-      <div class="card" style="margin-top:12px">
+      <div class="card" id="set-sec-health" style="margin-top:12px">
         <div class="card-title"><span class="en">Background Health Watch</span><span class="ja">バックグラウンド監視</span></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Enable health alerts</span><span class="ja">健康アラートを有効化</span></div><div class="setting-desc"><span class="en">Get notified when disk or RAM cross thresholds (checks every 15 min)</span><span class="ja">ディスク・メモリが閾値を超えたら通知（15分ごとに確認）</span></div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="set-hwwatch" onchange="saveSetting('health_watch_enabled',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div></div></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Disk alert threshold</span><span class="ja">ディスク警告閾値</span></div><div class="setting-desc"><span class="en">Alert when free space drops below this</span><span class="ja">空き容量がこの値を下回ったら警告</span></div></div><div class="setting-control"><select class="setting-select" id="set-hwdisk" onchange="saveSetting('health_watch_disk_gb',this.value)"><option value="3">3 GB</option><option value="5" selected>5 GB</option><option value="10">10 GB</option><option value="20">20 GB</option></select></div></div></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">RAM alert threshold</span><span class="ja">メモリ警告閾値</span></div><div class="setting-desc"><span class="en">Alert when RAM usage exceeds this</span><span class="ja">メモリ使用率がこの値を超えたら警告</span></div></div><div class="setting-control"><select class="setting-select" id="set-hwram" onchange="saveSetting('health_watch_ram_pct',this.value)"><option value="85">85%</option><option value="90">90%</option><option value="92" selected>92%</option><option value="95">95%</option></select></div></div></div>
       </div>
       <!-- Setup Mode -->
-      <div class="card" style="margin-top:12px">
+      <div class="card" id="set-sec-setup" style="margin-top:12px">
         <div class="card-title"><span class="en">Setup Mode</span><span class="ja">セットアップモード</span></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Reconfigure defaults</span><span class="ja">デフォルトを再設定</span></div><div class="setting-desc"><span class="en">Reopen the Work / Personal / Minimal mode picker.</span><span class="ja">仕事用 / 個人用 / 最小構成 のモード選択を再表示。</span></div></div><div class="setting-control"><button class="btn btn-secondary btn-sm" onclick="_showFirstRunPicker()"><span class="en">Open picker</span><span class="ja">選択を開く</span></button></div></div></div>
       </div>
 
       <!-- Protected Apps -->
-      <div class="card" style="margin-top:12px">
+      <div class="card" id="set-sec-protected" style="margin-top:12px">
         <div class="card-title"><span class="en">Protected Apps</span><span class="ja">保護対象アプリ</span></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Shield shipping IT tools</span><span class="ja">社内ITツールを保護</span></div><div class="setting-desc"><span class="en">ESET, Optima, Acall, OneDrive, Teams, Edge, Defender — never auto-closed or deleted.</span><span class="ja">ESET・Optima・Acall・OneDrive等を自動で閉じたり削除したりしません。</span></div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="set-protapps-def" onchange="saveProtectedDefaults(this.checked)"><span class="toggle-slider"></span></label></div></div></div>
         <div style="padding:4px 0 2px"><div style="font-size:12px;color:var(--fg3);margin-bottom:6px"><span class="en">IT defaults</span><span class="ja">ITデフォルト</span></div><div id="prot-defaults-chips" class="chips-row">—</div></div>
@@ -1972,7 +1992,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <div style="padding:10px 0 2px"><div style="font-size:12px;color:var(--fg3);margin-bottom:6px"><span class="en">Critical floor</span><span class="ja">クリティカル（常時保護）</span> <span style="color:var(--fg4)">· <span class="en">always on</span><span class="ja">常時オン</span></span></div><div id="prot-critical-chips" class="chips-row"></div></div>
       </div>
       <!-- Profiles -->
-      <div class="card" style="margin-top:12px">
+      <div class="card" id="set-sec-profiles" style="margin-top:12px">
         <div class="card-title"><span class="en">Settings Profiles</span><span class="ja">設定プロファイル</span></div>
         <div style="font-size:12px;color:var(--fg3);margin-bottom:10px"><span class="en">Snapshot and reapply groups of settings — handy when switching between work and personal use.</span><span class="ja">設定をスナップショットして呼び出し。仕事用と個人用の切り替えに便利です。</span></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -1982,7 +2002,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <div style="margin-top:10px"><div style="font-size:12px;color:var(--fg3);margin-bottom:6px"><span class="en">Available profiles</span><span class="ja">保存済み</span> · <span id="profile-active" style="color:var(--brand)"></span></div><div id="profile-list" class="chips-row"></div></div>
       </div>
       <!-- Browser cache cleaner -->
-      <div class="card" style="margin-top:12px">
+      <div class="card" id="set-sec-browser" style="margin-top:12px">
         <div class="card-title"><span class="en">Browser Cache</span><span class="ja">ブラウザキャッシュ</span></div>
         <div style="font-size:12px;color:var(--fg3);margin-bottom:10px"><span class="en">Scans Edge, Chrome, Firefox, and Brave caches. Browsers must be closed to clean.</span><span class="ja">Edge・Chrome・Firefox・Brave のキャッシュをスキャン。削除時はブラウザを閉じてください。</span></div>
         <div style="padding:4px 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1994,7 +2014,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <div id="bcache-list" style="display:grid;gap:6px"></div>
       </div>
       <!-- Scheduler -->
-      <div class="card" style="margin-top:12px">
+      <div class="card" id="set-sec-schedule" style="margin-top:12px">
         <div class="card-title"><span class="en">Scheduled Maintenance</span><span class="ja">定期メンテナンス</span></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Enable schedule</span><span class="ja">スケジュールを有効化</span></div><div class="setting-desc"><span class="en">Run selected actions automatically on a cadence</span><span class="ja">選択したアクションを定期的に自動実行</span></div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="set-sched-on" onchange="saveSetting('schedule_enabled',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div></div></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Cadence</span><span class="ja">頻度</span></div></div><div class="setting-control"><select class="setting-select" id="set-sched-cad" onchange="saveSetting('schedule_cadence',this.value)"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div></div></div>
@@ -2011,10 +2031,12 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         </div>
       </div>
       <!-- Quick Chat -->
-      <div class="card" style="margin-top:12px">
+      <div class="card" id="set-sec-chat" style="margin-top:12px">
         <div class="card-title"><span class="en">Quick Chat Assistant</span><span class="ja">クイックチャット</span></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Open chat popup</span><span class="ja">チャットウィンドウを開く</span></div><div class="setting-desc"><span class="en">Compact assistant window — also accessible via the floating launcher&#39;s Chat satellite</span><span class="ja">コンパクトなアシスタント。フローティングランチャーのチャットボタンからも開けます</span></div></div><div class="setting-control"><button class="btn btn-primary btn-sm" onclick="openChatPopup()"><span class="en">Open Chat</span><span class="ja">チャットを開く</span></button></div></div></div>
       </div>
+      </div><!-- /.set-content -->
+      </div><!-- /.set-wrap -->
     </div>
     <!-- ══ PAGE: System Info ════════════════════════════════════════════════ -->
     <div class="page" id="page-sysinfo">
@@ -2024,6 +2046,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
           <div class="page-sub"><span class="en">Hardware, OS, and machine details</span><span class="ja">ハードウェア・OS・マシン詳細</span></div>
         </div>
         <div class="page-actions">
+          <span class="updated-chip" id="uc-sysinfo"><span class="uc-dot"></span><span class="uc-time"></span><button class="uc-refresh" onclick="loadSysInfo(true)"><span class="en">Refresh</span><span class="ja">更新</span></button></span>
           <button class="btn btn-primary btn-sm" id="btn-sysinfo-refresh" onclick="loadSysInfo(true)"
             data-tip="Re-reads live system info: OS build, CPU, RAM, uptime, battery, pending Windows updates. Uses cached data for 60s to stay snappy — press this to force fresh."
             data-tip-ja="OSビルド、CPU、メモリ、稼働時間、バッテリー、保留中の更新を再取得。通常は60秒キャッシュのため、強制更新に使います。">
@@ -2088,6 +2111,9 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <div>
           <div class="page-title"><span class="en">Performance</span><span class="ja">パフォーマンス</span></div>
           <div class="page-sub"><span class="en">Live metrics, startup apps, and hardware info</span><span class="ja">ライブメトリクス・起動アプリ・ハードウェア情報</span></div>
+        </div>
+        <div class="page-actions">
+          <span class="updated-chip" id="uc-live"><span class="uc-dot"></span><span class="uc-time"></span><button class="uc-refresh" onclick="_globalPoll()"><span class="en">Refresh</span><span class="ja">更新</span></button></span>
         </div>
       </div>
       <div class="tab-bar">
@@ -2462,17 +2488,55 @@ function showPage(name){
   const pg=document.getElementById('page-'+name); if(pg) pg.classList.add('active');
   const nav=document.querySelector(`[data-page="${name}"]`); if(nav) nav.classList.add('active');
   if(name==='history') loadHistory();
-  if(name==='storage'){ loadRecycleBin(); _initStoragePage(); }
+  if(name==='storage'){ loadRecycleBin(); _initStoragePage(); _replayStorageIfAny(); }
+  if(name==='privacy'){ _replayPrivacyIfAny(); }
   if(name==='performance'){ _initPerfPage(); startGlobalPoll(); _globalPoll(); }
   if(name==='problems'){ _initProblemsPage(); _initTriageTab(); }
   if(name==='overview'){ loadBriefing(); _showFeatureOverviewIfFirst(); }
   if(name==='settings') loadMemorySection();
+  if(name==='assistant') warmupOllamaOnce();
+  if(name==='settings') { setTimeout(_initSetRailScrollspy,30); }
+}
+
+/* warmupOllamaOnce, _initSetRailScrollspy — moved to js/ux_1_1_4.js
+   (spliced into this document at Python load time). */
+
+// Replay the last Storage render on page open so the page isn't blank for
+// users whose last scan ran before this session's navigation. scanData is
+// populated at scan completion and persists until the next scan.
+function _replayStorageIfAny(){
+  try{
+    if(typeof scanData!=='undefined' && scanData){
+      renderStorage(scanData); renderStorageAnalysis(scanData);
+    }
+  }catch(e){}
+}
+// Privacy has its own scan path (load_privacy()). Cache the last response in
+// a module-local so the page isn't blank the next time the user visits — the
+// chip's "Updated N min ago" tells them how stale it is.
+let _lastPrivacy=null;
+function _replayPrivacyIfAny(){
+  if(!_lastPrivacy) return;
+  try{
+    document.getElementById('priv-idle').style.display='none';
+    document.getElementById('priv-results').style.display='';
+    _renderBrowserCache(_lastPrivacy.browserCache||{});
+    _renderConnections(_lastPrivacy.connections||[]);
+    _renderSensitiveFiles(_lastPrivacy.sensitiveFiles||[]);
+    renderPrivacyAnalysis(_lastPrivacy);
+  }catch(e){}
 }
 
 function showToast(msg,type='info'){
   const t=document.getElementById('toast'); t.textContent=msg;
   t.className='show toast-'+type; setTimeout(()=>{t.className='';},3500);
 }
+
+/* @include: js/ux_1_1_4.js — chip framework + sidebar sparklines + settings
+   nav rail scrollspy + one-time Ollama warmup. _load_app_html splices the
+   file in at app start, so runtime behaviour is identical to a single
+   inline block. */
+/*__INCLUDE__ js/ux_1_1_4.js __INCLUDE__*/
 
 // Styled replacement for native confirm(). Returns a Promise<bool>.
 let _confirmDlgPromise=null;
@@ -3346,6 +3410,7 @@ function loadSysInfo(force){
     _siLoaded=true;
     if(d.error){document.getElementById('sysinfo-loading').innerHTML='<div style="color:var(--error);font-size:13px">Error: '+esc(d.error)+'</div>';return;}
     _renderHW(d);
+    _stampUpdated('sysinfo');
   }).catch(function(err){
     document.getElementById('sysinfo-loading').innerHTML='<div style="color:var(--error);font-size:13px">Could not load hardware info.</div>';
   });
@@ -3716,10 +3781,10 @@ function showHistDetail(id){
     if(data){
       const dk=data.disk||{};
       detailHtml+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
-        <div class="card card-sm" style="text-align:center"><div style="font-size:9px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><span class="en">Disk Free</span><span class="ja">空き</span></div><div style="font-size:1.3rem;font-weight:700;font-family:var(--mono)">${dk.fmt_free||'—'}</div><div style="font-size:10px;color:var(--fg3)">${dk.pct_free||0}% free</div></div>
-        <div class="card card-sm" style="text-align:center"><div style="font-size:9px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><span class="en">Temp Files</span><span class="ja">一時ファイル</span></div><div style="font-size:1.3rem;font-weight:700;font-family:var(--mono)">${data.total_temp_fmt||'—'}</div></div>
-        <div class="card card-sm" style="text-align:center"><div style="font-size:9px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><span class="en">Duplicates</span><span class="ja">重複</span></div><div style="font-size:1.3rem;font-weight:700;font-family:var(--mono)">${data.total_dupes_fmt||'—'}</div></div>
-        <div class="card card-sm" style="text-align:center"><div style="font-size:9px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><span class="en">Startup</span><span class="ja">起動</span></div><div style="font-size:1.3rem;font-weight:700;font-family:var(--mono)">${data.startup?data.startup.length:'—'}</div></div>
+        <div class="card card-sm" style="text-align:center"><div style="font-size:9px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><span class="en">Free Disk Space</span><span class="ja">ディスク空き容量</span></div><div style="font-size:1.3rem;font-weight:700;font-family:var(--mono)">${dk.fmt_free||'—'}</div><div style="font-size:10px;color:var(--fg3)">${dk.pct_free||0}% free</div></div>
+        <div class="card card-sm" style="text-align:center"><div style="font-size:9px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><span class="en">Temp &amp; Cache Size</span><span class="ja">一時・キャッシュ容量</span></div><div style="font-size:1.3rem;font-weight:700;font-family:var(--mono)">${data.total_temp_fmt||'—'}</div></div>
+        <div class="card card-sm" style="text-align:center"><div style="font-size:9px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><span class="en">Duplicate Files</span><span class="ja">重複ファイル</span></div><div style="font-size:1.3rem;font-weight:700;font-family:var(--mono)">${data.total_dupes_fmt||'—'}</div></div>
+        <div class="card card-sm" style="text-align:center"><div style="font-size:9px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><span class="en">Startup Apps</span><span class="ja">起動アプリ</span></div><div style="font-size:1.3rem;font-weight:700;font-family:var(--mono)">${data.startup?data.startup.length:'—'}</div></div>
       </div>`;
 
       if(data.processes&&data.processes.length){
@@ -5412,6 +5477,7 @@ function _globalPoll(){
     const liveActive = live&&live.classList.contains('active');
     if(perfActive && liveActive){
       updateMonGauges(d);
+      _stampUpdated('live');
     } else if(perf){
       // Log once so we know why the gauges don't update
       if(!window._gaugeLogOnce){
@@ -5504,6 +5570,10 @@ function updateMonGauges(d){
   if(d.sparklines){
     drawSparkline('mon-cpu-chart',d.sparklines.cpu,'#00D4AA');
     drawSparkline('mon-ram-chart',d.sparklines.ram,'#A78BFA');
+    drawSparkline('mon-disk-chart',d.sparklines.disk,'#3B82F6');
+    drawSidebarSpark('lp-cpu-spark',d.sparklines.cpu,'#2DD4B0');
+    drawSidebarSpark('lp-ram-spark',d.sparklines.ram,'#A78BFA');
+    drawSidebarSpark('lp-disk-spark',d.sparklines.disk,'#3B82F6');
   }
   // Alerts
   renderMonAlerts(d.alerts||[]);
@@ -5607,6 +5677,7 @@ async function loadEvents(){
     document.getElementById('evt-empty').style.display='';
     document.getElementById('evt-empty').querySelector('div').innerHTML=
       '<span class="en">No errors or warnings found in the selected period</span><span class="ja">選択期間にエラー・警告はありません</span>';
+    _stampUpdated('events');
     return;
   }
 
@@ -5629,6 +5700,7 @@ async function loadEvents(){
 
   // Analysis panel
   renderEventAnalysis(events,summary);
+  _stampUpdated('events');
 
   // Event list
   const lang=document.documentElement.getAttribute('data-lang')||'en';
@@ -5901,6 +5973,7 @@ function loadRecycleBin(){
     document.getElementById('st-rb-size').textContent  = r.size_str;
     const btn = document.getElementById('btn-empty-rb');
     if(btn) btn.style.display = r.items > 0 ? '' : 'none';
+    _stampUpdated('storage');
   });
 }
 function emptyRecycleBin(){
@@ -6029,10 +6102,12 @@ function loadPrivacy(){
     document.getElementById('priv-loading').style.display='none';
     document.getElementById('priv-results').style.display='';
     document.getElementById('btn-priv-scan').disabled=false;
+    _lastPrivacy=r;
     _renderBrowserCache(r.browserCache||{});
     _renderConnections(r.connections||[]);
     _renderSensitiveFiles(r.sensitiveFiles||[]);
     renderPrivacyAnalysis(r);
+    _stampUpdated('privacy');
   }).catch(function(){
     document.getElementById('priv-loading').style.display='none';
     document.getElementById('priv-idle').style.display='';

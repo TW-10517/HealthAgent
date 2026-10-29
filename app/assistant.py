@@ -343,12 +343,20 @@ def ollama_chat(message: str, context: str = "", lang: str = "en",
     if context:
         system += f"\n\nCURRENT STATE: {context}"
 
-    # Build multi-turn conversation context
+    # Fit the prompt into the 3B model's 800-token working budget. When the
+    # inputs already fit this is a no-op; when they don't we keep the user's
+    # question intact, trim the oldest history turns, then clip the KB tail.
+    hist_capped = (history or [])[-8:]
+    try:
+        import prompt_budget as _pb
+        system, hist_capped, message = _pb.pack_prompt(system, hist_capped, message)
+    except Exception:
+        pass
+
     turns = ""
-    if history:
-        for h in history[-8:]:   # last 4 exchanges
-            role = "User" if h.get("role") == "user" else "Assistant"
-            turns += f"\n{role}: {h.get('content', '')}"
+    for h in hist_capped:
+        role = "User" if h.get("role") == "user" else "Assistant"
+        turns += f"\n{role}: {h.get('content', '')}"
     prompt = f"{system}{turns}\n\nUser: {message}\nAssistant:"
 
     payload = json.dumps({

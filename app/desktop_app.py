@@ -317,6 +317,36 @@ class AgentAPI:
             return {"status": "checking"}
         return {"status": "online" if online else "offline"}
 
+    _warmup_started = False
+
+    def warmup_ollama(self) -> dict:
+        """Fire-and-forget warm the local 3B model.
+
+        Called by the SPA on first Assistant-page visit. Startup stays cold
+        (CLAUDE.md Performance guardrail #5 — no proactive startup warmup);
+        this runs only after the user clearly intends to chat, so the one-
+        time 5–10 s load happens in the background while they type instead
+        of blocking their first reply. Idempotent: subsequent calls are
+        no-ops within a session.
+        """
+        if self._warmup_started:
+            return {"ok": True, "started": False}
+        if (db.get_setting("ai_enabled") or "true").lower() == "false":
+            return {"ok": True, "started": False, "reason": "ai_disabled"}
+        self._warmup_started = True
+
+        def _warm():
+            try:
+                if not self._probe_ollama():
+                    return
+                import assistant as _a
+                _a.ollama_chat("ok", context="warmup", lang="en")
+            except Exception:
+                pass
+
+        threading.Thread(target=_warm, daemon=True).start()
+        return {"ok": True, "started": True}
+
     _CADENCE_SECONDS = {"daily": 86400, "weekly": 7*86400, "monthly": 30*86400}
 
     def _start_schedule_watch(self):
@@ -857,6 +887,26 @@ class AgentAPI:
             self._update_state["_expected_sha256"] = sha256
             self._update_state["_expected_exe_url"] = exe
             self._update_state["_expected_size"] = size
+            # Optional delta-patch metadata. When the manifest advertises a delta
+            # whose source matches our current version AND bsdiff4 is installed,
+            # download_and_install_update will try that first and fall back to the
+            # full exe on any failure. Missing/mismatched/invalid delta fields are
+            # treated as "no delta available" — never fatal. The *final verified
+            # exe* is still hashed against `sha256` above, so the trust boundary
+            # is unchanged.
+            delta_from = str(data.get("delta_from_version", "") or "")
+            delta_url  = str(data.get("delta_url", "") or "")
+            delta_sha  = str(data.get("delta_sha256", "") or "").lower().strip()
+            delta_sz   = int(data.get("delta_size_bytes", 0) or 0)
+            delta_ok = (
+                delta_from == APP_VERSION
+                and delta_url.startswith("https://")
+                and urllib.parse.urlparse(delta_url).hostname == self._TRUSTED_UPDATE_HOST
+                and len(delta_sha) == 64 and all(c in "0123456789abcdef" for c in delta_sha)
+            )
+            self._update_state["_expected_delta_url"] = delta_url if delta_ok else ""
+            self._update_state["_expected_delta_sha256"] = delta_sha if delta_ok else ""
+            self._update_state["_expected_delta_size"] = delta_sz if delta_ok else 0
             return {"ok": True, "current": APP_VERSION, "latest": latest,
                     "has_update": has, "exe_url": exe, "notes": notes,
                     "size_bytes": size,
@@ -945,6 +995,73 @@ class AgentAPI:
             self._update_cancel = False
             st.update({"phase": "downloading", "pct": 0, "msg": "Starting download…"})
             ctx = ssl.create_default_context()
+
+            # ── Delta patch attempt (opt-in via version.json) ────────────────
+            # When the manifest offers a delta from exactly our running version
+            # AND bsdiff4 is available AND the current exe is readable, try the
+            # small patch first. On any failure fall through to the full download
+            # with no user-visible side-effect — the full path is identical to
+            # before this block existed. Delta success still produces a file
+            # whose sha256 is checked against the trusted `expected` below, so
+            # the trust boundary doesn't move.
+            delta_url = st.get("_expected_delta_url") or ""
+            delta_sha = (st.get("_expected_delta_sha256") or "").lower()
+            if delta_url and delta_sha:
+                try:
+                    import bsdiff4 as _bsd  # type: ignore
+                    st["msg"] = "Fetching patch…"
+                    patch_path = upd_dir / f"Helix-patch-{int(_time.time())}.bsdiff"
+                    patch_hash = hashlib.sha256()
+                    with urllib.request.urlopen(
+                        urllib.request.Request(delta_url, headers={"User-Agent": f"{APP_NAME}/{APP_VERSION}"}),
+                        timeout=10.0, context=ctx,
+                    ) as r, open(patch_path, "wb") as out:
+                        patch_total = int(r.headers.get("Content-Length") or 0)
+                        read = 0
+                        while True:
+                            if self._update_cancel:
+                                raise RuntimeError("cancelled by user")
+                            buf = r.read(1024 * 128)
+                            if not buf: break
+                            read += len(buf)
+                            # Deltas are capped at the full-exe download cap too.
+                            if read > 128 * 1024 * 1024:
+                                raise RuntimeError("patch exceeded size cap")
+                            out.write(buf); patch_hash.update(buf)
+                            if patch_total:
+                                st["pct"] = int(read * 50 / patch_total)   # 0–50% during patch download
+                                st["msg"] = f"Patch… {read // 1024} / {patch_total // 1024} KB"
+                    if patch_hash.hexdigest().lower() != delta_sha:
+                        raise RuntimeError("patch sha256 mismatch")
+                    st["msg"] = "Applying patch…"; st["pct"] = 60
+                    # bsdiff4 reads old → produces new; we never touch the running exe.
+                    _bsd.file_patch(str(cur_exe), str(new_exe), str(patch_path))
+                    try: patch_path.unlink()
+                    except Exception: pass
+                    # Verify the result matches the FULL exe's sha256 before accepting.
+                    h = hashlib.sha256()
+                    with open(new_exe, "rb") as f:
+                        for chunk_ in iter(lambda: f.read(1024 * 1024), b""):
+                            h.update(chunk_)
+                    if h.hexdigest().lower() == expected:
+                        hasher = h  # downstream code only reads hasher for logging now
+                        last_err = None
+                        st["pct"] = 100
+                        # Skip the full-download loop by jumping straight to the
+                        # verified-ready phase handling below.
+                        _delta_ok = True
+                    else:
+                        raise RuntimeError("patched file sha256 mismatch — falling back to full download")
+                except Exception as _e:
+                    try: _logging.getLogger("helix").info("delta skipped: %s", _e)
+                    except Exception: pass
+                    _delta_ok = False
+                    # Clean any partials; the full-download loop below starts fresh.
+                    try:
+                        if new_exe.exists(): new_exe.unlink()
+                    except Exception: pass
+            else:
+                _delta_ok = False
             # Download tuning:
             #   PER_READ_TIMEOUT   — if the socket is silent for 3 s, retry.
             #   STALL_WATCHDOG_S   — if a whole MB takes more than 10 s to arrive,
@@ -961,7 +1078,7 @@ class AgentAPI:
             attempt = 0
             last_err: Exception | None = None
             hasher = hashlib.sha256()
-            while attempt < MAX_ATTEMPTS:
+            while not _delta_ok and attempt < MAX_ATTEMPTS:
                 attempt += 1
                 if self._update_cancel:
                     raise RuntimeError("cancelled by user")
@@ -3410,13 +3527,39 @@ def _build_issue_details(data):
 
 
 # ── APP HTML (loaded from app/web/index.html) ───────────────────────────────────────────
+# JS source is split across index.html and app/web/js/*.js for maintainability
+# (grep scope, edit blast radius). pywebview loads the SPA as one html string
+# with no file:// base, so relative <script src="…"> would never resolve. We
+# keep behaviour identical to a single inline block by splicing each
+# /*__INCLUDE__ <path> __INCLUDE__*/ marker with the file contents at load.
+import re as _re_html
+_INCLUDE_RE = _re_html.compile(r"/\*__INCLUDE__\s+(\S+)\s+__INCLUDE__\*/")
+
 def _load_app_html():
     # When frozen, PyInstaller unpacks data files into sys._MEIPASS.
     base = Path(getattr(sys, '_MEIPASS', Path(__file__).parent))
-    candidate = base / 'web' / 'index.html'
+    web_dir = base / 'web'
+    candidate = web_dir / 'index.html'
     if not candidate.exists():
-        candidate = Path(__file__).parent / 'web' / 'index.html'
-    return candidate.read_text(encoding='utf-8')
+        web_dir = Path(__file__).parent / 'web'
+        candidate = web_dir / 'index.html'
+    html = candidate.read_text(encoding='utf-8')
+
+    def _splice(m):
+        rel = m.group(1)
+        try:
+            # Reject any path that climbs out of web/ (defence in depth even
+            # though the marker is author-controlled).
+            inc = (web_dir / rel).resolve()
+            if web_dir.resolve() not in inc.parents and inc != web_dir.resolve():
+                return "/* include refused: path escapes web/ */"
+            return inc.read_text(encoding='utf-8')
+        except Exception as e:
+            # Missing include file is non-fatal — the marker is replaced with a
+            # comment and the SPA still boots (the specific functions in that
+            # include will be undefined, which the UI's try/catch tolerates).
+            return f"/* include failed: {rel}: {e} */"
+    return _INCLUDE_RE.sub(_splice, html)
 
 APP_HTML = _load_app_html()
 
