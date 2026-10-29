@@ -883,6 +883,13 @@ class AgentAPI:
         if not getattr(sys, "frozen", False):
             return {"ok": False, "error": "Updates can only be installed in the packaged build."}
         st = self._update_state
+        # Re-entry guard — single most important fix for the "many terminals"
+        # cascade. Previously, if the UI fired this twice (fast double-click,
+        # or JS poll race), two downloads + two cmd.exe installers spawned,
+        # each in its own retry loop. Phase-based lock means a second call
+        # while a download/install is in flight returns immediately.
+        if st.get("phase") in ("downloading", "ready", "installing"):
+            return {"ok": False, "error": f"an update is already {st.get('phase')}"}
         try:
             # Re-fetch the manifest with verification. check_for_update stashes the
             # trusted sha256 + exe URL privately so the install path can't be
@@ -959,10 +966,27 @@ class AgentAPI:
             # Build the updater .cmd. We write to a .cmd (not .bat) and use quoted paths.
             # Hard-bounded retry (max 20 x 1s = 20s) so a locked exe can't loop forever.
             # Uses `timeout` instead of `ping` so no network-shaped command appears to the user.
+            # Filesystem lock: if another installer is already running (e.g. the user
+            # clicked twice before our Python re-entry guard was added), the second
+            # cmd.exe sees the lock file and exits silently instead of fighting over
+            # the move. The lock is a plain file whose presence is the signal.
             cmd_path = upd_dir / "apply_update.cmd"
+            lock_path = upd_dir / "apply_update.lock"
+            # Clear any stale lock from a prior killed install so we're not blocked by garbage.
+            try:
+                if lock_path.exists(): lock_path.unlink()
+            except Exception:
+                pass
+            # /B on `start` means no new console window; mandatory for GUI exes
+            # launched from a hidden cmd.exe context. Dropping `start` entirely
+            # would also work (Helix.exe is SUBSYSTEM:WINDOWS and cmd returns
+            # immediately), but /B is explicit and future-proof.
             script = (
                 '@echo off\r\n'
                 'setlocal\r\n'
+                'rem Second-installer guard: if another apply_update.cmd is already running, exit.\r\n'
+                f'if exist "{lock_path}" exit /b 0\r\n'
+                f'echo. > "{lock_path}"\r\n'
                 'rem Wait a few seconds for Helix to exit cleanly (silent).\r\n'
                 'timeout /t 3 /nobreak >nul 2>&1\r\n'
                 'set /a tries=0\r\n'
@@ -975,22 +999,26 @@ class AgentAPI:
                 'goto try_move\r\n'
                 ':fail\r\n'
                 'rem Could not replace the exe; leave staged file for next launch and exit silently.\r\n'
+                f'del "{lock_path}" >nul 2>&1\r\n'
                 '(goto) 2>nul & del "%~f0"\r\n'
                 'exit /b 1\r\n'
                 ':done\r\n'
-                f'start "" "{cur_exe}"\r\n'
+                f'start "" /B "{cur_exe}"\r\n'
+                f'del "{lock_path}" >nul 2>&1\r\n'
                 '(goto) 2>nul & del "%~f0"\r\n'
             )
             cmd_path.write_text(script, encoding="ascii", newline="")
 
-            # Detach from this process AND hide the console window.
-            # CREATE_NO_WINDOW is critical — without it cmd.exe + timeout flash a visible terminal.
-            DETACHED = 0x00000008
+            # Hide the console window on the installer process. Drop DETACHED_PROCESS
+            # (it collides with CREATE_NO_WINDOW on some Windows builds and does not
+            # add anything useful once CREATE_NEW_PROCESS_GROUP already orphans the
+            # child from our parent handle). CREATE_NO_WINDOW alone has been the
+            # correct flag for a hidden console tool since Vista.
             NEW_GROUP = 0x00000200
             CREATE_NO_WINDOW = 0x08000000
             subprocess.Popen(
                 ["cmd.exe", "/c", str(cmd_path)],
-                creationflags=DETACHED | NEW_GROUP | CREATE_NO_WINDOW,
+                creationflags=NEW_GROUP | CREATE_NO_WINDOW,
                 close_fds=True, cwd=str(upd_dir),
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )

@@ -1,5 +1,5 @@
 {
-  "version": "1.1.2",
+  "version": "1.1.3",
   "released": "2026-10-29",
   "exe_url": "https://helix-57o.pages.dev/Helix.exe",
   "zip_url": "https://helix-57o.pages.dev/Helix.zip",
@@ -15,5 +15,5 @@
   "setup_zip_sha256": "7fb7142fb85ab8072564335697e5528223d5a5925709c434c8d8e00d1dccd95d",
   "setup_zip_size_bytes": 18377393,
   "min_supported": "1.0.0",
-  "notes": "Three new AI-first features (all local Ollama, nothing leaves your PC): (1) 'Why is my PC slow right now?' - live triage snapshot of top CPU/RAM/disk/network offenders with a plain-English narration. (2) Battery coach - unplugged-battery popup names the biggest power drain and offers coaching, with per-discharge-cycle de-duplication. (3) Game and heavy-app narrator - a single Windows toast when a known game launches or a new app becomes resource-heavy, with full Dospara GALLERIA 推奨PC roster coverage including katakana aliases. Non-intrusive by design: all three background daemons now suppress toasts and popups while you are in a fullscreen app (gaming, slideshow, full-screen video), and the heavy-app probe backs off while the CPU is already busy. First-time users see a one-shot help coachmark pointing at the tutorial button. XSS audit converted eleven user-controllable render sites to safe-escape. Seven dead subprocess imports removed. Narrate-only rule enforced: new features never open or close any app, they only describe."
+  "notes": "Critical updater hardening after 1.1.1 was observed opening many terminal windows at once during an upgrade. Three defenses: (1) Python-side re-entry guard refuses a second call to download_and_install_update while a download or install is already in flight, so a double-click can no longer spawn two installers. (2) Filesystem lockfile inside the updates folder: if a second apply_update.cmd ever starts, it sees the lock and exits immediately rather than fighting over the file move. (3) The installer cmd no longer mixes DETACHED_PROCESS with CREATE_NO_WINDOW, and the relaunch uses start /B so no new console window can appear even when the parent is hidden. Also includes the three AI-first features from 1.1.2: live 'Why is my PC slow?' triage, battery coach with per-discharge-cycle de-duplication, and the game and heavy-app narrator with full Dospara GALLERIA roster. Non-intrusive by design: all background daemons suppress toasts during fullscreen apps and back off when the CPU is busy. First-time users see a one-shot help coachmark. XSS audit converted eleven user-controllable render sites to safe-escape. Narrate-only rule enforced: new features never open or close any app, they only describe."
 }

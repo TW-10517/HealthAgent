@@ -4616,7 +4616,10 @@ function installUpdate(){
     showToast('Auto-install only works in the packaged build. Please download manually.','warning');
     return;
   }
-  const ok=confirm('Install Helix v'+_updateInfo.latest+'?\n\nHelix will download the new version (~32 MB), close itself, and relaunch automatically. Any unsaved work in this session will be lost.');
+  const scanning = (window._scanInProgress===true) || (document.getElementById('scan-progress-wrap') && document.getElementById('scan-progress-wrap').style.display && document.getElementById('scan-progress-wrap').style.display!=='none');
+  const sz = _updateInfo.size_bytes ? ' (~' + Math.round(_updateInfo.size_bytes/1048576) + ' MB)' : '';
+  const scanLine = scanning ? '\n\nA scan is currently running and will be cancelled.' : '';
+  const ok=confirm('Install Helix v'+_updateInfo.latest+'?\n\nHelix will download the new version'+sz+', close, and relaunch automatically. All your settings, scan history and memories are preserved — nothing is lost.' + scanLine);
   if(!ok) return;
   const wrap=document.getElementById('update-progress-wrap'); if(wrap) wrap.style.display='';
   const getBtn=document.getElementById('btn-get-update'); if(getBtn){ getBtn.disabled=true; }
