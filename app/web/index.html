@@ -81,6 +81,56 @@ button{font-family:var(--font)}
 .btn-accent:hover:not(:disabled){background:rgba(125,179,255,.15)}
 .btn-sm{padding:5px 12px;font-size:11px;height:32px}
 
+/* ── Micro-interactions ──────────────────────────────────────────────────── */
+/* Button press: a subtle depress on :active for every .btn variant. */
+.btn:active:not(:disabled){transform:scale(.97);transition:transform .08s ease}
+/* Card lift: cards gain a shadow + 2px rise on hover. The base .card
+   already has transform/box-shadow transitions, so this only tweaks the
+   hover target. Skip hero/section headers that aren't interactive. */
+.card:not(.card-static):hover{transform:translateY(-2px);
+  box-shadow:0 10px 24px rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.12)}
+:root[data-theme="supportassist"] .card:not(.card-static):hover{
+  box-shadow:0 10px 24px rgba(16,30,54,.1),0 2px 6px rgba(16,30,54,.05)}
+:root[data-theme="light"] .card:not(.card-static):hover{
+  box-shadow:0 10px 24px rgba(20,24,40,.12),0 2px 6px rgba(20,24,40,.06)}
+/* Chevron rotation for any expandable row that toggles [aria-expanded]
+   or carries a .is-open class. Add class="chev" to the chevron SVG/text. */
+.chev{display:inline-block;transition:transform .22s cubic-bezier(.2,.9,.3,1.2);
+  transform-origin:center}
+[aria-expanded="true"] .chev,.is-open .chev{transform:rotate(180deg)}
+/* Nav item: active indicator slides along a 2px left bar. */
+.nav-item{position:relative}
+.nav-item::before{content:"";position:absolute;left:0;top:50%;height:0;width:3px;
+  background:var(--brand);border-radius:0 3px 3px 0;transform:translateY(-50%);
+  transition:height .22s cubic-bezier(.2,.9,.3,1.2),opacity .18s ease;opacity:0}
+.nav-item.active::before{height:60%;opacity:1}
+
+/* ── Toasts ──────────────────────────────────────────────────────────────── */
+#toast-stack{position:fixed;right:16px;bottom:24px;z-index:400;display:flex;
+  flex-direction:column;gap:10px;pointer-events:none;max-width:360px}
+.toast{pointer-events:auto;background:var(--surface);color:var(--fg);
+  border:1px solid var(--border2);border-left:3px solid var(--brand);
+  border-radius:10px;padding:12px 14px 12px 14px;min-width:260px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35),0 2px 6px rgba(0,0,0,.15);
+  display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.4;
+  transform:translateX(380px);opacity:0;
+  transition:transform .28s cubic-bezier(.2,.9,.3,1.2),opacity .18s ease}
+.toast.show{transform:translateX(0);opacity:1}
+.toast.leave{transform:translateX(380px);opacity:0}
+.toast-icon{font-size:16px;line-height:1;flex-shrink:0;margin-top:1px}
+.toast-body{flex:1;min-width:0}
+.toast-title{font-weight:600;color:var(--fg);margin-bottom:2px}
+.toast-msg{color:var(--fg2);word-wrap:break-word}
+.toast-close{background:transparent;border:none;color:var(--fg3);cursor:pointer;
+  font-size:14px;padding:2px 4px;line-height:1;flex-shrink:0}
+.toast-close:hover{color:var(--fg)}
+.toast.toast-success{border-left-color:var(--brand)}
+.toast.toast-info{border-left-color:var(--info,#7DB3FF)}
+.toast.toast-warn{border-left-color:var(--warn,#F5B544)}
+.toast.toast-error{border-left-color:var(--error,#FF9C97)}
+:root[data-theme="supportassist"] .toast{box-shadow:0 10px 30px rgba(16,30,54,.15),0 2px 6px rgba(16,30,54,.08)}
+:root[data-theme="light"] .toast{box-shadow:0 10px 30px rgba(20,24,40,.18)}
+
 /* Language toggle */
 .lang-toggle{display:inline-flex;border:1px solid rgba(255,255,255,.08);border-radius:100px;
   overflow:hidden;background:rgba(255,255,255,.04);height:30px;padding:2px}
@@ -458,13 +508,21 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
 .sysinfo-value{font-size:13px;font-weight:600;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ── Cleanup dialog ──────────────────────────────────────────────────────── */
-.dialog-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;
-  display:none;align-items:center;justify-content:center;backdrop-filter:blur(12px)}
-.dialog-backdrop.show{display:flex}
-.dialog{background:rgba(12,18,36,.95);border-radius:var(--r-xl);
-  box-shadow:0 24px 64px rgba(0,0,0,.6),0 0 1px rgba(255,255,255,.1);
+.dialog-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;
+  display:none;align-items:center;justify-content:center;backdrop-filter:blur(0px);
+  opacity:0;transition:opacity .18s ease,backdrop-filter .22s ease}
+.dialog-backdrop.show{display:flex;opacity:1;backdrop-filter:blur(6px)}
+.dialog{background:var(--surface);border-radius:var(--r-xl);
+  box-shadow:0 24px 64px rgba(0,0,0,.45),0 2px 10px rgba(0,0,0,.15);
   width:min(520px,90vw);max-height:80vh;display:flex;flex-direction:column;
-  border:1px solid rgba(255,255,255,.08)}
+  border:1px solid var(--border2);color:var(--fg);
+  transform:scale(.96) translateY(8px);opacity:0;
+  transition:transform .22s cubic-bezier(.2,.9,.3,1.2),opacity .18s ease}
+.dialog-backdrop.show .dialog{transform:scale(1) translateY(0);opacity:1}
+:root[data-theme="supportassist"] .dialog-backdrop{background:rgba(16,30,54,.35)}
+:root[data-theme="supportassist"] .dialog{box-shadow:0 20px 60px rgba(16,30,54,.18),0 2px 8px rgba(16,30,54,.08)}
+:root[data-theme="light"] .dialog-backdrop{background:rgba(20,24,40,.35)}
+:root[data-theme="light"] .dialog{box-shadow:0 20px 60px rgba(16,30,54,.2)}
 .dialog-header{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .dialog-title{font-size:15px;font-weight:600;color:var(--fg)}
 .dialog-body{padding:16px 18px;overflow-y:auto;flex:1}
@@ -603,6 +661,17 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
 .sample-q{background:var(--surface2);border:1px solid var(--border);color:var(--fg2);border-radius:999px;padding:4px 10px;font-size:11.5px;cursor:pointer;transition:all .15s;font-family:inherit}
 .sample-q:hover{background:var(--bg);border-color:var(--brand);color:var(--brand)}
 @keyframes ph-pop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes helix-fade-in{from{opacity:0}to{opacity:1}}
+/* Shared entrance for every full-screen overlay modal: fades the backdrop
+   in and pops the inner dialog box with a subtle spring. Applies to the
+   inline-styled modals (#guide-modal, #boost-modal, #whats-new-modal,
+   #slow-triage-modal, #battery-coach-modal, #shortcuts-modal,
+   #page-hint-modal) because they all use display:flex when open. */
+div[id$="-modal"][style*="display:flex"],
+div[id$="-modal"][style*="display: flex"]{animation:helix-fade-in .18s ease both}
+div[id$="-modal"][style*="display:flex"] > div:first-child:not(#shortcuts-box),
+div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
+  animation:ph-pop .22s cubic-bezier(.2,.9,.3,1.2) both}
 @keyframes ph-slide{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
 @keyframes ph-expand{from{opacity:0;max-height:0}to{opacity:1;max-height:600px}}
 #btn-page-hint{position:relative;animation:ph-pulse 3.2s ease-in-out infinite}
@@ -986,6 +1055,66 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
 .s-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:5px;
   background:var(--success);box-shadow:0 0 8px rgba(52,211,153,.4)}
 .s-dot.scanning{background:var(--warn);box-shadow:0 0 8px rgba(251,191,36,.4);animation:pulse 1s ease-in-out infinite}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Fit-to-viewport density mode (default on).
+   Pages never scroll — the page is a flex column that fills the viewport,
+   and if any single region holds more content than fits (long file lists,
+   startup apps, events, chat history), THAT region scrolls internally
+   while headers / titles / summary cards stay fixed.
+   Nothing is removed; everything is tightened and overflow is confined.
+   ══════════════════════════════════════════════════════════════════════════ */
+.page{overflow:hidden!important;min-height:0;padding:14px 18px;gap:12px}
+.page > *{min-height:0}
+/* The last direct child of every page is treated as the "main region" and
+   grows to fill the page; its own vertical overflow is handled internally.
+   Pages that have a different primary region should mark it .fit-fill. */
+.page > :last-child:not(.fit-static){flex:1 1 auto;min-height:0;overflow:auto}
+.page > .fit-fill{flex:1 1 auto;min-height:0;overflow:auto}
+.page > .fit-static{flex:0 0 auto}
+/* Tabs: when a tab panel is active it's the fit-fill region. */
+.tab-panel.active{flex:1;min-height:0;overflow:auto}
+
+/* Density: reduce card padding, title margin, page gap. */
+.card{padding:14px 16px}
+.card-sm{padding:12px}
+.card-title{margin-bottom:10px;font-size:11.5px}
+.page-title{font-size:20px}
+.page-sub{font-size:12px;margin-top:2px}
+.page-hdr{margin-bottom:4px}
+.tab-bar{margin-bottom:10px}
+.tab-panel.active{gap:12px}
+
+/* Nested lists / scroll regions: a .scroll-y utility for any card body
+   that already knew it was long (file lists, process lists, event feeds). */
+.scroll-y{overflow-y:auto;min-height:0}
+
+/* The chat conversation area was already height-constrained; keep it that
+   way so the input bar never gets pushed off-screen. */
+#chat-messages{min-height:0;flex:1 1 auto;overflow-y:auto}
+
+/* Nice scrollbars inside the inner scroll regions so they feel native. */
+.page ::-webkit-scrollbar,.tab-panel ::-webkit-scrollbar{width:8px;height:8px}
+.page ::-webkit-scrollbar-thumb,.tab-panel ::-webkit-scrollbar-thumb{
+  background:var(--border2);border-radius:8px}
+.page ::-webkit-scrollbar-thumb:hover,.tab-panel ::-webkit-scrollbar-thumb:hover{
+  background:var(--fg3)}
+.page ::-webkit-scrollbar-track,.tab-panel ::-webkit-scrollbar-track{background:transparent}
+
+/* ── Inline preference pills (settings moved next to their feature) ──────── */
+.inline-pref{display:inline-flex;align-items:center;gap:8px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:999px;padding:4px 10px 4px 12px;
+  font-size:11.5px;color:var(--fg2);cursor:pointer;user-select:none;
+  transition:background .15s,border-color .15s,color .15s}
+.inline-pref:hover{background:var(--surface3,var(--surface2));border-color:var(--border2);color:var(--fg)}
+.inline-pref input[type="checkbox"]{appearance:none;-webkit-appearance:none;
+  width:26px;height:14px;background:var(--border2);border-radius:999px;position:relative;
+  cursor:pointer;transition:background .18s;margin:0;flex-shrink:0}
+.inline-pref input[type="checkbox"]::after{content:"";position:absolute;top:2px;left:2px;
+  width:10px;height:10px;border-radius:50%;background:var(--fg);transition:left .18s,background .18s}
+.inline-pref input[type="checkbox"]:checked{background:var(--brand)}
+.inline-pref input[type="checkbox"]:checked::after{left:14px;background:#fff}
+.inline-pref.on{color:var(--fg);border-color:var(--brand-border,var(--border2))}
 </style>
 </head>
 <body>
@@ -1039,6 +1168,9 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <button class="btn btn-primary btn-sm hcm-ok" onclick="_dismissHelpCoachmark()"><span class="en">Got it</span><span class="ja">了解</span></button>
       </div>
     </div>
+    <label class="inline-pref" title="Run a Quick Scan automatically 2 seconds after Helix opens.">
+      <input type="checkbox" id="pref-scan-on-startup"><span class="en">Scan at start</span><span class="ja">起動時スキャン</span>
+    </label>
     <button class="btn btn-secondary btn-sm" id="btn-fast" onclick="startScan(true)"
       data-tip="Skips the duplicate-file hash step (~15s). You still get disk usage, temp/cache size and startup counts, so the Overview score updates — but duplicates on Storage won't."
       data-tip-ja="重複ファイルのハッシュ計算（約15秒）を省略。ディスク使用量・一時/キャッシュ・起動アプリ数は取得でき概要スコアも更新しますが、ストレージの重複は空のままです。">
@@ -1908,6 +2040,14 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
             <div class="ai-title-text"><span class="en">Helix Assistant</span><span class="ja">Helixアシスタント</span></div>
           </div>
           <div class="ai-header-right">
+            <!-- Inline preferences, moved out of Settings so people actually find them.
+                 Both mirror the Settings page via _bindInlinePref. -->
+            <label class="inline-pref" title="Enable the local AI model (Ollama / qwen2.5:3b). When off, the Assistant only answers typed commands.">
+              <input type="checkbox" id="pref-ai-enabled"><span class="en">AI</span><span class="ja">AI</span>
+            </label>
+            <label class="inline-pref" title="Let the Assistant remember short facts about you across conversations.">
+              <input type="checkbox" id="pref-memory-enabled"><span class="en">Memory</span><span class="ja">記憶</span>
+            </label>
             <div class="ai-status-pill checking" id="ai-status-pill">
               <span class="ai-status-dot"></span>
               <span class="en">Checking…</span><span class="ja">確認中…</span>
@@ -1999,7 +2139,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
       <div class="set-wrap">
       <nav class="set-rail" id="set-rail" aria-label="Settings sections">
         <a class="set-rail-link active" href="#set-sec-general" data-sec="set-sec-general"><span class="en">Essentials</span><span class="ja">基本設定</span></a>
-        <a class="set-rail-link" href="#set-sec-launcher" data-sec="set-sec-launcher" onclick="_showAdvancedSettings(true)"><span class="en">Advanced</span><span class="ja">詳細設定</span><span style="float:right;font-size:10px;color:var(--fg4)">8</span></a>
+        <a class="set-rail-link" href="#set-sec-launcher" data-sec="set-sec-launcher" onclick="_showAdvancedSettings(true)"><span class="en">Advanced</span><span class="ja">詳細設定</span><span style="float:right;font-size:10px;color:var(--fg4)">6</span></a>
       </nav>
       <div class="set-content" id="set-content">
       <div class="card" id="set-sec-general">
@@ -2032,9 +2172,6 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
               <div class="setting-desc"><span class="en">Once per day, show overnight score/disk/event deltas on the Overview page.</span><span class="ja">毎日1回、オーバーナイトの変化をオーバービューに表示。</span></div>
             </div>
             <div class="setting-control"><label class="toggle"><input type="checkbox" id="set-briefing" onchange="saveSetting('briefing_enabled',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div>
-          </div>
-          <div style="padding:4px 0 0">
-            <button class="btn btn-secondary btn-sm" onclick="showBriefingNow()"><span class="en">Show today's briefing now</span><span class="ja">今日のブリーフィングを表示</span></button>
           </div>
         </div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">About</span><span class="ja">アプリ情報</span></div></div></div>
@@ -2138,18 +2275,6 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         </div>
         <div style="margin-top:10px"><div style="font-size:12px;color:var(--fg3);margin-bottom:6px"><span class="en">Available profiles</span><span class="ja">保存済み</span> · <span id="profile-active" style="color:var(--brand)"></span></div><div id="profile-list" class="chips-row"></div></div>
       </div>
-      <!-- Browser cache cleaner -->
-      <div class="card" id="set-sec-browser" style="margin-top:12px">
-        <div class="card-title"><span class="en">Browser Cache</span><span class="ja">ブラウザキャッシュ</span></div>
-        <div style="font-size:12px;color:var(--fg3);margin-bottom:10px"><span class="en">Scans Edge, Chrome, Firefox, and Brave caches. Browsers must be closed to clean.</span><span class="ja">Edge・Chrome・Firefox・Brave のキャッシュをスキャン。削除時はブラウザを閉じてください。</span></div>
-        <div style="padding:4px 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-secondary btn-sm" onclick="scanBrowserCache()"
-            data-tip="Measures per-browser cache size (Edge/Chrome/Firefox/Brave). Caches speed up repeat visits; clearing a 2–5 GB cache frees disk but your next visit to each site is slower."
-            data-tip-ja="ブラウザごとのキャッシュ容量を測定。キャッシュは再訪問を高速化しますが、2〜5GBあれば削除で容量回復（次回の初回表示は少し遅くなります）。"><span class="en">Scan</span><span class="ja">スキャン</span></button>
-          <span id="bcache-status" style="font-size:12px;color:var(--fg3)"></span>
-        </div>
-        <div id="bcache-list" style="display:grid;gap:6px"></div>
-      </div>
       <!-- Scheduler -->
       <div class="card" id="set-sec-schedule" style="margin-top:12px">
         <div class="card-title"><span class="en">Scheduled Maintenance</span><span class="ja">定期メンテナンス</span></div>
@@ -2161,23 +2286,15 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
           <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--fg2)"><input type="checkbox" id="sched-act-snapshot" onchange="saveScheduleActions()"> <span class="en">Snapshot</span><span class="ja">スナップショット</span></label>
         </div>
         <div style="padding:10px 0 2px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-secondary btn-sm" onclick="runScheduleNow()"
-            data-tip="Executes the scheduled actions immediately (Quick scan / Temp cleanup / Snapshot — whichever are ticked). Useful for testing or ad-hoc maintenance."
-            data-tip-ja="予定されたアクション（クイックスキャン／一時削除／スナップショット）を今すぐ実行。動作確認や臨時メンテに便利です。"><span class="en">Run now</span><span class="ja">今すぐ実行</span></button>
           <span style="font-size:12px;color:var(--fg3)"><span class="en">Last run:</span><span class="ja">前回実行:</span> <span id="sched-last">—</span></span>
         </div>
-      </div>
-      <!-- Quick Chat -->
-      <div class="card" id="set-sec-chat" style="margin-top:12px">
-        <div class="card-title"><span class="en">Quick Chat Assistant</span><span class="ja">クイックチャット</span></div>
-        <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Open chat popup</span><span class="ja">チャットウィンドウを開く</span></div><div class="setting-desc"><span class="en">Compact assistant window — also accessible via the floating launcher&#39;s Chat satellite</span><span class="ja">コンパクトなアシスタント。フローティングランチャーのチャットボタンからも開けます</span></div></div><div class="setting-control"><button class="btn btn-primary btn-sm" onclick="openChatPopup()"><span class="en">Open Chat</span><span class="ja">チャットを開く</span></button></div></div></div>
       </div>
       </div><!-- /#set-advanced-wrap -->
       <!-- "Need more?" footer link inside the Essentials content so users can
            find Advanced without discovering the rail. -->
       <div style="margin-top:12px;padding:10px 0;text-align:center;border-top:1px dashed var(--border)">
         <button class="btn btn-ghost btn-sm" id="btn-show-advanced" onclick="_showAdvancedSettings(true)">
-          <span class="en">Show advanced settings (8 more)</span><span class="ja">詳細設定を表示（8項目）</span>
+          <span class="en">Show advanced settings (6 more)</span><span class="ja">詳細設定を表示（6項目）</span>
         </button>
       </div>
       </div><!-- /.set-content -->
@@ -2673,8 +2790,14 @@ function _replayPrivacyIfAny(){
 }
 
 function showToast(msg,type='info'){
-  const t=document.getElementById('toast'); t.textContent=msg;
-  t.className='show toast-'+type; setTimeout(()=>{t.className='';},3500);
+  // Legacy call sites still pass 'warning' instead of 'warn'; normalize so
+  // they pick up the correct border color.
+  if(type==='warning') type='warn';
+  if(typeof toast==='function'){ toast(msg,{type:type}); return; }
+  // Fallback: original single-slot behavior if the new helper isn't loaded.
+  const t=document.getElementById('toast'); if(!t) return;
+  t.textContent=msg; t.className='show toast-'+type;
+  setTimeout(()=>{t.className='';},3500);
 }
 
 /* @include: js/ux_1_1_4.js — chip framework + sidebar sparklines + settings
@@ -6559,6 +6682,89 @@ function clearChat(){
   if(box) box.innerHTML='<div class="chat-msg chat-assistant"><div class="chat-avatar">'+_AI_AVATAR+'</div><div class="chat-bubble"><span class="en">Chat cleared. How can I help?</span><span class="ja">クリアしました。何かお手伝いしますか？</span></div></div>';
 }
 function chatKeydown(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+
+/* ── Toast helper ───────────────────────────────────────────────────────────
+   toast(msg)                           → info toast
+   toast(msg, {type:'success'})         → green
+   toast(msg, {type:'warn', title:'…'}) → with title
+   Types: 'success' | 'info' | 'warn' | 'error'.
+   Returns the element so callers can .remove() early if needed. */
+/* Inline-pref binding. Reads the current value from get_settings on first
+   load, mirrors it to the checkbox, and writes back via save_settings on
+   change — AND repaints every mirror of the same key so the Settings page
+   stays in sync without extra wiring. Default-on keys use default=true;
+   others default to false. */
+const _INLINE_PREF_DEFAULT_ON=new Set(['ai_enabled','memory_enabled','briefing_enabled']);
+function _bindInlinePref(id,key){
+  const el=document.getElementById(id); if(!el) return;
+  const defaultOn=_INLINE_PREF_DEFAULT_ON.has(key);
+  const apply=(raw)=>{
+    const on=(raw===undefined||raw===null||raw==='')?defaultOn:(raw==='true');
+    el.checked=on;
+    const pill=el.closest('.inline-pref'); if(pill) pill.classList.toggle('on',on);
+  };
+  const push=(on)=>{
+    if(!(window.pywebview&&window.pywebview.api&&window.pywebview.api.save_settings)) return;
+    const s={}; s[key]=on?'true':'false';
+    try{ window.pywebview.api.save_settings(s); }catch(_){ }
+    // Mirror to any other input with data-pref="<key>" (e.g. Settings page).
+    document.querySelectorAll('[data-pref="'+key+'"]').forEach(x=>{
+      if(x!==el&&'checked' in x) x.checked=on;
+    });
+    const mirror=document.getElementById('set-'+key.replace(/_/g,'-'));
+    if(mirror&&'checked' in mirror&&mirror!==el) mirror.checked=on;
+  };
+  el.dataset.pref=key;
+  el.addEventListener('change',()=>push(el.checked));
+  const load=()=>{
+    if(!(window.pywebview&&window.pywebview.api&&window.pywebview.api.get_settings)) return false;
+    window.pywebview.api.get_settings().then(s=>apply(s&&s[key])); return true;
+  };
+  if(!load()) window.addEventListener('pywebviewready',load,{once:true});
+}
+
+function _toastStack(){
+  let s=document.getElementById('toast-stack');
+  if(!s){ s=document.createElement('div'); s.id='toast-stack'; document.body.appendChild(s); }
+  return s;
+}
+function toast(msg,opts){
+  opts=opts||{};
+  const type=opts.type||'info';
+  const title=opts.title||'';
+  const dur=opts.duration!=null?opts.duration:3500;
+  const icons={success:'✓',info:'ℹ',warn:'⚠',error:'✕'};
+  const el=document.createElement('div');
+  el.className='toast toast-'+type;
+  el.innerHTML='<div class="toast-icon">'+(icons[type]||'ℹ')+'</div>'+
+    '<div class="toast-body">'+
+      (title?'<div class="toast-title"></div>':'')+
+      '<div class="toast-msg"></div>'+
+    '</div>'+
+    '<button class="toast-close" aria-label="Dismiss">✕</button>';
+  if(title) el.querySelector('.toast-title').textContent=title;
+  el.querySelector('.toast-msg').textContent=msg;
+  const close=()=>{ el.classList.remove('show'); el.classList.add('leave');
+    setTimeout(()=>el.remove(),280); };
+  el.querySelector('.toast-close').addEventListener('click',close);
+  _toastStack().appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  if(dur>0) setTimeout(close,dur);
+  return el;
+}
+
+/* Wire inline preference pills to their backing settings. Mirrors into
+   the Settings page checkbox of the same key, so flipping either stays
+   in sync without extra plumbing. */
+(function _wireInlinePrefs(){
+  const wire=()=>{
+    _bindInlinePref('pref-ai-enabled','ai_enabled');
+    _bindInlinePref('pref-memory-enabled','memory_enabled');
+    _bindInlinePref('pref-scan-on-startup','scan_on_startup');
+  };
+  if(document.readyState==='complete'||document.readyState==='interactive') wire();
+  else document.addEventListener('DOMContentLoaded',wire,{once:true});
+})();
 </script>
 </body>
 </html>

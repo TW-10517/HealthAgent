@@ -10,9 +10,47 @@ The repo/package id remains `PCHealthAgent`.
 **GitHub**: `https://github.com/TW-10517/HealthAgent.git` (branch `main`)
 **Live site**: https://helix-57o.pages.dev (Cloudflare Pages, free tier, unlimited bandwidth)
 **Download URLs**: `/Helix.exe` (23 MiB, UPX-compressed), `/Helix.zip`, `/version.json`
-**Current released version**: `1.1.1` (deployed to Cloudflare 2026-10-28; verify with `curl https://helix-57o.pages.dev/version.json` before assuming users are on it)
+**Current released version**: `1.1.5` (deployed to Cloudflare 2026-10-30; verify with `curl https://helix-57o.pages.dev/version.json` before assuming users are on it)
 
-## Session handoff — 2026-10-28 → 2026-10-29 (unpushed candidate 1.1.2)
+## Session handoff — 2026-10-30 (polish pass + launcher theme sync, pushed on top of 1.1.5)
+
+Shipped on top of the 1.1.5 binary without a version bump (CI rebuilds the exe but `version.json` stays at 1.1.5 — these are UX refinements, not a new user-visible release). Bump to 1.1.6 at the next push if the user asks for it.
+
+**Changes landed in `main` since 1.1.5:**
+
+1. **Launcher theme sync** (`app/launcher.py`): `_CENTER_PALETTE` dict with dark/light/supportassist (base, rim, arc, pulse, shadow) using exact CSS token values. `FloatingLauncher._read_theme()` reads `db.get_setting("theme")`; `set_theme(name)` public method revalidates and repaints; `_render_frame` + `_draw_pulse_mark` are theme-aware. The main app pushes to DB via belt-and-braces `initTheme()` in `web/index.html` (polling 100ms * 30 + both `window` and `document` `pywebviewready` listeners) and `save_settings` in `desktop_app.py` forwards theme changes to `launcher.get_launcher().set_theme(...)`.
+2. **Launcher drag pixel-fix** (`app/launcher.py` WM_MOUSEMOVE): replaced per-move DIB allocation with pure-move `UpdateLayeredWindow(hwnd, None, byref(pt_dst), None, None, None, 0, None, 0)`. Per-monitor DPI awareness added in `_run()` via `SetProcessDpiAwarenessContext(-4)` with fallback chain. Drag no longer leaks pixels or shows GDI tearing on multi-monitor DPI boundaries.
+3. **Disk health module** (`app/disk_health.py`, 156 lines, SupportAssist-style): `get_disks()` returning `{ok, disks, overall}`. Primary probe = `Get-PhysicalDisk | Select FriendlyName, SerialNumber, HealthStatus, OperationalStatus, MediaType, BusType, Size, Usage`; fallback = `Get-CimInstance Win32_DiskDrive`. Health normalised to `healthy | caution | bad | unknown`; overall = worst across all disks. Uses `run_hidden.run` (CREATE_NO_WINDOW safe).
+4. **Theme-aware dialogs + modal entrance spring** (`app/web/index.html`): `.dialog` + `.dialog-backdrop` rewritten with CSS vars (`--surface`/`--border2`/`--fg`) so SA theme no longer shows a hardcoded navy modal over a white app. Backdrop fades + blurs 0→6px; dialog springs from `scale(.96) translateY(8px)` on `cubic-bezier(.2,.9,.3,1.2)`. Shared `@keyframes helix-fade-in` + `div[id$="-modal"][style*="display:flex"]` selector animates every overlay modal uniformly.
+5. **Micro-interactions pass**: `.btn:active:not(:disabled){transform:scale(.97)}`; `.card:not(.card-static):hover{transform:translateY(-2px); box-shadow:...}`; `.chev{transition:transform .22s cubic-bezier(.2,.9,.3,1.2)}` with `[aria-expanded="true"] .chev,.is-open .chev{transform:rotate(180deg)}`; `.nav-item::before` sliding brand-color bar for the active state.
+6. **Toast stack** (`#toast-stack` + `.toast` + 4 border-left colors by type): `toast(msg, {type, title, dur})` helper with auto-dismiss (default 3500 ms). Legacy `showToast(msg, type)` rerouted — ~20 pre-existing call sites upgraded automatically. `warning` type normalized to `warn`.
+7. **Fit-to-viewport density mode** (end of SPA `<style>`): `.page{overflow:hidden!important;min-height:0;padding:14px 18px;gap:12px}`; `.page > *{min-height:0}`; `.page > :last-child:not(.fit-static){flex:1 1 auto;min-height:0;overflow:auto}`; `.page > .fit-fill{...}`; `.page > .fit-static{flex:0 0 auto}`; `.tab-panel.active{flex:1;min-height:0;overflow:auto}`; condensed `.card` / `.card-sm` / `.card-title` / `.page-title` metrics; native-feel scrollbars. **Trade-off**: a page whose primary content isn't the last child needs the `fit-fill` class on the correct region. If a specific page clips, add the class there.
+8. **Inline preference pills** (`.inline-pref` CSS + 26×14px custom toggle switch): `_bindInlinePref(id, key)` helper reads via `get_settings`, writes via `save_settings`, mirrors to `data-pref="<key>"` and `set-<key>` id convention. Three inline toggles wired:
+   - `#pref-ai-enabled` in `.ai-header-right` (Assistant page)
+   - `#pref-memory-enabled` in `.ai-header-right`
+   - `#pref-scan-on-startup` before `#btn-fast` in the titlebar
+9. **Settings dedup** — four pure duplicates removed from Settings page (each already present with equal-or-better functionality on its home surface):
+   - Entire **"Quick Chat Assistant"** card (`id="set-sec-chat"`) — Assistant page already has the chat UI
+   - Scheduler **"Run now"** button (last-run label kept) — scheduler fires every 10 min anyway; `run_schedule_now()` still callable from the palette
+   - **"Show today's briefing now"** button (toggle kept) — morning briefing intent already renders it
+   - Entire **"Browser Cache"** card (`id="set-sec-browser"`) — Security page's `loadPrivacy()` renders cache sizes with Clean buttons via `#priv-cache-grid` + the two-call confirm pattern on `cleanBrowserCache(browser)`
+   - Advanced count label updated 8 → 7 → 6 in rail link + "Show advanced settings" button
+   - **Battery report** button in Settings → About kept — it is the only entry point to `generate_battery_report`.
+
+**Still unpushed between this handoff and the previous one:** the 2026-10-28 → 2026-10-29 1.1.2 candidate items described in the OLD session-handoff block below were superseded and shipped as part of 1.1.4 / 1.1.5. Keep the block for historical context but do not re-apply.
+
+**At-push checklist (next time):**
+1. User says "push". Decide if this batch deserves a version bump (1.1.6) — ask if unsure.
+2. If bumping: `app/metadata.py` `APP_VERSION` and seed `website/version.json` `notes`.
+3. `git add` the touched files, commit, `git push origin main`. CI auto-commits binaries.
+4. Verify `curl https://helix-57o.pages.dev/version.json`.
+
+**Open follow-ups (NOT started):**
+- Original "polish pass" items #3 (page transitions — `showPage` crossfade + nav sliding active indicator between items) and #6 (scan progress upgrade — radial progress ring + count-up animation).
+- Deferred launcher Dell SupportAssist features: startup boot impact column (Diagnostics-Performance event 101/103) + unified action log (SQLite `action_log` table).
+- More inline toggle candidates offered: `health_watch_enabled` on Storage, `briefing_enabled` on Overview, `battery_coach_enabled` on Performance → Live, `schedule_enabled` on History, `show_notifications` + `tray_on_close` in titlebar.
+
+## OLD session handoff — 2026-10-28 → 2026-10-29 (shipped as 1.1.4/1.1.5)
 
 The previous session batched four improvements over the live 1.1.1 release but did NOT push. The working tree carries all of them. In a fresh chat, running `git diff --stat` shows the staged state. Bump `APP_VERSION` to `1.1.2` only at push time (user's standing rule).
 
@@ -107,6 +145,7 @@ PCHealthAgent/
 │   ├── thresholds.py     # Shared numeric constants (CPU/RAM/temp warn+crit)
 │   ├── protected.py      # 3-layer protected-apps logic (critical floor + IT defaults + user extras)
 │   ├── run_hidden.py     # subprocess helper: CREATE_NO_WINDOW for console tools
+│   ├── disk_health.py    # Get-PhysicalDisk SMART probe → {healthy|caution|bad|unknown}
 │   ├── monitor_hud.py    # Floating HUD mini-window (idle-aware, hidden-gated polling)
 │   └── db.py             # SQLite storage (scan history, settings)
 ├── tests/                # pytest suite (37 tests): test_safety.py, test_logic.py, conftest.py
