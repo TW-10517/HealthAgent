@@ -120,7 +120,39 @@ def _get_font(size: int = 7):
 
 # ── Pillow rendering ───────────────────────────────────────────────────────
 
-def _render_frame(anim_t: float, hover_idx: int) -> bytes:
+# Center-tile palette per theme. Keeps the segment accent colors brand-stable;
+# only the central "orbit pulse" tile re-skins so the orb matches the main app.
+# Pulled straight from app/web/index.html CSS tokens so the orb's center
+# tile is the exact same surface + brand as the main window in each theme.
+_CENTER_PALETTE = {
+    # Dark: --surface #121826 base, --brand #2DD4B0 rim/arc.
+    "dark": {
+        "base":  (18, 24, 38, 255),
+        "rim":   (45, 212, 176, 200),
+        "arc":   (45, 212, 176, 255),
+        "pulse": (230, 235, 243, 255),   # --fg
+        "shadow": (0, 0, 0, 55),
+    },
+    # Light: card white base, --brand #00A882 rim/arc, dark pulse for contrast.
+    "light": {
+        "base":  (255, 255, 255, 255),
+        "rim":   (0, 168, 130, 210),
+        "arc":   (0, 168, 130, 255),
+        "pulse": (11, 15, 23, 255),      # --bg from dark acts as fg here
+        "shadow": (16, 30, 54, 50),
+    },
+    # SupportAssist: Dell card white (--bg2 #FFFFFF), --brand #0085C3 rim/arc.
+    "supportassist": {
+        "base":  (255, 255, 255, 255),
+        "rim":   (0, 133, 195, 220),
+        "arc":   (0, 133, 195, 255),
+        "pulse": (16, 30, 54, 255),
+        "shadow": (16, 30, 54, 45),
+    },
+}
+
+
+def _render_frame(anim_t: float, hover_idx: int, theme: str = "dark") -> bytes:
     """Render the segment wheel to raw BGRA bytes (WHEEL_SIZE × WHEEL_SIZE).
     Renders at 2× resolution and downsamples with LANCZOS for smooth anti-aliasing."""
     from PIL import Image, ImageDraw, ImageFilter
@@ -186,21 +218,21 @@ def _render_frame(anim_t: float, hover_idx: int) -> bytes:
                 _draw_icon(draw, icon_fn, int(tx), int(ty),
                            (255, 255, 255, icon_a), scale=ico_scale)
 
-    # ── Center button — Helix "Orbit Pulse" mark (matches app_icon.ico) ───
-    # Dark navy tile with teal rim, orbit-pulse mark painted on top.
+    # ── Center button — Helix "Orbit Pulse" mark (theme-aware) ───────────
+    pal = _CENTER_PALETTE.get(theme) or _CENTER_PALETTE["dark"]
     draw.ellipse(
         [cx - c_r + 2, cy - c_r + 5, cx + c_r + 2, cy + c_r + 5],
-        fill=(0, 0, 0, 55),
+        fill=pal["shadow"],
     )
     draw.ellipse(
         [cx - c_r, cy - c_r, cx + c_r, cy + c_r],
-        fill=(14, 20, 32, 255),  # dark navy base (matches app_icon.ico tile)
+        fill=pal["base"],
     )
     draw.ellipse(
         [cx - c_r + 1, cy - c_r + 1, cx + c_r - 1, cy + c_r - 1],
-        outline=(45, 212, 192, 180), width=max(1, S // 2),
+        outline=pal["rim"], width=max(1, S // 2),
     )
-    _draw_pulse_mark(draw, cx, cy, c_r)
+    _draw_pulse_mark(draw, cx, cy, c_r, arc=pal["arc"], pulse=pal["pulse"])
 
     # Downsample 2× → final size for smooth anti-aliasing
     img = img.resize((WHEEL_SIZE, WHEEL_SIZE), Image.LANCZOS)
@@ -211,7 +243,8 @@ def _render_frame(anim_t: float, hover_idx: int) -> bytes:
     return bgra.tobytes()
 
 
-def _draw_pulse_mark(draw, cx: int, cy: int, c_r: int):
+def _draw_pulse_mark(draw, cx: int, cy: int, c_r: int,
+                     arc=(45, 220, 200, 255), pulse=(255, 255, 255, 255)):
     """Helix "Orbit Pulse" mark — teal gauge arc + cyan heartbeat line + white
     end dot. This is the actual Helix brand mark (matches app_icon.ico and the
     `_create_shield_icon` tile)."""
@@ -220,7 +253,7 @@ def _draw_pulse_mark(draw, cx: int, cy: int, c_r: int):
     draw.arc(
         [cx - r, cy - r, cx + r, cy + r],
         start=140, end=400,
-        fill=(45, 220, 200, 255),
+        fill=arc,
         width=max(2, r // 4),
     )
     # Heartbeat pulse — flat line with a dip then a peak.
@@ -234,13 +267,13 @@ def _draw_pulse_mark(draw, cx: int, cy: int, c_r: int):
     ]
     pw = max(2, int(r // 5))
     for i in range(len(pts) - 1):
-        draw.line([pts[i], pts[i + 1]], fill=(130, 240, 255, 255), width=pw)
-    # White end dot — sits at the right end of the pulse line.
+        draw.line([pts[i], pts[i + 1]], fill=pulse, width=pw)
+    # End dot — sits at the right end of the pulse line.
     dot_r = max(2, int(r * 0.14))
     draw.ellipse(
         [cx + r * 0.60 - dot_r, cy - dot_r,
          cx + r * 0.60 + dot_r, cy + dot_r],
-        fill=(255, 255, 255, 255),
+        fill=pulse,
     )
 
 
@@ -425,6 +458,25 @@ class FloatingLauncher:
         self._moved     = False
         self._hover_seg = -1
         self._wndproc_ref = None
+        self._theme = self._read_theme()
+
+    @staticmethod
+    def _read_theme() -> str:
+        try:
+            t = (db.get_setting("theme") or "dark").strip().lower()
+        except Exception:
+            t = "dark"
+        return t if t in ("dark", "light", "supportassist") else "dark"
+
+    def set_theme(self, name: str) -> None:
+        """Repaint the launcher to match the main app's theme setting."""
+        name = (name or "dark").strip().lower()
+        if name not in ("dark", "light", "supportassist"):
+            name = "dark"
+        if name == self._theme:
+            return
+        self._theme = name
+        self._redraw()
 
     # ── Lifecycle ──────────────────────────────────────────────────────────
 
@@ -454,6 +506,22 @@ class FloatingLauncher:
     # ── Win32 window loop ──────────────────────────────────────────────────
 
     def _run(self):
+        # Per-monitor DPI awareness. Without this, Windows bilinear-scales
+        # our 128x128 layered surface on 125/150% displays, which makes the
+        # orb edges fuzzy and shows pixelation when dragged across windows
+        # whose desktop composition region crosses a DPI boundary.
+        try:
+            # SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4)
+            user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+        except Exception:
+            try:
+                shcore = ctypes.windll.shcore
+                shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+            except Exception:
+                try:
+                    user32.SetProcessDPIAware()
+                except Exception:
+                    pass
         hinstance = kernel32.GetModuleHandleW(None)
 
         wndclass = wt.WNDCLASSW()
@@ -514,7 +582,7 @@ class FloatingLauncher:
         if not self._hwnd:
             return
         try:
-            bgra = _render_frame(self._anim_progress, self._hover_seg)
+            bgra = _render_frame(self._anim_progress, self._hover_seg, self._theme)
             W = WHEEL_SIZE
             mem_dc, hbmp, old_hbmp, screen_dc = _make_layered_dc(bgra, W, W)
 
@@ -640,25 +708,20 @@ class FloatingLauncher:
                     user32.GetWindowRect(hwnd, ctypes.byref(rect))
                     new_x = rect.left + dx
                     new_y = rect.top  + dy
-                    # Move via UpdateLayeredWindow's pptDst for a layered window
+                    # Pure-move path: UpdateLayeredWindow(dwFlags=0) with only
+                    # the new destination point. No new bitmap, no new DC —
+                    # Windows re-blits the cached layered surface at the new
+                    # position atomically. This fixes the pixel tearing
+                    # that showed up when the orb was dragged across other
+                    # windows (every WM_MOUSEMOVE used to allocate a new
+                    # 128x128 DIB and briefly display a half-rendered frame).
                     pt_dst = _POINT(new_x, new_y)
-                    bgra   = _render_frame(self._anim_progress, self._hover_seg)
-                    mem_dc, hbmp, old_hbmp, screen_dc = _make_layered_dc(
-                        bgra, WHEEL_SIZE, WHEEL_SIZE
-                    )
-                    pt_src = _POINT(0, 0)
-                    sz     = _SIZE(WHEEL_SIZE, WHEEL_SIZE)
-                    blend  = (ctypes.c_byte * 4)(0, 0, -1, 1)
                     user32.UpdateLayeredWindow(
                         hwnd, None,
-                        ctypes.byref(pt_dst), ctypes.byref(sz),
-                        mem_dc, ctypes.byref(pt_src),
-                        0, ctypes.byref(blend), ULW_ALPHA,
+                        ctypes.byref(pt_dst), None,
+                        None, None,
+                        0, None, 0,
                     )
-                    gdi32.SelectObject(mem_dc, old_hbmp)
-                    gdi32.DeleteObject(hbmp)
-                    gdi32.DeleteDC(mem_dc)
-                    user32.ReleaseDC(None, screen_dc)
             else:
                 hit = self._hit_test(x, y)
                 new_hover = hit if isinstance(hit, int) else -1

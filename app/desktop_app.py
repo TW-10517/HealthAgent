@@ -809,6 +809,17 @@ class AgentAPI:
                     "app_narrator_enabled","app_narrator_heavy_mb"}
         filtered = {k: v for k, v in settings.items() if k in allowed}
         db.set_settings(filtered)
+        # Keep the floating launcher's center-tile palette in sync with the
+        # main app theme. If the launcher isn't running (user disabled it)
+        # or isn't importable, we silently skip.
+        if "theme" in filtered:
+            try:
+                import launcher as _lchr
+                lw = _lchr.get_launcher()
+                if lw is not None:
+                    lw.set_theme(filtered["theme"])
+            except Exception:
+                pass
         return {"ok": True}
 
     def get_first_run_mode(self):
@@ -2680,6 +2691,21 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
     def list_disabled_startup(self) -> dict:
         data = self._load_disabled_startup()
         return {"items": [{"name": k, **v} for k, v in data.items()]}
+
+    def get_disk_health(self) -> dict:
+        """SMART-derived health per physical disk (SupportAssist-style)."""
+        try:
+            from app import disk_health as _dh
+        except Exception:
+            try:
+                import disk_health as _dh  # type: ignore
+            except Exception:
+                return {"ok": False, "disks": [], "overall": "unknown",
+                        "msg": "Disk health module unavailable."}
+        try:
+            return _dh.get_disks()
+        except Exception as e:
+            return {"ok": False, "disks": [], "overall": "unknown", "msg": str(e)}
 
     def explain_startup(self, name: str, cmd: str = "") -> dict:
         """One-line plain-English explanation + keep/optional/safe verdict.

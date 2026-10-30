@@ -1364,6 +1364,20 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
         <button class="tab-btn" onclick="switchTab('storage','organize',this)"><span class="en">Organize</span><span class="ja">整理</span></button>
       </div>
       <div class="tab-panel active" id="storage-tab-files" style="flex:1;overflow-y:auto">
+      <!-- Disk health card: SMART-derived HealthStatus per physical disk.
+           Fetched lazily on page open via loadDiskHealth(). -->
+      <div class="card" id="dh-card" style="padding:14px 16px;margin-bottom:12px;display:none">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          <div style="font-size:22px">💽</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:14px"><span class="en">Disk Health</span><span class="ja">ディスクの健全性</span></div>
+            <div style="font-size:11.5px;color:var(--fg3);margin-top:2px"><span class="en">Live SMART-derived status for each physical disk</span><span class="ja">物理ディスクごとのSMARTステータス</span></div>
+          </div>
+          <span class="chip" id="dh-overall"></span>
+          <button class="btn btn-ghost btn-sm" onclick="loadDiskHealth()" title="Refresh">⟳</button>
+        </div>
+        <div id="dh-list" style="display:grid;gap:8px"></div>
+      </div>
       <!-- Quick Temp Clean — always visible, no scan needed -->
       <div class="card" style="padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;gap:16px">
         <div style="font-size:28px">🧹</div>
@@ -2619,7 +2633,7 @@ function showPage(name){
   const pg=document.getElementById('page-'+name); if(pg) pg.classList.add('active');
   const nav=document.querySelector(`[data-page="${name}"]`); if(nav) nav.classList.add('active');
   if(name==='history') loadHistory();
-  if(name==='storage'){ loadRecycleBin(); _initStoragePage(); _replayStorageIfAny(); }
+  if(name==='storage'){ loadRecycleBin(); _initStoragePage(); _replayStorageIfAny(); loadDiskHealth(); }
   if(name==='privacy'){ _replayPrivacyIfAny(); }
   if(name==='performance'){ _initPerfPage(); startGlobalPoll(); _globalPoll(); }
   if(name==='problems'){ _initProblemsPage(); _initTriageTab(); }
@@ -3031,7 +3045,28 @@ function _applyTheme(t){
   if(t==='supportassist'){ try{ _renderSaDeviceHero(); }catch(_){ } }
 }
 function initTheme(){
-  _applyTheme(_lsGet('pcha_theme')||'dark');
+  const t=_lsGet('pcha_theme')||'dark';
+  _applyTheme(t);
+  // Push the restored theme to the DB so the floating launcher's center
+  // tile repaints to match. Polling + both event targets, because
+  // `pywebviewready` can fire on either `window` or `document` depending
+  // on pywebview build, and may fire BEFORE this handler attaches.
+  let _pushed=false;
+  const push=()=>{
+    if(_pushed) return;
+    if(!(window.pywebview&&window.pywebview.api&&window.pywebview.api.save_settings)) return;
+    _pushed=true;
+    try{ window.pywebview.api.save_settings({theme:t}); }catch(_){ _pushed=false; }
+  };
+  push();
+  window.addEventListener('pywebviewready',push,{once:true});
+  document.addEventListener('pywebviewready',push,{once:true});
+  // Belt-and-braces: a tiny poll for 3 s covers all edge cases.
+  let _tries=0;
+  const iv=setInterval(()=>{
+    push();
+    if(_pushed||++_tries>30) clearInterval(iv);
+  },100);
 }
 function toggleTheme(){
   const cur=document.documentElement.getAttribute('data-theme')||'dark';
@@ -3045,6 +3080,35 @@ function setTheme(t){
   _applyTheme(t);
   _lsSet('pcha_theme',t);
   if(window.pywebview) window.pywebview.api.save_settings({theme:t});
+}
+async function loadDiskHealth(){
+  const card=document.getElementById('dh-card'); if(!card) return;
+  if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.get_disk_health) return;
+  let r={}; try{ r=await window.pywebview.api.get_disk_health(); }catch(_){ r={ok:false}; }
+  if(!r||!r.ok||!r.disks||!r.disks.length){ card.style.display='none'; return; }
+  card.style.display='block';
+  const vmap={
+    healthy:{en:'Healthy',ja:'良好',cls:'chip-success',icon:'✓'},
+    caution:{en:'Caution',ja:'注意',cls:'chip-warn',icon:'!'},
+    bad:    {en:'Attention needed',ja:'要対応',cls:'chip-error',icon:'!'},
+    unknown:{en:'Unknown',ja:'不明',cls:'chip-muted',icon:'?'}
+  };
+  const ov=vmap[r.overall]||vmap.unknown;
+  const ovEl=document.getElementById('dh-overall');
+  ovEl.className='chip '+ov.cls;
+  ovEl.innerHTML='<span class="en">'+esc(ov.en)+'</span><span class="ja">'+esc(ov.ja)+'</span>';
+  document.getElementById('dh-list').innerHTML=r.disks.map(d=>{
+    const v=vmap[d.health]||vmap.unknown;
+    const meta=[d.media,d.bus,d.size].filter(Boolean).join(' · ');
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px">
+      <div style="font-size:16px;line-height:1">${v.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.model)}</div>
+        <div style="font-size:11px;color:var(--fg3);margin-top:2px">${esc(meta)}</div>
+      </div>
+      <span class="chip ${v.cls}"><span class="en">${esc(v.en)}</span><span class="ja">${esc(v.ja)}</span></span>
+    </div>`;
+  }).join('');
 }
 function _showAdvancedSettings(on){
   const wrap=document.getElementById('set-advanced-wrap');
