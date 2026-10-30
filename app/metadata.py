@@ -7,7 +7,7 @@ distribution/package id = PCHealthAgent.
 
 APP_NAME     = "Helix"
 APP_ID       = "PCHealthAgent"
-APP_VERSION  = "1.1.4"
+APP_VERSION  = "1.1.5"
 GITHUB_URL   = "https://github.com/TW-10517/HealthAgent"
 WEBSITE_URL  = "https://helix-57o.pages.dev"
 UPDATE_MANIFEST_URL = WEBSITE_URL + "/version.json"

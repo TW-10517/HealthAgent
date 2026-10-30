@@ -261,6 +261,10 @@ button{font-family:var(--font)}
 .chip-warn{background:rgba(251,191,36,.08);color:var(--warn);border:1px solid rgba(251,191,36,.2)}
 .chip-error{background:rgba(248,113,113,.08);color:var(--error);border:1px solid rgba(248,113,113,.2)}
 .chip-info{background:rgba(96,165,250,.08);color:var(--info);border:1px solid rgba(96,165,250,.2)}
+.chip-muted{background:rgba(142,154,175,.08);color:var(--fg3);border:1px solid rgba(142,154,175,.2)}
+.su-why-cell{min-width:220px;max-width:360px}
+.su-why-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.su-why-text{font-size:12px;color:var(--fg2);line-height:1.4}
 
 /* ── Disk ring ───────────────────────────────────────────────────────────── */
 .disk-row{display:flex;align-items:center;gap:20px}
@@ -788,6 +792,105 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
 :root[data-theme="light"] input,
 :root[data-theme="light"] textarea,
 :root[data-theme="light"] select{background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.12);color:var(--fg)}
+/* ── SupportAssist-inspired theme (Dell-blue, white cards, airy) ─────────── */
+:root[data-theme="supportassist"]{
+  --bg:#F3F6FA;--bg2:#FFFFFF;--bg3:#E7EEF6;
+  --glass:#FFFFFF;--glass-border:#E1E6ED;
+  --fg:#1F2937;--fg2:#374151;--fg3:#6B7280;--fg4:#9AA3AF;
+  --border:#E1E6ED;--border2:#CBD5E1;--border3:#B4C0CF;
+  --brand:#0085C3;--brand-dim:rgba(0,133,195,.10);--brand-border:rgba(0,133,195,.28);
+  --success:#0F9D58;--warn:#F59C00;--error:#DC3545;--info:#1976D2;
+  --nav-bg:#FFFFFF;--surface:#FFFFFF;--surface2:#F3F6FA;--surface3:#E7EEF6;
+  --sidebar-bg:#F8FAFD;
+  --r:10px;--r-lg:14px;
+}
+:root[data-theme="supportassist"] body{background:var(--bg);color:var(--fg)}
+:root[data-theme="supportassist"] .titlebar{background:#FFFFFF;border-bottom:1px solid var(--border);box-shadow:0 1px 2px rgba(16,30,54,.04)}
+:root[data-theme="supportassist"] .sidebar{background:var(--sidebar-bg);border-right-color:var(--border)}
+:root[data-theme="supportassist"] .card{background:#FFFFFF;border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(16,30,54,.04),0 2px 10px rgba(16,30,54,.02)}
+:root[data-theme="supportassist"] .card:hover{box-shadow:0 2px 4px rgba(16,30,54,.06),0 8px 20px rgba(16,30,54,.04)}
+:root[data-theme="supportassist"] .card-title{color:var(--fg);font-weight:600}
+:root[data-theme="supportassist"] .nav-item{color:var(--fg2);border-radius:10px;margin:2px 8px;padding:10px 12px}
+:root[data-theme="supportassist"] .nav-item:hover{background:rgba(0,133,195,.06)}
+:root[data-theme="supportassist"] .nav-item.active{background:rgba(0,133,195,.12);color:var(--brand);font-weight:600}
+:root[data-theme="supportassist"] .nav-item .nav-icon{color:currentColor}
+:root[data-theme="supportassist"] .btn{border-radius:999px;font-weight:600;letter-spacing:.01em}
+:root[data-theme="supportassist"] .btn-primary{background:var(--brand);border-color:var(--brand);color:#FFF;box-shadow:0 1px 2px rgba(0,133,195,.25)}
+:root[data-theme="supportassist"] .btn-primary:hover{background:#006AA3;border-color:#006AA3}
+:root[data-theme="supportassist"] .btn-secondary{background:#FFFFFF;border:1px solid var(--border2);color:var(--fg);box-shadow:0 1px 2px rgba(16,30,54,.04)}
+:root[data-theme="supportassist"] .btn-secondary:hover{background:#F3F6FA;border-color:var(--brand);color:var(--brand)}
+:root[data-theme="supportassist"] .btn-ghost{color:var(--fg2);background:transparent}
+:root[data-theme="supportassist"] .btn-ghost:hover{background:rgba(0,133,195,.08);color:var(--brand)}
+:root[data-theme="supportassist"] .statusbar{background:#FFFFFF;border-top-color:var(--border);color:var(--fg2)}
+:root[data-theme="supportassist"] input,
+:root[data-theme="supportassist"] textarea,
+:root[data-theme="supportassist"] select{background:#FFFFFF;border:1px solid var(--border2);color:var(--fg);border-radius:10px}
+:root[data-theme="supportassist"] input:focus,
+:root[data-theme="supportassist"] textarea:focus,
+:root[data-theme="supportassist"] select:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(0,133,195,.15);outline:none}
+:root[data-theme="supportassist"] .chip{background:#F3F6FA;border:1px solid var(--border);color:var(--fg2)}
+:root[data-theme="supportassist"] .chip-success{background:rgba(15,157,88,.10);color:#0A7E46;border-color:rgba(15,157,88,.25)}
+:root[data-theme="supportassist"] .chip-warn{background:rgba(245,156,0,.10);color:#B47000;border-color:rgba(245,156,0,.25)}
+:root[data-theme="supportassist"] .chip-error{background:rgba(220,53,69,.10);color:#B02433;border-color:rgba(220,53,69,.25)}
+:root[data-theme="supportassist"] .chip-info{background:rgba(25,118,210,.10);color:#1358A0;border-color:rgba(25,118,210,.25)}
+:root[data-theme="supportassist"] .chip-muted{background:#F3F6FA;color:var(--fg3);border-color:var(--border)}
+:root[data-theme="supportassist"] .badge{border-radius:999px}
+:root[data-theme="supportassist"] .badge-it{background:rgba(0,133,195,.10);color:var(--brand);border:1px solid rgba(0,133,195,.25)}
+:root[data-theme="supportassist"] .badge-user{background:#F3F6FA;color:var(--fg2);border:1px solid var(--border)}
+:root[data-theme="supportassist"] .page-title{color:var(--fg);font-weight:700}
+:root[data-theme="supportassist"] .page-sub{color:var(--fg3)}
+:root[data-theme="supportassist"] .page-hdr{border-bottom:1px solid var(--border)}
+:root[data-theme="supportassist"] .data-table thead th{background:#F8FAFD;color:var(--fg3);border-bottom:1px solid var(--border);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.05em}
+:root[data-theme="supportassist"] .data-table tbody td{border-bottom:1px solid var(--border)}
+:root[data-theme="supportassist"] .data-table tbody tr:hover{background:#F8FAFD}
+:root[data-theme="supportassist"] .kpi-chip{box-shadow:0 1px 2px rgba(16,30,54,.04)}
+:root[data-theme="supportassist"] .modal-body{background:#FFFFFF;border:1px solid var(--border);box-shadow:0 10px 40px rgba(16,30,54,.12)}
+:root[data-theme="supportassist"] .toast{background:#FFFFFF;color:var(--fg);border:1px solid var(--border);box-shadow:0 4px 16px rgba(16,30,54,.08)}
+:root[data-theme="supportassist"] .tab-btn{color:var(--fg3);border-bottom:2px solid transparent}
+:root[data-theme="supportassist"] .tab-btn:hover{color:var(--brand)}
+:root[data-theme="supportassist"] .tab-btn.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
+:root[data-theme="supportassist"] .idle-screen{background:transparent}
+:root[data-theme="supportassist"] .idle-icon svg{filter:drop-shadow(0 2px 8px rgba(0,133,195,.25))}
+:root[data-theme="supportassist"] .idle-title{color:var(--fg)}
+:root[data-theme="supportassist"] .idle-sub{color:var(--fg3)}
+:root[data-theme="supportassist"] .score-ring .score-track{stroke:#E7EEF6}
+:root[data-theme="supportassist"] .score-num{color:var(--fg);font-weight:700}
+:root[data-theme="supportassist"] .score-label{color:var(--fg3)}
+:root[data-theme="supportassist"] .lp-cell{background:#F3F6FA;border:1px solid var(--border);border-radius:10px}
+:root[data-theme="supportassist"] .lp-bar{background:#E7EEF6}
+:root[data-theme="supportassist"] .lp-pill{background:#F3F6FA;color:var(--fg2)}
+:root[data-theme="supportassist"] .set-rail{background:#FFFFFF;border:1px solid var(--border);border-radius:14px}
+:root[data-theme="supportassist"] .set-rail-link{color:var(--fg2)}
+:root[data-theme="supportassist"] .set-rail-link:hover{background:rgba(0,133,195,.06);color:var(--brand)}
+:root[data-theme="supportassist"] .set-rail-link.active{background:rgba(0,133,195,.12);color:var(--brand)}
+:root[data-theme="supportassist"] .updated-chip{background:#FFFFFF;border:1px solid var(--border);color:var(--fg3)}
+:root[data-theme="supportassist"] .updated-chip.fresh{background:rgba(15,157,88,.08);color:#0A7E46;border-color:rgba(15,157,88,.25)}
+:root[data-theme="supportassist"] .chat-bubble{background:#F3F6FA;color:var(--fg);border:1px solid var(--border);border-radius:14px}
+:root[data-theme="supportassist"] .chat-user .chat-bubble{background:var(--brand);color:#FFF;border-color:var(--brand)}
+:root[data-theme="supportassist"] .chat-avatar{background:#F3F6FA;color:var(--brand)}
+:root[data-theme="supportassist"] .sample-q{background:#FFFFFF;border:1px solid var(--border);color:var(--fg2);border-radius:999px}
+:root[data-theme="supportassist"] .sample-q:hover{background:rgba(0,133,195,.08);color:var(--brand);border-color:var(--brand)}
+:root[data-theme="supportassist"] .issue-item{background:#FFFFFF;border:1px solid var(--border);border-radius:12px}
+:root[data-theme="supportassist"] .issue-item:hover{box-shadow:0 2px 8px rgba(16,30,54,.06);border-color:var(--brand)}
+:root[data-theme="supportassist"] .hw-card{background:#FFFFFF;border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(16,30,54,.04)}
+:root[data-theme="supportassist"] .bar-track{background:#E7EEF6}
+:root[data-theme="supportassist"] .bar-fill{box-shadow:none}
+:root[data-theme="supportassist"] .fr-btn{background:#FFFFFF;border:1px solid var(--border);color:var(--fg)}
+:root[data-theme="supportassist"] .fr-btn:hover{background:rgba(0,133,195,.06);border-color:var(--brand)}
+:root[data-theme="supportassist"] #whats-new-row{background:linear-gradient(135deg,rgba(0,133,195,.08),rgba(25,118,210,.06));border:1px solid rgba(0,133,195,.18)}
+:root[data-theme="supportassist"] .btn-theme{background:#F3F6FA;border:1px solid var(--border);color:var(--fg2)}
+:root[data-theme="supportassist"] .btn-theme:hover{background:rgba(0,133,195,.08);border-color:var(--brand);color:var(--brand)}
+/* SupportAssist signature: giant device hero card on Overview */
+:root[data-theme="supportassist"] .sa-device-hero{background:linear-gradient(135deg,#FFFFFF 0%,#F3F6FA 100%);border:1px solid var(--border);border-radius:16px;box-shadow:0 2px 10px rgba(16,30,54,.04);padding:28px 32px;margin-bottom:16px}
+.sa-device-hero{display:none}
+:root[data-theme="supportassist"] .sa-device-hero{display:flex;align-items:center;gap:22px}
+:root[data-theme="supportassist"] .sa-device-icon{width:72px;height:72px;border-radius:14px;background:linear-gradient(135deg,var(--brand),#1976D2);display:flex;align-items:center;justify-content:center;color:#FFF;flex-shrink:0;box-shadow:0 6px 16px rgba(0,133,195,.25)}
+:root[data-theme="supportassist"] .sa-device-info{flex:1;min-width:0}
+:root[data-theme="supportassist"] .sa-device-name{font-size:19px;font-weight:700;color:var(--fg);margin-bottom:4px}
+:root[data-theme="supportassist"] .sa-device-meta{font-size:12.5px;color:var(--fg3);line-height:1.6}
+:root[data-theme="supportassist"] .sa-device-status{display:flex;align-items:center;gap:8px;background:rgba(15,157,88,.10);color:#0A7E46;padding:8px 14px;border-radius:999px;font-weight:600;font-size:12.5px;white-space:nowrap}
+:root[data-theme="supportassist"] .sa-device-status.warn{background:rgba(245,156,0,.10);color:#B47000}
+:root[data-theme="supportassist"] .sa-device-status.crit{background:rgba(220,53,69,.10);color:#B02433}
 /* Theme toggle button */
 .btn-theme{display:flex;align-items:center;justify-content:center;width:30px;height:30px;
   border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);
@@ -1053,6 +1156,21 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
       <div class="scan-step" id="prog-step"><span class="en">Initializing scan…</span><span class="ja">スキャンを開始中…</span></div>
       <button class="btn btn-secondary btn-sm" onclick="cancelScan()" id="btn-cancel-scan"><span class="en">Cancel</span><span class="ja">キャンセル</span></button>
     </div>
+      <!-- SupportAssist-only device hero. Populated by _renderSaDeviceHero()
+           on overview show. Hidden by CSS when theme != supportassist. -->
+      <div class="sa-device-hero" id="sa-device-hero">
+        <div class="sa-device-icon" aria-hidden="true">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="12" rx="2"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg>
+        </div>
+        <div class="sa-device-info">
+          <div class="sa-device-name" id="sa-device-name"><span class="en">Your PC</span><span class="ja">お使いのPC</span></div>
+          <div class="sa-device-meta" id="sa-device-meta"></div>
+        </div>
+        <div class="sa-device-status" id="sa-device-status">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span class="en">Healthy</span><span class="ja">良好</span>
+        </div>
+      </div>
       <!-- Today card: shows the once-daily briefing above both idle-state and
            scan-results so users see the overnight narrative regardless of
            whether they've scanned yet. loadBriefing() fires on overview show. -->
@@ -1426,7 +1544,7 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
           <div class="card card-sm" style="text-align:center;position:relative;overflow:hidden"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--info),#6366F1)"></div><div style="font-size:1.8rem;font-weight:700;font-family:var(--mono);color:var(--info);text-shadow:0 0 20px rgba(96,165,250,.3)" id="su-it">—</div><div style="font-size:10px;color:var(--fg3);text-transform:uppercase;letter-spacing:.06em;margin-top:4px;font-weight:700"><span class="en">IT Managed</span><span class="ja">IT 管理</span></div></div>
         </div>
         <div class="card"><div class="card-title"><span class="en">All Entries</span><span class="ja">すべてのエントリ</span><span class="card-title-right" id="su-total-label"></span></div>
-          <div class="table-wrap"><table class="data-table"><thead><tr><th><span class="en">App</span><span class="ja">アプリ</span></th><th><span class="en">Type</span><span class="ja">種類</span></th><th><span class="en">Command</span><span class="ja">コマンド</span></th></tr></thead><tbody id="su-app-body"></tbody></table></div></div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th><span class="en">App</span><span class="ja">アプリ</span></th><th><span class="en">Type</span><span class="ja">種類</span></th><th><span class="en">What is it?</span><span class="ja">これは何？</span></th><th><span class="en">Command</span><span class="ja">コマンド</span></th></tr></thead><tbody id="su-app-body"></tbody></table></div></div>
       </div>
     </div>
 
@@ -1866,19 +1984,13 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
       <div class="page-hdr"><div><div class="page-title"><span class="en">Settings</span><span class="ja">設定</span></div><div class="page-sub"><span class="en">Application preferences</span><span class="ja">アプリケーション設定</span></div></div></div>
       <div class="set-wrap">
       <nav class="set-rail" id="set-rail" aria-label="Settings sections">
-        <a class="set-rail-link active" href="#set-sec-general" data-sec="set-sec-general"><span class="en">General</span><span class="ja">一般</span></a>
-        <a class="set-rail-link" href="#set-sec-launcher" data-sec="set-sec-launcher"><span class="en">Launcher</span><span class="ja">ランチャー</span></a>
-        <a class="set-rail-link" href="#set-sec-health" data-sec="set-sec-health"><span class="en">Health watch</span><span class="ja">バックグラウンド監視</span></a>
-        <a class="set-rail-link" href="#set-sec-setup" data-sec="set-sec-setup"><span class="en">Setup mode</span><span class="ja">セットアップ</span></a>
-        <a class="set-rail-link" href="#set-sec-protected" data-sec="set-sec-protected"><span class="en">Protected apps</span><span class="ja">保護対象</span></a>
-        <a class="set-rail-link" href="#set-sec-profiles" data-sec="set-sec-profiles"><span class="en">Profiles</span><span class="ja">プロファイル</span></a>
-        <a class="set-rail-link" href="#set-sec-browser" data-sec="set-sec-browser"><span class="en">Browser cache</span><span class="ja">ブラウザキャッシュ</span></a>
-        <a class="set-rail-link" href="#set-sec-schedule" data-sec="set-sec-schedule"><span class="en">Scheduler</span><span class="ja">スケジュール</span></a>
-        <a class="set-rail-link" href="#set-sec-chat" data-sec="set-sec-chat"><span class="en">Quick chat</span><span class="ja">クイックチャット</span></a>
+        <a class="set-rail-link active" href="#set-sec-general" data-sec="set-sec-general"><span class="en">Essentials</span><span class="ja">基本設定</span></a>
+        <a class="set-rail-link" href="#set-sec-launcher" data-sec="set-sec-launcher" onclick="_showAdvancedSettings(true)"><span class="en">Advanced</span><span class="ja">詳細設定</span><span style="float:right;font-size:10px;color:var(--fg4)">8</span></a>
       </nav>
       <div class="set-content" id="set-content">
       <div class="card" id="set-sec-general">
-        <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Language</span><span class="ja">言語</span></div><div class="setting-desc"><span class="en">Display language</span><span class="ja">表示言語</span></div></div><div class="setting-control"><select class="setting-select" id="set-lang" onchange="saveSetting('language',this.value);setLang(this.value)"><option value="en">English</option><option value="ja">日本語 (Japanese)</option></select></div></div></div>
+        <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Language</span><span class="ja">言語</span></div><div class="setting-desc"><span class="en">Display language</span><span class="ja">表示言語</span></div></div><div class="setting-control"><select class="setting-select" id="set-lang" onchange="saveSetting('language',this.value);setLang(this.value)"><option value="en">English</option><option value="ja">日本語 (Japanese)</option></select></div></div>
+        <div class="setting-row"><div><div class="setting-label"><span class="en">Theme</span><span class="ja">テーマ</span></div><div class="setting-desc"><span class="en">Dark, Light or SupportAssist (Dell-blue inspired)</span><span class="ja">ダーク／ライト／SupportAssist（Dell風）</span></div></div><div class="setting-control"><select class="setting-select" id="sel-theme" onchange="setTheme(this.value)"><option value="dark">Dark</option><option value="light">Light</option><option value="supportassist">SupportAssist</option></select></div></div></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Minimize to tray on close</span><span class="ja">閉じる時にトレイに最小化</span></div><div class="setting-desc"><span class="en">Keep running in the system tray</span><span class="ja">システムトレイで実行を継続</span></div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="set-tray" onchange="saveSetting('tray_on_close',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div></div></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Notifications</span><span class="ja">通知</span></div><div class="setting-desc"><span class="en">Show notifications after scan</span><span class="ja">スキャン完了後に通知を表示</span></div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="set-notify" onchange="saveSetting('show_notifications',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div></div></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Scan on startup</span><span class="ja">起動時にスキャン</span></div><div class="setting-desc"><span class="en">Run a quick scan automatically when the app opens</span><span class="ja">アプリ起動時に自動でクイックスキャンを実行</span></div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="set-scan-startup" onchange="saveSetting('scan_on_startup',this.checked?'true':'false')"><span class="toggle-slider"></span></label></div></div></div>
@@ -1962,6 +2074,17 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
           <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="toggleAboutDetail()"><span class="en">Details</span><span class="ja">詳細</span></button>
         </div>
       </div>
+      <!-- Advanced block: hidden by default, revealed via rail click or button. -->
+      <div id="set-advanced-wrap" style="display:none">
+      <div class="card" style="margin-top:12px;background:var(--surface2);border-style:dashed">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:var(--fg)"><span class="en">Advanced settings</span><span class="ja">詳細設定</span></div>
+            <div style="font-size:11.5px;color:var(--fg3);margin-top:2px"><span class="en">Launcher, scheduled maintenance, protected apps, browser cache, profiles. Change these only if you know what they do.</span><span class="ja">ランチャー、定期メンテナンス、保護対象、ブラウザキャッシュ等。内容を理解した上で変更してください。</span></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="_showAdvancedSettings(false)"><span class="en">Hide</span><span class="ja">隠す</span></button>
+        </div>
+      </div>
       <!-- Floating Launcher settings -->
       <div class="card" id="set-sec-launcher" style="margin-top:12px">
         <div class="card-title"><span class="en">Floating Launcher</span><span class="ja">フローティングランチャー</span></div>
@@ -2034,6 +2157,14 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
       <div class="card" id="set-sec-chat" style="margin-top:12px">
         <div class="card-title"><span class="en">Quick Chat Assistant</span><span class="ja">クイックチャット</span></div>
         <div class="setting-group"><div class="setting-row"><div><div class="setting-label"><span class="en">Open chat popup</span><span class="ja">チャットウィンドウを開く</span></div><div class="setting-desc"><span class="en">Compact assistant window — also accessible via the floating launcher&#39;s Chat satellite</span><span class="ja">コンパクトなアシスタント。フローティングランチャーのチャットボタンからも開けます</span></div></div><div class="setting-control"><button class="btn btn-primary btn-sm" onclick="openChatPopup()"><span class="en">Open Chat</span><span class="ja">チャットを開く</span></button></div></div></div>
+      </div>
+      </div><!-- /#set-advanced-wrap -->
+      <!-- "Need more?" footer link inside the Essentials content so users can
+           find Advanced without discovering the rail. -->
+      <div style="margin-top:12px;padding:10px 0;text-align:center;border-top:1px dashed var(--border)">
+        <button class="btn btn-ghost btn-sm" id="btn-show-advanced" onclick="_showAdvancedSettings(true)">
+          <span class="en">Show advanced settings (8 more)</span><span class="ja">詳細設定を表示（8項目）</span>
+        </button>
       </div>
       </div><!-- /.set-content -->
       </div><!-- /.set-wrap -->
@@ -2492,10 +2623,10 @@ function showPage(name){
   if(name==='privacy'){ _replayPrivacyIfAny(); }
   if(name==='performance'){ _initPerfPage(); startGlobalPoll(); _globalPoll(); }
   if(name==='problems'){ _initProblemsPage(); _initTriageTab(); }
-  if(name==='overview'){ loadBriefing(); _showFeatureOverviewIfFirst(); }
+  if(name==='overview'){ loadBriefing(); _showFeatureOverviewIfFirst(); try{ _renderSaDeviceHero(); }catch(_){} }
   if(name==='settings') loadMemorySection();
   if(name==='assistant') warmupOllamaOnce();
-  if(name==='settings') { setTimeout(_initSetRailScrollspy,30); }
+  if(name==='settings') { setTimeout(_initSetRailScrollspy,30); _restoreAdvancedSettings(); }
 }
 
 /* warmupOllamaOnce, _initSetRailScrollspy — moved to js/ux_1_1_4.js
@@ -2650,7 +2781,7 @@ function onScanStart(){
 }
 function onScanDone(d){
   _stopProgressPoll();
-  scanData=d; lastUri=d.reportUri; resetScanUI();
+  scanData=d; window._lastScanData=d; lastUri=d.reportUri; resetScanUI();
   document.getElementById('btn-report').style.display='inline-flex';
   document.getElementById('s-time').textContent=d.at;
   document.getElementById('s-text').innerHTML=
@@ -2718,8 +2849,8 @@ function renderStorage(d){
   const fb=d.freeableBytes||1;
   document.getElementById('st-reclaimable').innerHTML=`<div class="bar-row" style="margin-bottom:8px"><div class="bar-name"><span class="en">Temp & Cache</span><span class="ja">一時・キャッシュ</span></div><div class="bar-track"><div class="bar-fill bc-temp" data-pct="${Math.min(d.tempBytes/fb*100,100).toFixed(1)}"></div></div><div class="bar-val">${d.temp}</div></div><div class="bar-row"><div class="bar-name"><span class="en">Duplicates</span><span class="ja">重複</span></div><div class="bar-track"><div class="bar-fill bc-cache" data-pct="${Math.min((d.dupesBytes||0)/fb*100,100).toFixed(1)}"></div></div><div class="bar-val">${d.dupes}</div></div>`;
   document.getElementById('st-temp-total').textContent=d.temp;
-  if(d.tempItems&&d.tempItems.length){const max=d.tempItems[0].size;const cls={temp:'bc-temp',cache:'bc-cache',log:'bc-log'};document.getElementById('st-temp-bars').innerHTML=d.tempItems.map(t=>{const pct=max>0?t.size/max*100:0;const fp=esc(t.path).replace(/'/g,"\\'");return`<div class="bar-row" style="cursor:pointer" onclick="openPath('${fp}')" title="${esc(t.path)}"><div class="bar-name">${esc(t.name)}<small class="ja">${esc(t.nameJa)}</small></div><div class="bar-track"><div class="bar-fill ${cls[t.cat]||'bc-brand'}" data-pct="${pct.toFixed(1)}"></div></div><div class="bar-val">${t.fmt}</div></div>`;}).join('');}
-  if(d.topDupes&&d.topDupes.length>0){document.getElementById('st-dupes-card').style.display='block';document.getElementById('st-dupes-badge').textContent=d.dupes+' saveable';document.getElementById('st-dupes-body').innerHTML=d.topDupes.map(g=>{const fp=esc(g.paths[0]||'').replace(/'/g,"\\'");return`<tr style="cursor:pointer" onclick="openPath('${fp}')" title="Open in Explorer"><td style="font-weight:500">${esc(g.name)}</td><td class="td-mono">${g.count}×</td><td class="td-mono" style="color:var(--warn);font-weight:600">${g.saveable}</td><td class="td-path">${esc(g.paths[0]||'—')}</td></tr>`;}).join('');}
+  if(d.tempItems&&d.tempItems.length){const max=d.tempItems[0].size;const cls={temp:'bc-temp',cache:'bc-cache',log:'bc-log'};document.getElementById('st-temp-bars').innerHTML=d.tempItems.map(t=>{const pct=max>0?t.size/max*100:0;return`<div class="bar-row" style="cursor:pointer" data-open-path="${esc(t.path)}" onclick="openPath(this.dataset.openPath)" title="${esc(t.path)}"><div class="bar-name">${esc(t.name)}<small class="ja">${esc(t.nameJa)}</small></div><div class="bar-track"><div class="bar-fill ${cls[t.cat]||'bc-brand'}" data-pct="${pct.toFixed(1)}"></div></div><div class="bar-val">${esc(t.fmt)}</div></div>`;}).join('');}
+  if(d.topDupes&&d.topDupes.length>0){document.getElementById('st-dupes-card').style.display='block';document.getElementById('st-dupes-badge').textContent=d.dupes+' saveable';document.getElementById('st-dupes-body').innerHTML=d.topDupes.map(g=>{return`<tr style="cursor:pointer" data-open-path="${esc(g.paths[0]||'')}" onclick="openPath(this.dataset.openPath)" title="Open in Explorer"><td style="font-weight:500">${esc(g.name)}</td><td class="td-mono">${g.count}×</td><td class="td-mono" style="color:var(--warn);font-weight:600">${esc(g.saveable)}</td><td class="td-path">${esc(g.paths[0]||'—')}</td></tr>`;}).join('');}
 }
 
 function renderStartup(d){
@@ -2729,7 +2860,26 @@ function renderStartup(d){
   document.getElementById('su-total-label').textContent=d.startupTotal+' total';
   allStartupApps=d.startupApps||[]; renderStartupTable(allStartupApps);
 }
-function renderStartupTable(apps){document.getElementById('su-app-body').innerHTML=apps.filter(a=>a.name&&a.name.trim()).map(a=>`<tr><td style="font-weight:500">${esc(a.name)}</td><td><span class="${a.it?'badge badge-it':'badge badge-user'}">${a.it?'IT':'Personal'}</span></td><td class="td-path">${esc(a.cmd)}</td></tr>`).join('');}
+function renderStartupTable(apps){document.getElementById('su-app-body').innerHTML=apps.filter(a=>a.name&&a.name.trim()).map((a,i)=>`<tr id="su-row-${i}"><td style="font-weight:500">${esc(a.name)}</td><td><span class="${a.it?'badge badge-it':'badge badge-user'}">${a.it?'IT':'Personal'}</span></td><td id="su-why-${i}" class="su-why-cell"><button class="btn btn-secondary btn-sm" data-su-name="${esc(a.name)}" data-su-cmd="${esc(a.cmd||'')}" data-su-idx="${i}" onclick="_explainStartup(this)"><span class="en">Why?</span><span class="ja">説明</span></button></td><td class="td-path">${esc(a.cmd)}</td></tr>`).join('');}
+async function _explainStartup(btn){
+  if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.explain_startup) return;
+  const cell=btn.parentNode; const name=btn.dataset.suName; const cmd=btn.dataset.suCmd||'';
+  cell.innerHTML='<span style="font-size:11px;color:var(--fg3)"><span class="en">Checking…</span><span class="ja">確認中…</span></span>';
+  let r={}; try{ r=await window.pywebview.api.explain_startup(name,cmd); }catch(e){ r={ok:false}; }
+  if(!r||!r.ok||(!r.role&&r.verdict==='unknown')){
+    cell.innerHTML='<span style="font-size:11px;color:var(--fg3)"><span class="en">No info available</span><span class="ja">情報なし</span></span>';
+    return;
+  }
+  const vmap={
+    'keep':        {en:'Keep',          ja:'残す',       cls:'chip-success'},
+    'optional':    {en:'Optional',      ja:'任意',       cls:'chip-info'},
+    'safe-to-disable':{en:'Safe to disable', ja:'無効化OK', cls:'chip-warn'},
+    'unknown':     {en:'Unknown',       ja:'不明',       cls:'chip-muted'}
+  };
+  const v=vmap[r.verdict]||vmap.unknown;
+  cell.innerHTML='<div class="su-why-row"><span class="chip '+v.cls+'"><span class="en">'+v.en+'</span><span class="ja">'+v.ja+'</span></span>'
+    +'<span class="su-why-text">'+esc(r.role||'')+'</span></div>';
+}
 function filterStartup(q){const lq=q.toLowerCase();renderStartupTable(lq?allStartupApps.filter(a=>a.name.toLowerCase().includes(lq)||a.cmd.toLowerCase().includes(lq)):allStartupApps);}
 
 // ── Analysis panels ───────────────────────────────────────────────────────
@@ -2869,20 +3019,76 @@ function renderPrivacyAnalysis(r){
 // states and the raw throw halts the whole script.
 function _lsGet(k){ try{ return localStorage.getItem(k); }catch(_){ return null; } }
 function _lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(_){ } }
-function initTheme(){
-  const t=_lsGet('pcha_theme')||'dark';
+const _THEME_ORDER=['dark','light','supportassist'];
+const _THEME_ICON={dark:'☀️',light:'🌙',supportassist:'🖥️'};
+function _applyTheme(t){
+  if(!_THEME_ORDER.includes(t)) t='dark';
   document.documentElement.setAttribute('data-theme',t);
   const btn=document.getElementById('btn-theme');
-  if(btn) btn.textContent=t==='light'?'🌙':'☀️';
+  if(btn) btn.textContent=_THEME_ICON[t]||'☀️';
+  const sel=document.getElementById('sel-theme');
+  if(sel) sel.value=t;
+  if(t==='supportassist'){ try{ _renderSaDeviceHero(); }catch(_){ } }
+}
+function initTheme(){
+  _applyTheme(_lsGet('pcha_theme')||'dark');
 }
 function toggleTheme(){
   const cur=document.documentElement.getAttribute('data-theme')||'dark';
-  const next=cur==='dark'?'light':'dark';
-  document.documentElement.setAttribute('data-theme',next);
-  const btn=document.getElementById('btn-theme');
-  if(btn) btn.textContent=next==='light'?'🌙':'☀️';
+  const idx=_THEME_ORDER.indexOf(cur);
+  const next=_THEME_ORDER[(idx+1)%_THEME_ORDER.length];
+  _applyTheme(next);
   _lsSet('pcha_theme',next);
   if(window.pywebview) window.pywebview.api.save_settings({theme:next});
+}
+function setTheme(t){
+  _applyTheme(t);
+  _lsSet('pcha_theme',t);
+  if(window.pywebview) window.pywebview.api.save_settings({theme:t});
+}
+function _showAdvancedSettings(on){
+  const wrap=document.getElementById('set-advanced-wrap');
+  const btn=document.getElementById('btn-show-advanced');
+  if(!wrap) return;
+  wrap.style.display=on?'block':'none';
+  if(btn) btn.style.display=on?'none':'inline-flex';
+  _lsSet('pcha_set_advanced', on?'1':'0');
+  if(on){
+    const t=document.getElementById('set-sec-launcher');
+    const content=document.getElementById('set-content');
+    if(t && content) content.scrollTo({top:t.offsetTop-6,behavior:'smooth'});
+  }
+}
+function _restoreAdvancedSettings(){
+  const on=_lsGet('pcha_set_advanced')==='1';
+  if(on) _showAdvancedSettings(true);
+}
+async function _renderSaDeviceHero(){
+  const hero=document.getElementById('sa-device-hero'); if(!hero) return;
+  const nameEl=document.getElementById('sa-device-name');
+  const metaEl=document.getElementById('sa-device-meta');
+  const statusEl=document.getElementById('sa-device-status');
+  if(!window.pywebview||!window.pywebview.api) return;
+  try{
+    const hw=await window.pywebview.api.get_hardware_info();
+    const cpu=(hw&&hw.cpu)||{}; const ram=(hw&&hw.ram)||{}; const mach=(hw&&hw.machine)||{}; const os=(hw&&hw.os)||{};
+    const model=mach.model||mach.manufacturer||'PC';
+    const osName=os.caption||os.name||'';
+    const cpuName=(cpu.name||'').replace(/\(R\)|\(TM\)/g,'').trim();
+    const ramGb=ram.total_gb?ram.total_gb+' GB RAM':'';
+    if(nameEl){ nameEl.innerHTML='<span class="en">'+esc(model)+'</span><span class="ja">'+esc(model)+'</span>'; }
+    if(metaEl){ metaEl.textContent=[cpuName,ramGb,osName].filter(Boolean).join(' · '); }
+    const score=(window._lastScanData&&window._lastScanData.score)||null;
+    if(statusEl){
+      statusEl.classList.remove('warn','crit');
+      let lbl=['Healthy','良好'];
+      if(score!==null){
+        if(score<60){ statusEl.classList.add('crit'); lbl=['Needs attention','要対応']; }
+        else if(score<80){ statusEl.classList.add('warn'); lbl=['Minor issues','軽微な問題']; }
+      }
+      statusEl.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span class="en">'+esc(lbl[0])+'</span><span class="ja">'+esc(lbl[1])+'</span>';
+    }
+  }catch(_){ }
 }
 
 // ── Command palette ───────────────────────────────────────────────────────
@@ -2904,7 +3110,7 @@ const _CMD_ITEMS=[
   {label:'Run Quick Scan',icon:'⚡',action:()=>startScan(true)},
   {label:'Boost — Free Memory',icon:'🚀',action:()=>openBoost()},
   {label:'Why is my PC slow right now?',icon:'🩺',action:()=>openSlowTriage()},
-  {label:'Toggle Light/Dark Mode',icon:'🌙',action:()=>toggleTheme()},
+  {label:'Cycle theme (Dark → Light → SupportAssist)',icon:'🌙',action:()=>toggleTheme()},
   {label:'Show Keyboard Shortcuts',icon:'⌨',action:()=>openShortcuts()},
   {label:'Open Chat Popup',icon:'💬',action:()=>openChatPopup()},
 ];
@@ -3086,15 +3292,14 @@ async function _boostLoad(){
     +cands.map(c=>{
       const mb=c.mem_mb||0;
       const bar=Math.min(100,Math.round(mb/20));
-      const safe=(c.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
       return `<div class="card" style="padding:12px 14px;margin-bottom:8px" id="boost-row-${c.pid}">
         <div style="display:flex;align-items:center;gap:12px">
           <div style="flex:1;min-width:0">
-            <div style="font-weight:600;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name||'(unknown)'}</div>
+            <div style="font-weight:600;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name||'(unknown)')}</div>
             <div style="font-size:11px;color:var(--fg3);margin-top:2px">PID ${c.pid} · ${mb.toLocaleString()} MB</div>
             <div class="lv-bar" style="margin-top:6px"><div class="lv-bar-fill" style="width:${bar}%;background:#A78BFA"></div></div>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="_boostClose('${safe}',${c.pid})">
+          <button class="btn btn-secondary btn-sm" data-boost-name="${esc(c.name||'')}" data-boost-pid="${c.pid}" onclick="_boostClose(this.dataset.boostName,+this.dataset.boostPid)">
             <span class="en">Close</span><span class="ja">閉じる</span>
           </button>
         </div>
@@ -3108,7 +3313,7 @@ async function _boostClose(name,pid){
   try{ r=await window.pywebview.api.close_app(name); }
   catch(e){ r={ok:false,msg:String(e)}; }
   if(r&&r.ok){
-    if(row){ row.innerHTML='<div style="color:var(--brand);font-size:13px">✓ '+(r.msg||'Closed.')+'</div>'; }
+    if(row){ row.innerHTML='<div style="color:var(--brand);font-size:13px">✓ '+esc(r.msg||'Closed.')+'</div>'; }
   } else {
     if(row){
       row.style.opacity='1';
@@ -4954,7 +5159,9 @@ function renderDiskRing(ringId,pctId,freeId,barId,usedLId,freeLId,d,circ){
 }
 function setKpi(id,val,col,sub,chip,cls){const v=document.getElementById(id);v.textContent=val;v.style.color=col||'inherit';const s=document.getElementById(id+'-sub');if(s)s.textContent=sub||'';const c=document.getElementById(id+'-chip');if(c&&chip){c.textContent=chip;c.className='kpi-chip '+cls;}}
 function fmtMB(mb){return mb>=1024?(mb/1024).toFixed(1)+' GB':mb+' MB';}
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+/* _escAttrJS: safe for interpolation inside onclick="func('...')" — HTML entities break JS so we need a hex-escape per non-alnum char. */
+function _escAttrJS(s){ return String(s==null?'':s).replace(/[^\w]/g, c=>{ const n=c.charCodeAt(0); return n<256 ? '\\x'+n.toString(16).padStart(2,'0') : '\\u'+n.toString(16).padStart(4,'0'); }); }
 function animateBars(){document.querySelectorAll('.bar-fill[data-pct],.disk-seg-used[data-pct],.ram-gauge-fill[data-pct]').forEach(el=>{el.style.width=el.dataset.pct+'%';});}
 document.addEventListener('keydown',e=>{if(e.altKey){const map={'1':'overview','2':'storage','3':'monitor','4':'startup','5':'insights','6':'organize','7':'events','8':'troubleshoot','9':'assistant','0':'settings'};if(map[e.key]){e.preventDefault();showPage(map[e.key]);}}});
 // ── Insights ─────────────────────────────────────────────────────────────
@@ -5142,29 +5349,29 @@ async function orgLoadHistory(){
     const cat = sess.category||'';
     const color = CAT_COLORS[cat]||'#5A6478';
     const icon = CAT_ICONS[cat]||'📁';
-    const catFolder = _orgFolder.replace(/\\/g,'\\\\') + '\\\\' + cat;
+    const catFolder = _orgFolder + '\\' + cat;
     html += `
     <div class="card" style="margin-bottom:8px;overflow:hidden;border-left:3px solid ${color}">
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer" onclick="toggleEl('org-hist-${si}','org-hist-chev2-${si}')">
         <span style="font-size:16px">${icon}</span>
         <div style="flex:1">
-          <div style="font-size:12px;font-weight:600;color:var(--fg)">${cat}/</div>
-          <div style="font-size:10px;color:var(--fg3)">${ts} &middot; ${moves.length} ${lang==='ja'?'ファイル':'file'}${moves.length!==1?'s':''}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--fg)">${esc(cat)}/</div>
+          <div style="font-size:10px;color:var(--fg3)">${esc(ts)} &middot; ${moves.length} ${lang==='ja'?'ファイル':'file'}${moves.length!==1?'s':''}</div>
         </div>
-        <button class="btn btn-secondary btn-sm" style="font-size:10px;padding:3px 8px" onclick="event.stopPropagation();openPath('${catFolder}')" title="${lang==='ja'?'フォルダを開く':'Open folder'}">
+        <button class="btn btn-secondary btn-sm" style="font-size:10px;padding:3px 8px" data-open-path="${esc(catFolder)}" onclick="event.stopPropagation();openPath(this.dataset.openPath)" title="${lang==='ja'?'フォルダを開く':'Open folder'}">
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 4h6l2 2h6v8H1z"/></svg>
         </button>
         <svg id="org-hist-chev2-${si}" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="var(--fg3)" stroke-width="2" stroke-linecap="round" style="transition:transform .2s"><polyline points="4,6 8,10 12,6"/></svg>
       </div>
       <div id="org-hist-${si}" style="display:none;border-top:1px solid rgba(255,255,255,.06);padding:0 8px 8px">
         ${moves.map(m=>{
-          const fname = m.name||m.from.split('\\\\').pop()||m.from.split('/').pop()||'';
-          const toPath = m.to.replace(/\\\\/g,'\\\\\\\\');
+          const fname = m.name||m.from.split('\\').pop()||m.from.split('/').pop()||'';
+          const toPath = m.to||'';
           return `<div style="display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:6px;font-size:11px;margin-top:4px;background:rgba(255,255,255,.03)">
-            <span style="flex:1;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2)">${fname}</span>
+            <span style="flex:1;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2)">${esc(fname)}</span>
             <svg width="14" height="10" viewBox="0 0 20 10" fill="none"><path d="M1 5h16m0 0l-4-4m4 4l-4 4" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span style="font-size:10px;color:${color};font-weight:600;white-space:nowrap">${cat}/</span>
-            <button style="background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;color:var(--fg3)" onclick="openPath('${toPath}')" title="${lang==='ja'?'ファイルを開く':'Open file'}">
+            <span style="font-size:10px;color:${color};font-weight:600;white-space:nowrap">${esc(cat)}/</span>
+            <button style="background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;color:var(--fg3)" data-open-path="${esc(toPath)}" onclick="openPath(this.dataset.openPath)" title="${lang==='ja'?'ファイルを開く':'Open file'}">
               <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 3H3a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-2"/><polyline points="9,1 15,1 15,7"/><line x1="15" y1="1" x2="7" y2="9"/></svg>
             </button>
           </div>`;
@@ -6199,8 +6406,7 @@ function _renderSensitiveFiles(files){
   if(list){
     list.style.display='';
     list.innerHTML = files.map(function(f,i){
-      const safePath = f.path.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      return '<button class="fr-btn" onclick="openPath(\''+safePath+'\')" title="'+esc(f.path)+'">'
+      return '<button class="fr-btn" data-open-path="'+esc(f.path)+'" onclick="openPath(this.dataset.openPath)" title="'+esc(f.path)+'">'
         +'<span class="fr-icon">⚠️</span>'
         +'<span class="fr-info"><span class="fr-name">'+esc(f.name)+'</span>'
         +'<span class="fr-path">'+esc(f.path)+'</span>'
@@ -6221,15 +6427,14 @@ function handleChatResponse(r){
   } else if(r.type==='thinking'){
     appendChatMsg(r.content,'assistant','chat-thinking','async-thinking');
   } else if(r.type==='help'){
-    appendChatMsg(r.content.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>'),'assistant','','',true);
+    appendChatMsg(esc(r.content).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>'),'assistant','','',true);
   } else if(r.type==='file_results'){
     var html='<div class="fr-header">'+esc(r.content).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')+'</div>';
     html+='<div class="fr-list">';
     r.items.forEach(function(it,i){
       var icon=it.kind==='folder'?'📁':'📄';
-      var safePath=it.path.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       var meta=it.size_kb?(' · '+it.size_kb+' KB'):'';
-      html+='<button class="fr-btn" onclick="openPath(\''+safePath+'\')" title="'+esc(it.path)+'">'
+      html+='<button class="fr-btn" data-open-path="'+esc(it.path)+'" onclick="openPath(this.dataset.openPath)" title="'+esc(it.path)+'">'
            +'<span class="fr-icon">'+icon+'</span>'
            +'<span class="fr-info"><span class="fr-name">'+esc(it.name)+'</span>'
            +'<span class="fr-path">'+esc(it.path)+meta+'</span></span>'

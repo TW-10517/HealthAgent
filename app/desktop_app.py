@@ -2681,6 +2681,23 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
         data = self._load_disabled_startup()
         return {"items": [{"name": k, **v} for k, v in data.items()]}
 
+    def explain_startup(self, name: str, cmd: str = "") -> dict:
+        """One-line plain-English explanation + keep/optional/safe verdict.
+
+        Catalog hit returns immediately; otherwise falls back to the local
+        model (gated by `ai_enabled`). Narrate-only — never disables.
+        """
+        try:
+            from app import startup_explainer as _se
+        except Exception:
+            try:
+                import startup_explainer as _se  # type: ignore
+            except Exception:
+                return {"ok": False, "msg": "Explainer unavailable."}
+        narrate = (db.get_setting("ai_enabled") or "true").lower() != "false"
+        info = _se.explain(name or "", cmd or "", narrate=narrate)
+        return {"ok": True, **info}
+
     def create_restore_point(self, description: str = "Helix pre-maintenance") -> dict:
         """Request a Windows System Restore point. Requires System Protection
         enabled on C: and admin elevation; returns a readable error otherwise.
