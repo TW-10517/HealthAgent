@@ -2248,11 +2248,24 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
           <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="toggleAboutDetail()"><span class="en">Details</span><span class="ja">詳細</span></button>
           <button class="btn btn-secondary btn-sm" style="margin-top:8px;margin-left:6px" onclick="toggleActionLog()"><span class="en">Action log</span><span class="ja">操作ログ</span></button>
           <button class="btn btn-secondary btn-sm" style="margin-top:8px;margin-left:6px" onclick="openDriversModal()"><span class="en">Driver status</span><span class="ja">ドライバー状態</span></button>
+          <button class="btn btn-secondary btn-sm" style="margin-top:8px;margin-left:6px" onclick="openWeeklyLetter()"><span class="en">Weekly letter</span><span class="ja">週次レポート</span></button>
           <!-- Installer watchdog toggle (Feature 4) — opt-in, off by default -->
           <label class="inline-pref" style="margin-top:10px;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--fg2)" title="Narrates disk / RAM headroom via a Windows notification whenever an installer process is detected. Helix never cancels or hinders the installer.">
             <input type="checkbox" id="pref-installer-watch" style="width:14px;height:14px">
             <span class="en">Installer watchdog (narrate disk / RAM when an installer runs)</span>
             <span class="ja">インストーラー監視（インストーラー起動時にディスク・RAMを通知）</span>
+          </label>
+          <!-- Game narrator toggle (Feature 5) — opt-in, off by default -->
+          <label class="inline-pref" style="margin-top:6px;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--fg2)" title="When a known gaming executable launches, narrates current RAM pressure + the top memory hogs you could consider closing. Helix never closes anything on its own.">
+            <input type="checkbox" id="pref-game-narrator" style="width:14px;height:14px">
+            <span class="en">Game-launch narrator (summarise RAM + top hogs when a game starts)</span>
+            <span class="ja">ゲーム起動ナレーター（ゲーム起動時にRAM状況と上位プロセスを通知）</span>
+          </label>
+          <!-- Weekly letter toggle (Feature 6) — opt-in, off by default -->
+          <label class="inline-pref" style="margin-top:6px;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--fg2)" title="Fires at most once per week. Summarises score / disk / action-log / event-log deltas over the last 7 days. Narration-only.">
+            <input type="checkbox" id="pref-weekly-letter" style="width:14px;height:14px">
+            <span class="en">Weekly health letter (once-per-week narrative recap)</span>
+            <span class="ja">週次ヘルスレター（週1回の振り返り）</span>
           </label>
           <div id="action-log-wrap" style="display:none;margin-top:10px">
             <div class="table-wrap"><table class="data-table"><thead><tr>
@@ -2605,6 +2618,26 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
     <div style="padding:12px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-secondary btn-sm" onclick="_gamingLoad()"><span class="en">Refresh</span><span class="ja">更新</span></button>
       <button class="btn btn-secondary btn-sm" onclick="closeGamingMode()"><span class="en">Done</span><span class="ja">完了</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Weekly health letter modal (Feature 6 — narrate only) ──────────── -->
+<div id="weekly-modal" onclick="if(event.target===this)closeWeeklyLetter()"
+     style="position:fixed;inset:0;z-index:324;display:none;align-items:center;justify-content:center;background:rgba(5,9,18,.72);backdrop-filter:blur(6px);padding:24px">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);width:min(640px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="font-size:22px">📬</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--fg)"><span class="en">Weekly health letter</span><span class="ja">週次ヘルスレター</span></div>
+        <div style="font-size:12px;color:var(--fg3)" id="weekly-range"></div>
+      </div>
+      <button class="btn btn-ghost" style="width:30px;height:30px;padding:0;justify-content:center;border-radius:8px" onclick="closeWeeklyLetter()">✕</button>
+    </div>
+    <div id="weekly-body" style="overflow-y:auto;padding:14px 22px 22px"></div>
+    <div style="padding:12px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" onclick="_weeklyLoad(true)"><span class="en">Regenerate</span><span class="ja">再生成</span></button>
+      <button class="btn btn-secondary btn-sm" onclick="closeWeeklyLetter()"><span class="en">Done</span><span class="ja">完了</span></button>
     </div>
   </div>
 </div>
@@ -3661,6 +3694,58 @@ async function _gamingLoad(){
     + row('🔕', 'Notifications',  notDesc,                               notStatus,  notCta,  "closeGamingMode();showPage('settings')")
     + row('💾', 'Disk headroom',  dkDesc + (dk.warn?' — tight for a game patch.':''), dkStatus, null, null)
     + `<div style="font-size:11px;color:var(--fg4);margin-top:14px;line-height:1.6">${esc(r.note||'')}</div>`;
+}
+
+// ── Weekly health letter modal (Feature 6 — narrate only) ─────────────
+function openWeeklyLetter(){ document.getElementById('weekly-modal').style.display='flex'; _weeklyLoad(false); }
+function closeWeeklyLetter(){ document.getElementById('weekly-modal').style.display='none'; }
+async function _weeklyLoad(force){
+  const body=document.getElementById('weekly-body');
+  const range=document.getElementById('weekly-range');
+  body.innerHTML='<div style="padding:30px;text-align:center;color:var(--fg3)"><span class="en">Preparing your weekly letter…</span><span class="ja">週次レポートを準備中…</span></div>';
+  range.textContent='';
+  if(!window.pywebview) return;
+  let r; try{ r=await window.pywebview.api.get_weekly_letter(!!force, true); }
+  catch(e){ body.innerHTML='<div style="color:var(--error);padding:14px">'+esc(String(e))+'</div>'; return; }
+  if(!r||!r.available){
+    body.innerHTML='<div style="padding:30px;text-align:center;color:var(--fg2)">'
+      +'<div style="font-size:36px;margin-bottom:10px">⏳</div>'
+      +'<div style="font-weight:600;margin-bottom:4px"><span class="en">Not yet.</span><span class="ja">まだ出せません。</span></div>'
+      +'<div style="font-size:12px;color:var(--fg3)">'+esc(r&&r.reason||'No letter available this week.')+'</div></div>';
+    return;
+  }
+  if(r.week_start && r.week_end){
+    range.textContent = `${r.week_start} → ${r.week_end}`;
+  }
+  const stat = (label, value, unit, color) => `<div style="flex:1;min-width:120px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+    <div style="font-size:10px;color:var(--fg3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">${esc(label)}</div>
+    <div style="font-size:18px;font-weight:700;color:${color||'var(--fg)'}">${esc(String(value))}<span style="font-size:11px;color:var(--fg3);margin-left:3px;font-weight:400">${esc(unit||'')}</span></div>
+  </div>`;
+  const sdc = r.score_delta==null ? 'var(--fg)' : (r.score_delta>=0 ? 'var(--brand)' : 'var(--error)');
+  const ddc = r.disk_delta_gb==null ? 'var(--fg)' : (r.disk_delta_gb>=0 ? 'var(--brand)' : 'var(--warn)');
+  let html = '';
+  if(r.narrated){
+    html += `<div style="padding:12px 14px;background:linear-gradient(135deg,rgba(45,212,176,0.08),rgba(45,212,176,0.02));border:1px solid var(--brand-border);border-radius:10px;font-size:13px;color:var(--fg);line-height:1.55;margin-bottom:14px">${esc(r.narrated)}</div>`;
+  }
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">'
+       + stat('Score Δ', (r.score_delta!=null?(r.score_delta>=0?'+':'')+r.score_delta:'—'), '', sdc)
+       + stat('Disk Δ', (r.disk_delta_gb!=null?(r.disk_delta_gb>=0?'+':'')+r.disk_delta_gb.toFixed(1):'—'), 'GB', ddc)
+       + stat('Scans', r.scans_done, '')
+       + stat('Actions', r.actions_count, '')
+       + stat('Crits', r.events_crits, '', r.events_crits>0?'var(--error)':'var(--fg)')
+       + stat('Errors', r.events_errors, '', r.events_errors>0?'var(--warn)':'var(--fg)')
+       + '</div>';
+  if(r.highlights&&r.highlights.length){
+    html += '<ul style="margin:0;padding-left:18px;color:var(--fg2);font-size:12.5px;line-height:1.7">'
+         + r.highlights.map(h=>'<li>'+esc(h)+'</li>').join('')
+         + '</ul>';
+  }
+  if(r.top_sources&&r.top_sources.length){
+    html += '<div style="margin-top:12px;font-size:11px;color:var(--fg3)"><span class="en">Top event sources:</span><span class="ja">主なイベント発生元：</span> '
+         + r.top_sources.map(s=>'<span style="background:var(--surface2);padding:2px 8px;border-radius:999px;margin:0 4px 4px 0;display:inline-block">'+esc(s)+'</span>').join('')
+         + '</div>';
+  }
+  body.innerHTML = html;
 }
 
 // ── Driver status modal (Feature 2 — narrate only) ────────────────────
@@ -7035,6 +7120,8 @@ function toast(msg,opts){
     _bindInlinePref('pref-health-watch','health_watch_enabled');
     _bindInlinePref('pref-schedule-enabled','schedule_enabled');
     _bindInlinePref('pref-installer-watch','installer_watch_enabled');
+    _bindInlinePref('pref-game-narrator','game_narrator_enabled');
+    _bindInlinePref('pref-weekly-letter','weekly_letter_enabled');
   };
   if(document.readyState==='complete'||document.readyState==='interactive') wire();
   else document.addEventListener('DOMContentLoaded',wire,{once:true});

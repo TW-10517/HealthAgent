@@ -183,6 +183,7 @@ class AgentAPI:
         self._window = w
         self._start_health_watch()
         self._start_installer_watch()
+        self._start_game_narrator_watch()
         self._battery_popup_pending = None   # set by watcher, cleared by acknowledge_battery_popup
         self._battery_last_popup_pct = None  # suppresses repeat popups on same discharge cycle
         self._start_battery_coach_watch()
@@ -531,6 +532,106 @@ class AgentAPI:
                     pass
         threading.Thread(target=_watch, daemon=True).start()
 
+    # ── Game-launch narrator (Feature 5 — roadmap #6) ────────────────────────
+    # Opt-in. When a known gaming executable starts, fires ONE notification
+    # per process-lifetime summarising current RAM pressure + the top memory
+    # hogs the user could consider closing. Narration only — Helix never
+    # closes anything, never changes power plans, never touches the game.
+    _GAME_EXES = frozenset([
+        # FPS / shooter
+        "valorant.exe","valorant-win64-shipping.exe","valorantclient-win64-shipping.exe",
+        "csgo.exe","cs2.exe","r5apex.exe","r5apex_dx12.exe","overwatch.exe",
+        "cod.exe","modernwarfare.exe","warzone.exe","fortniteclient-win64-shipping.exe",
+        "fortniteclient-win64-shipping_eac.exe","pubg.exe","tslgame.exe",
+        # MMO / RPG / Souls
+        "ffxiv_dx11.exe","ffxiv.exe","ff16.exe","ff7rebirth.exe",
+        "dragonquestx.exe","dragonquestxi.exe","nier_automata.exe",
+        "eldenring.exe","armoredcore6.exe","darksoulsiii.exe","sekiro.exe",
+        "thewitcher3.exe","cyberpunk2077.exe","nier_replicant.exe",
+        # Capcom / Sega / Atlus
+        "monsterhunterrise.exe","monsterhunterworld.exe","mhwilds.exe",
+        "re4.exe","re8.exe","dmc5.exe","dmcv.exe","dd2.exe","sf6.exe",
+        "yakuza0.exe","yakuza_lad.exe","yakuza8.exe","likeadragon.exe",
+        "p5r.exe","p3r.exe","persona3reload.exe","metaphor.exe",
+        # Namco / From / Cygames / Kuro / HoYo / Shift Up / Koei
+        "tekken8.exe","blueprotocol.exe","gbfr.exe","relink.exe",
+        "wutheringwaves.exe","client-win64-shipping.exe",
+        "genshinimpact.exe","yuanshen.exe","starrail.exe","hkrpg.exe",
+        "zenlesszonezero.exe","zzz.exe","nikke.exe","goddess of victory.exe",
+        "atelierryza3.exe","pso2.exe","pso2ngs.exe","ngs.exe",
+        # Launchers (treated as game-ish for narration)
+        "steam.exe","galaxyclient.exe","leagueclient.exe","leagueclientux.exe",
+        "epicgameslauncher.exe","battle.net.exe","riotclientservices.exe",
+        # Minecraft / sandbox / sim
+        "minecraft.exe","minecraft.windows.exe","javaw.exe",   # java noise is a false-positive risk; see filter below
+        "factorio.exe","terraria.exe","stardewvalley.exe",
+        # Blizzard / Riot / EA / Ubisoft tails
+        "wow.exe","diablo iv.exe","diablo4.exe","hearthstone.exe",
+        "league of legends.exe","fifa24.exe","madden25.exe",
+    ])
+    # These are too noisy / too common to narrate on alone — skip even if the
+    # name is in _GAME_EXES. Minecraft is Java; Steam launches constantly.
+    _GAME_EXE_SKIP = frozenset(["javaw.exe", "steam.exe"])
+
+    def _start_game_narrator_watch(self):
+        def _watch():
+            import time as _time, psutil
+            seen = {}
+            _time.sleep(50)
+            while True:
+                _time.sleep(6)
+                try:
+                    settings = db.get_all_settings()
+                    if settings.get("game_narrator_enabled") != "true":
+                        seen.clear()
+                        continue
+                    live = {p.pid for p in psutil.process_iter()}
+                    for pid in list(seen):
+                        if pid not in live:
+                            seen.pop(pid, None)
+                    for p in psutil.process_iter(attrs=["pid", "name", "create_time"]):
+                        try:
+                            info = p.info
+                            pid = info["pid"]
+                            if pid in seen:
+                                continue
+                            name = (info.get("name") or "").lower()
+                            if name not in self._GAME_EXES or name in self._GAME_EXE_SKIP:
+                                continue
+                            if _time.time() - (info.get("create_time") or 0) > 15:
+                                continue
+                            seen[pid] = _time.time()
+                            # Snapshot RAM headroom + top memory hogs the user
+                            # could consider closing. Narrate — never close.
+                            ram = psutil.virtual_memory()
+                            ram_pct = ram.percent
+                            avail_gb = ram.available / (1024 ** 3)
+                            boost = self.boost_preview()
+                            hogs = (boost.get("candidates") or [])[:3]
+                            hog_str = ", ".join(f"{h['name']} ({h['mem_mb']} MB)" for h in hogs)
+                            parts = [f"Detected: {info.get('name','game')}",
+                                     f"RAM {ram_pct:.0f}% ({avail_gb:.1f} GB free)"]
+                            if hog_str:
+                                parts.append(f"Top hogs: {hog_str}")
+                            msg = " · ".join(parts)
+                            try:
+                                import focus_detect as _fd
+                                if _fd.is_fullscreen_foreground():
+                                    continue   # don't interrupt a fullscreen game
+                            except Exception:
+                                pass
+                            _show_notification("PC Health — Game launched", msg)
+                            try:
+                                db.log_action("game_narrator", "detected",
+                                              info.get("name") or "?", "notified", msg)
+                            except Exception:
+                                pass
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            continue
+                except Exception:
+                    pass
+        threading.Thread(target=_watch, daemon=True).start()
+
     # ── Scan ─────────────────────────────────────────────────────────────────
     def start_scan(self, no_dupes=False):
         if self._scanning:
@@ -755,6 +856,19 @@ class AgentAPI:
         _br.mark_shown()
         return {"ok": True}
 
+    # ── Weekly health letter (Feature 6 — roadmap #9) ───────────────────────
+    def get_weekly_letter(self, force: bool = False, narrate: bool = True) -> dict:
+        import weekly_letter as _wl
+        if force:
+            # Clear the gate to force a fresh generation
+            db.set_setting("weekly_letter_last", "")
+        return _wl.generate_letter(narrate=narrate)
+
+    def dismiss_weekly_letter(self) -> dict:
+        import weekly_letter as _wl
+        _wl.mark_shown()
+        return {"ok": True}
+
     # ── Triage bridge (Feature #7) ──
     def triage_error(self, text: str, narrate: bool = True):
         import error_triage as _et
@@ -893,7 +1007,8 @@ class AgentAPI:
                     "schedule_actions","schedule_last_run",
                     "battery_coach_enabled","battery_coach_threshold",
                     "app_narrator_enabled","app_narrator_heavy_mb",
-                    "installer_watch_enabled"}
+                    "installer_watch_enabled","game_narrator_enabled",
+                    "weekly_letter_enabled","weekly_letter_last"}
         filtered = {k: v for k, v in settings.items() if k in allowed}
         db.set_settings(filtered)
         # Keep the floating launcher's center-tile palette in sync with the
