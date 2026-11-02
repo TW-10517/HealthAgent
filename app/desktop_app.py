@@ -182,6 +182,7 @@ class AgentAPI:
     def set_window(self, w):
         self._window = w
         self._start_health_watch()
+        self._start_installer_watch()
         self._battery_popup_pending = None   # set by watcher, cleared by acknowledge_battery_popup
         self._battery_last_popup_pct = None  # suppresses repeat popups on same discharge cycle
         self._start_battery_coach_watch()
@@ -441,6 +442,91 @@ class AgentAPI:
                         _show_notification(
                             "PC Health — High Memory Usage",
                             f"RAM at {ram_pct:.0f}% — close unused apps to free memory.")
+                except Exception:
+                    pass
+        threading.Thread(target=_watch, daemon=True).start()
+
+    # ── Installer watchdog (Feature 4) ───────────────────────────────────────
+    # Polls psutil for installer-like processes while opt-in.
+    # When one appears, fires a single notification narrating disk / RAM
+    # headroom so the user sees the warning BEFORE the installer prompts.
+    # Never cancels or hinders the installer — Helix only narrates.
+    _INSTALLER_HINTS = (
+        "setup.exe", "install.exe", "installer.exe", "msiexec.exe",
+        "wixinstall", "nsis", "innosetup", "squirrel",
+    )
+    _INSTALLER_NAME_FRAGMENTS = ("setup", "install", "wizard")
+
+    def _looks_like_installer(self, name: str, cmdline: list) -> bool:
+        n = (name or "").lower()
+        if n in self._INSTALLER_HINTS:
+            return True
+        if n in {"python.exe", "pythonw.exe", "helix.exe", "msedge.exe",
+                 "chrome.exe", "firefox.exe", "code.exe"}:
+            return False
+        if any(f in n for f in self._INSTALLER_NAME_FRAGMENTS):
+            return True
+        if cmdline:
+            joined = " ".join(cmdline).lower()
+            if ".msi" in joined and "msiexec" in joined:
+                return True
+        return False
+
+    def _start_installer_watch(self):
+        def _watch():
+            import time as _time, psutil
+            seen = {}   # pid -> last-notification-ts
+            _time.sleep(45)   # let the app settle before poll
+            while True:
+                _time.sleep(5)
+                try:
+                    settings = db.get_all_settings()
+                    if settings.get("installer_watch_enabled") != "true":
+                        seen.clear()
+                        continue
+                    # Reap dead pids from seen
+                    live = {p.pid for p in psutil.process_iter()}
+                    for pid in list(seen):
+                        if pid not in live:
+                            seen.pop(pid, None)
+                    for p in psutil.process_iter(attrs=["pid", "name", "cmdline", "create_time"]):
+                        try:
+                            info = p.info
+                            pid = info["pid"]
+                            if pid in seen:
+                                continue
+                            if not self._looks_like_installer(info.get("name"),
+                                                              info.get("cmdline") or []):
+                                continue
+                            # Only alert for FRESH launches (< 10s old)
+                            if _time.time() - (info.get("create_time") or 0) > 10:
+                                continue
+                            seen[pid] = _time.time()
+                            disk = psutil.disk_usage("C:\\")
+                            disk_gb = disk.free / (1024 ** 3)
+                            ram_pct = psutil.virtual_memory().percent
+                            parts = [f"Detected: {info.get('name','installer')}"]
+                            if disk_gb < 10:
+                                parts.append(f"only {disk_gb:.1f} GB free on C:")
+                            elif disk_gb < 25:
+                                parts.append(f"{disk_gb:.1f} GB free on C:")
+                            if ram_pct > 85:
+                                parts.append(f"RAM at {ram_pct:.0f}%")
+                            msg = " · ".join(parts)
+                            try:
+                                import focus_detect as _fd
+                                if _fd.is_fullscreen_foreground():
+                                    continue
+                            except Exception:
+                                pass
+                            _show_notification("PC Health — Installer running", msg)
+                            try:
+                                db.log_action("installer_watch", "detected",
+                                              info.get("name") or "?", "notified", msg)
+                            except Exception:
+                                pass
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            continue
                 except Exception:
                     pass
         threading.Thread(target=_watch, daemon=True).start()
@@ -806,7 +892,8 @@ class AgentAPI:
                     "onboarded_mode","schedule_enabled","schedule_cadence",
                     "schedule_actions","schedule_last_run",
                     "battery_coach_enabled","battery_coach_threshold",
-                    "app_narrator_enabled","app_narrator_heavy_mb"}
+                    "app_narrator_enabled","app_narrator_heavy_mb",
+                    "installer_watch_enabled"}
         filtered = {k: v for k, v in settings.items() if k in allowed}
         db.set_settings(filtered)
         # Keep the floating launcher's center-tile palette in sync with the
@@ -1351,12 +1438,180 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
                     "model":    sys_.get("Model", "").strip(),
                     "domain":   sys_.get("Domain", ""),
                     "bios_mfr": bios.get("Manufacturer", "").strip(),
+                    "serial":   (bios.get("SerialNumber", "") or "").strip(),
                 },
             }
             self._hw_cache = result
             return result
         except Exception as e:
             return {"error": str(e)}
+
+    # ── Chassis detection + vendor-utility hint (Feature 3) ──────────────────
+    # Maps common OEM `Manufacturer` values to the vendor's own utility and
+    # support URL so the Overview page can surface a context-aware chip
+    # ("Running on GALLERIA — Dospara support"). Narration only.
+    _VENDOR_MAP = {
+        "thirdwave":    ("GALLERIA / raytrek", "Control Center",   "https://www.dospara.co.jp/support"),
+        "dell":         ("Dell",               "SupportAssist",    "https://www.dell.com/support"),
+        "hp":           ("HP",                 "Omen Gaming Hub / Support Assistant",
+                                                                   "https://support.hp.com"),
+        "hewlett":      ("HP",                 "Omen Gaming Hub / Support Assistant",
+                                                                   "https://support.hp.com"),
+        "lenovo":       ("Lenovo",             "Vantage",          "https://support.lenovo.com"),
+        "asus":         ("ASUS",               "Armoury Crate",    "https://www.asus.com/support"),
+        "asustek":      ("ASUS",               "Armoury Crate",    "https://www.asus.com/support"),
+        "micro-star":   ("MSI",                "MSI Center",       "https://www.msi.com/support"),
+        "msi":          ("MSI",                "MSI Center",       "https://www.msi.com/support"),
+        "acer":         ("Acer",               "Care Center",      "https://www.acer.com/support"),
+        "gigabyte":     ("Gigabyte",           "Control Center",   "https://www.gigabyte.com/Support"),
+        "razer":        ("Razer",              "Synapse",          "https://support.razer.com"),
+        "microsoft":    ("Microsoft Surface",  "Surface app",      "https://support.microsoft.com/surface"),
+        "framework":    ("Framework",          "—",                "https://knowledgebase.frame.work"),
+        "panasonic":    ("Panasonic Let's note","—",               "https://askpc.panasonic.co.jp"),
+        "nec":          ("NEC",                "LAVIE アプリナビ",  "https://support.nec-lavie.jp"),
+        "fujitsu":      ("Fujitsu FMV",        "FMV Suppport Navi","https://azby.fmworld.net/support"),
+    }
+
+    def get_chassis_info(self) -> dict:
+        """Identify the chassis vendor and surface the correct support entry.
+        Reads from the cached hardware snapshot — triggers a WMI pull if cold.
+        Narration only: never actuates or installs anything.
+        """
+        hw = self.get_hardware_info() or {}
+        m = (hw.get("machine") or {})
+        maker = (m.get("maker") or "").strip()
+        model = (m.get("model") or "").strip()
+        bios_mfr = (m.get("bios_mfr") or "").strip()
+        serial = (m.get("serial") or "").strip()
+        key = (maker or bios_mfr).lower()
+        vendor_name = ""
+        vendor_utility = ""
+        support_url = ""
+        for frag, (vn, vu, su) in self._VENDOR_MAP.items():
+            if frag in key:
+                vendor_name, vendor_utility, support_url = vn, vu, su
+                break
+        family = ""
+        model_l = model.lower()
+        maker_l = (maker or bios_mfr).lower()
+        if "galleria" in model_l:
+            family = "GALLERIA"
+        elif "raytrek" in model_l or model_l.startswith(("dx-", "r5", "a-t")):
+            family = "raytrek"
+        elif "thirdwave" in maker_l:
+            # Thirdwave chassis with an unrecognized model code — most
+            # commonly a current-generation GALLERIA or raytrek SKU whose
+            # internal name hasn't been added to the pattern list yet.
+            family = "Thirdwave"
+        elif "thinkpad" in model_l:
+            family = "ThinkPad"
+        elif "latitude" in model_l:
+            family = "Latitude"
+        elif "surface" in model_l:
+            family = "Surface"
+        return {
+            "ok": True,
+            "maker": maker,
+            "model": model,
+            "family": family,
+            "serial": serial,
+            "vendor_name": vendor_name or maker or "Generic PC",
+            "vendor_utility": vendor_utility,
+            "support_url": support_url,
+            "note": "Narration only — Helix never installs vendor software for you.",
+        }
+
+    # ── Driver outdated scanner (Feature 2) ──────────────────────────────────
+    _DRIVER_WATCH_VENDORS = (
+        "nvidia", "intel", "amd", "advanced micro", "realtek", "qualcomm",
+        "mediatek", "broadcom", "killer", "ryzen",
+    )
+
+    def scan_drivers(self, stale_days: int = 365) -> dict:
+        """Enumerate installed drivers and flag ones that look stale.
+        Pure listing — Helix never installs or updates a driver.
+        """
+        import json as _json
+        from datetime import datetime as _dt
+        try:
+            stale_days = int(stale_days or 365)
+        except Exception:
+            stale_days = 365
+        ps = r"""
+$ErrorActionPreference='SilentlyContinue'
+Get-CimInstance Win32_PnPSignedDriver |
+    Where-Object { $_.DriverVersion -and $_.DeviceName -and $_.Manufacturer -ne 'Microsoft' } |
+    Select-Object DeviceName,Manufacturer,DriverVersion,DriverDate,DeviceClass |
+    ConvertTo-Json -Depth 3
+"""
+        try:
+            r = run_hidden.run(
+                ["powershell", "-WindowStyle", "Hidden", "-NoProfile", "-Command", ps],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=25,
+            )
+            raw = _json.loads(r.stdout or "[]")
+            if isinstance(raw, dict):
+                raw = [raw]
+        except Exception as e:
+            return {"ok": False, "drivers": [], "total": 0, "aging": 0, "stale": 0,
+                    "error": str(e)}
+        now = _dt.now()
+        out = []
+        seen = set()
+        aging = stale = 0
+        for d in raw:
+            name = (d.get("DeviceName") or "").strip()
+            vendor = (d.get("Manufacturer") or "").strip()
+            ver = (d.get("DriverVersion") or "").strip()
+            dev_class = (d.get("DeviceClass") or "").strip()
+            dkey = f"{name}|{vendor}|{ver}"
+            if not name or dkey in seen:
+                continue
+            seen.add(dkey)
+            age_days = None
+            date_raw = d.get("DriverDate") or ""
+            try:
+                import re as _re
+                m2 = _re.search(r"(\d{14}|\d{4}-\d{2}-\d{2}|/Date\((\d+)\))", str(date_raw))
+                if m2:
+                    g = m2.group(0)
+                    if g.startswith("/Date("):
+                        ms = int(_re.search(r"\d+", g).group(0))
+                        dt = _dt.fromtimestamp(ms / 1000.0)
+                    elif len(g) == 14:
+                        dt = _dt.strptime(g, "%Y%m%d%H%M%S")
+                    else:
+                        dt = _dt.strptime(g, "%Y-%m-%d")
+                    age_days = (now - dt).days
+            except Exception:
+                age_days = None
+            watched = any(v in vendor.lower() or v in name.lower()
+                          for v in self._DRIVER_WATCH_VENDORS)
+            status = "ok"
+            if age_days is None:
+                status = "unknown"
+            elif age_days >= stale_days * 2:
+                status = "stale"; stale += 1
+            elif age_days >= stale_days:
+                status = "aging"; aging += 1
+            if not watched and status in ("ok", "unknown"):
+                continue   # trim boring Microsoft-adjacent entries from the list
+            out.append({
+                "name": name[:80],
+                "vendor": vendor[:60],
+                "version": ver[:40],
+                "device_class": dev_class[:40],
+                "age_days": age_days,
+                "status": status,
+                "watched": watched,
+            })
+        out.sort(key=lambda x: (
+            {"stale":0,"aging":1,"unknown":2,"ok":3}.get(x["status"], 4),
+            -(x["age_days"] or 0),
+        ))
+        return {"ok": True, "drivers": out[:60], "total": len(seen),
+                "aging": aging, "stale": stale,
+                "note": "Narration only — Helix never installs or updates drivers."}
 
     # ── Cleanup ──────────────────────────────────────────────────────────────
     def quick_temp_scan(self) -> dict:
@@ -2678,6 +2933,84 @@ Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Diagnostics-Performan
         candidates.sort(key=lambda x: x["mem_mb"], reverse=True)
         return {"ok": True, "candidates": candidates[:10],
                 "note": "Boost never closes anything automatically — review the list first."}
+
+    # ── Gaming Mode preview (Feature 1) ──────────────────────────────────────
+    # Pure recommendation surface. Describes what the user could do to free up
+    # resources for a game or heavy workload; never flips power plans, never
+    # closes apps, never silences notifications on its own. The three sections
+    # link back to existing surfaces (Performance → Power plans, Overview →
+    # Boost, Settings → Health watch).
+    def get_gaming_mode_preview(self) -> dict:
+        try:
+            plans = self.get_power_plans()
+            boost = self.boost_preview()
+            settings = self.get_settings() or {}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        current_plan_name = ""
+        high_perf_guid = ""
+        for p in (plans.get("plans") or []):
+            if p.get("active"):
+                current_plan_name = p.get("name", "")
+            nm = (p.get("name") or "").lower()
+            if "high performance" in nm or "ultimate" in nm or "高パフォーマンス" in nm:
+                high_perf_guid = p.get("guid", "")
+        plan_suggest = ""
+        if high_perf_guid and "high performance" not in current_plan_name.lower() \
+                           and "ultimate" not in current_plan_name.lower() \
+                           and "高パフォーマンス" not in current_plan_name:
+            plan_suggest = "Switch to High Performance for the session"
+        candidates = boost.get("candidates", [])
+        total_mb = sum(c.get("mem_mb", 0) for c in candidates)
+        hw_notif = (settings.get("show_notifications") == "true")
+        hw_watch = (settings.get("health_watch_enabled") == "true")
+        notif_suggest = ""
+        if hw_notif or hw_watch:
+            notif_suggest = "Silence health-watch + scan toasts for 2 hours"
+        try:
+            import shutil as _sh
+            du = _sh.disk_usage("C:\\")
+            free_gb = du.free / (1024 ** 3)
+        except Exception:
+            free_gb = 0.0
+        summary_lines = []
+        if plan_suggest: summary_lines.append(f"- {plan_suggest} (Performance → Power plans)")
+        if candidates:
+            summary_lines.append(
+                f"- {len(candidates)} background apps are using ~{total_mb} MB — "
+                f"review in Boost (Overview → Boost)"
+            )
+        if notif_suggest: summary_lines.append(f"- {notif_suggest} (Settings → Health watch)")
+        if free_gb and free_gb < 20:
+            summary_lines.append(
+                f"- Only {free_gb:.1f} GB free on C: — a game patch may fail to install"
+            )
+        if not summary_lines:
+            summary_lines.append("- Nothing to tune — the system looks ready to game.")
+        return {
+            "ok": True,
+            "power_plan": {
+                "current": current_plan_name,
+                "recommended_guid": high_perf_guid,
+                "suggest": plan_suggest,
+            },
+            "memory_hogs": {
+                "count": len(candidates),
+                "total_mb": total_mb,
+                "candidates": candidates[:6],
+            },
+            "notifications": {
+                "show_notifications": hw_notif,
+                "health_watch": hw_watch,
+                "suggest": notif_suggest,
+            },
+            "disk": {
+                "free_gb": round(free_gb, 1),
+                "warn": free_gb < 20,
+            },
+            "summary": "\n".join(summary_lines),
+            "note": "Narration only — review each suggestion and apply from its own page.",
+        }
 
     # ── Startup entries: disable / re-enable with undo ───────────────────────
     _STARTUP_HIVES = {

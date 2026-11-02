@@ -1312,6 +1312,17 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
           <span class="en">Healthy</span><span class="ja">良好</span>
         </div>
       </div>
+      <!-- Chassis chip: narrates which OEM chassis is running + a deep link
+           to the vendor's own utility. Populated by _loadChassisChip() on
+           overview show. Hidden on generic / unknown hardware. -->
+      <div id="chassis-chip" style="display:none;max-width:720px;margin:0 auto 10px;background:transparent;border:1px solid var(--border);border-radius:999px;padding:6px 14px">
+        <div style="display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--fg3)">
+          <span style="font-size:13px">🖥️</span>
+          <span id="chassis-chip-text" style="flex:1;color:var(--fg2)"></span>
+          <a id="chassis-chip-link" href="#" target="_blank" rel="noopener"
+             style="background:transparent;border:1px solid var(--border);color:var(--brand);padding:3px 10px;border-radius:999px;font-size:11px;text-decoration:none;display:none"><span class="en">Vendor support</span><span class="ja">メーカーサポート</span></a>
+        </div>
+      </div>
       <!-- Today card: shows the once-daily briefing above both idle-state and
            scan-results so users see the overnight narrative regardless of
            whether they've scanned yet. loadBriefing() fires on overview show. -->
@@ -1351,6 +1362,9 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
             <button id="btn-battery-coach" class="btn btn-secondary" onclick="openBatteryCoach()" style="display:none"
               data-tip="Reads your current battery state and the biggest power-draw processes, then gives a short coaching tip."
               data-tip-ja="現在のバッテリー状態と電力を最も消費しているプロセスを確認し、短い助言を表示します。">🔋 <span class="en">Battery coach</span><span class="ja">バッテリーコーチ</span></button>
+            <button class="btn btn-secondary" onclick="openGamingMode()"
+              data-tip="One-glance summary of what you could tune before a game — power plan, memory hogs, notifications, disk headroom. Helix only recommends; you choose."
+              data-tip-ja="ゲーム前に見直せる項目を一覧表示します。電源プラン・メモリ使用・通知・ディスク残量。Helixは提案のみ、適用は手動です。">🎮 <span class="en">Gaming mode</span><span class="ja">ゲーミングモード</span></button>
           </div>
           <div style="display:flex;gap:12px;margin-top:12px;width:100%;max-width:580px">
             <div style="flex:1;padding:12px 14px;background:var(--brand-dim);border:1px solid var(--brand-border);border-radius:var(--r-lg)">
@@ -2233,6 +2247,13 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
           </div>
           <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="toggleAboutDetail()"><span class="en">Details</span><span class="ja">詳細</span></button>
           <button class="btn btn-secondary btn-sm" style="margin-top:8px;margin-left:6px" onclick="toggleActionLog()"><span class="en">Action log</span><span class="ja">操作ログ</span></button>
+          <button class="btn btn-secondary btn-sm" style="margin-top:8px;margin-left:6px" onclick="openDriversModal()"><span class="en">Driver status</span><span class="ja">ドライバー状態</span></button>
+          <!-- Installer watchdog toggle (Feature 4) — opt-in, off by default -->
+          <label class="inline-pref" style="margin-top:10px;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--fg2)" title="Narrates disk / RAM headroom via a Windows notification whenever an installer process is detected. Helix never cancels or hinders the installer.">
+            <input type="checkbox" id="pref-installer-watch" style="width:14px;height:14px">
+            <span class="en">Installer watchdog (narrate disk / RAM when an installer runs)</span>
+            <span class="ja">インストーラー監視（インストーラー起動時にディスク・RAMを通知）</span>
+          </label>
           <div id="action-log-wrap" style="display:none;margin-top:10px">
             <div class="table-wrap"><table class="data-table"><thead><tr>
               <th style="width:150px"><span class="en">When</span><span class="ja">日時</span></th>
@@ -2568,6 +2589,46 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
   </div>
 </div>
 
+<!-- ── Gaming mode modal (Feature 1 — narrate only) ───────────────────── -->
+<div id="gaming-modal" onclick="if(event.target===this)closeGamingMode()"
+     style="position:fixed;inset:0;z-index:322;display:none;align-items:center;justify-content:center;background:rgba(5,9,18,.72);backdrop-filter:blur(6px);padding:24px">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);width:min(640px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="font-size:22px">🎮</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--fg)"><span class="en">Gaming mode — pre-flight check</span><span class="ja">ゲーミングモード — 事前チェック</span></div>
+        <div style="font-size:12px;color:var(--fg3)"><span class="en">Four things you could tune before launching a game. Each row links to the page that applies it — Helix never flips settings on its own.</span><span class="ja">ゲーム起動前に見直せる4項目。各項目から該当ページに移動して手動で変更します。Helixは自動で設定を変更しません。</span></div>
+      </div>
+      <button class="btn btn-ghost" style="width:30px;height:30px;padding:0;justify-content:center;border-radius:8px" onclick="closeGamingMode()">✕</button>
+    </div>
+    <div id="gaming-body" style="overflow-y:auto;padding:14px 22px 22px"></div>
+    <div style="padding:12px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" onclick="_gamingLoad()"><span class="en">Refresh</span><span class="ja">更新</span></button>
+      <button class="btn btn-secondary btn-sm" onclick="closeGamingMode()"><span class="en">Done</span><span class="ja">完了</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Driver status modal (Feature 2 — narrate only) ─────────────────── -->
+<div id="drivers-modal" onclick="if(event.target===this)closeDriversModal()"
+     style="position:fixed;inset:0;z-index:323;display:none;align-items:center;justify-content:center;background:rgba(5,9,18,.72);backdrop-filter:blur(6px);padding:24px">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);width:min(760px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="font-size:22px">🧩</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--fg)"><span class="en">Driver status</span><span class="ja">ドライバーの状態</span></div>
+        <div style="font-size:12px;color:var(--fg3)"><span class="en">Installed drivers from NVIDIA / Intel / AMD / Realtek and any entries older than a year. Helix never installs or updates drivers — this is a status view only.</span><span class="ja">NVIDIA・Intel・AMD・Realtekおよび1年以上更新されていないドライバーの一覧。Helixはドライバーのインストール・更新を行いません。確認のみです。</span></div>
+      </div>
+      <button class="btn btn-ghost" style="width:30px;height:30px;padding:0;justify-content:center;border-radius:8px" onclick="closeDriversModal()">✕</button>
+    </div>
+    <div id="drivers-body" style="overflow-y:auto;padding:14px 22px 22px"></div>
+    <div style="padding:12px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" onclick="_driversLoad()"><span class="en">Refresh</span><span class="ja">更新</span></button>
+      <button class="btn btn-secondary btn-sm" onclick="closeDriversModal()"><span class="en">Done</span><span class="ja">完了</span></button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Slow-triage modal: "Why is my PC slow right now?" ───────────────── -->
 <div id="slow-triage-modal" onclick="if(event.target===this)closeSlowTriage()"
      style="position:fixed;inset:0;z-index:325;display:none;align-items:center;justify-content:center;background:rgba(5,9,18,.72);backdrop-filter:blur(6px);padding:24px">
@@ -2786,7 +2847,7 @@ function showPage(name){
   if(name==='privacy'){ _replayPrivacyIfAny(); }
   if(name==='performance'){ _initPerfPage(); startGlobalPoll(); _globalPoll(); }
   if(name==='problems'){ _initProblemsPage(); _initTriageTab(); }
-  if(name==='overview'){ loadBriefing(); _showFeatureOverviewIfFirst(); try{ _renderSaDeviceHero(); }catch(_){} }
+  if(name==='overview'){ loadBriefing(); _showFeatureOverviewIfFirst(); try{ _renderSaDeviceHero(); }catch(_){} try{ _loadChassisChip(); }catch(_){} }
   if(name==='settings') loadMemorySection();
   if(name==='assistant') warmupOllamaOnce();
   if(name==='settings') { setTimeout(_initSetRailScrollspy,30); _restoreAdvancedSettings(); }
@@ -3529,6 +3590,113 @@ async function loadCoreDetail(){
 
 function openBoost(){ document.getElementById('boost-modal').style.display='flex'; _boostLoad(); }
 function closeBoost(){ document.getElementById('boost-modal').style.display='none'; }
+
+// ── Chassis chip (Feature 3) ────────────────────────────────────────────
+async function _loadChassisChip(){
+  if(!window.pywebview) return;
+  let r; try{ r=await window.pywebview.api.get_chassis_info(); }catch(_){ return; }
+  if(!r||!r.ok) return;
+  const chip=document.getElementById('chassis-chip');
+  const txt =document.getElementById('chassis-chip-text');
+  const link=document.getElementById('chassis-chip-link');
+  const generic = !r.vendor_name || /^generic/i.test(r.vendor_name);
+  if(generic && !r.model){ chip.style.display='none'; return; }
+  const parts=[];
+  if(r.vendor_name) parts.push(esc(r.vendor_name));
+  if(r.model)       parts.push(esc(r.model));
+  const bits=parts.join(' · ');
+  const util=r.vendor_utility && r.vendor_utility!=='—' ? esc(r.vendor_utility) : '';
+  const en = (document.documentElement.getAttribute('data-lang')||'en')==='en';
+  txt.innerHTML = bits + (util ? ' — ' + (en?('vendor utility: '+util):(util+' を利用')) : '');
+  if(r.support_url){
+    link.href=r.support_url; link.style.display='inline-flex';
+  }else{
+    link.style.display='none';
+  }
+  chip.style.display='block';
+}
+
+// ── Gaming mode modal (Feature 1 — narrate only) ───────────────────────
+function openGamingMode(){ document.getElementById('gaming-modal').style.display='flex'; _gamingLoad(); }
+function closeGamingMode(){ document.getElementById('gaming-modal').style.display='none'; }
+async function _gamingLoad(){
+  const body=document.getElementById('gaming-body');
+  body.innerHTML='<div style="padding:30px;text-align:center;color:var(--fg3)"><span class="en">Reading current state…</span><span class="ja">状態を確認中…</span></div>';
+  if(!window.pywebview) return;
+  let r; try{ r=await window.pywebview.api.get_gaming_mode_preview(); }
+  catch(e){ body.innerHTML='<div style="color:var(--error);padding:14px">'+esc(String(e))+'</div>'; return; }
+  if(!r||!r.ok){ body.innerHTML='<div style="color:var(--error);padding:14px">'+esc((r&&r.error)||'Preview failed')+'</div>'; return; }
+  const pp=r.power_plan||{}, mh=r.memory_hogs||{}, nt=r.notifications||{}, dk=r.disk||{};
+  const row=(icon,title,desc,status,cta,ctaFn)=>{
+    const pill = status==='warn' ? 'background:rgba(245,181,68,.12);color:var(--warn)' :
+                 status==='ok'   ? 'background:rgba(45,212,176,.12);color:var(--brand)' :
+                                   'background:var(--surface2);color:var(--fg3)';
+    const ctaHtml = cta ? `<button class="btn btn-secondary btn-sm" onclick="${ctaFn}">${esc(cta)}</button>` : '';
+    return `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:22px;flex-shrink:0">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--fg);margin-bottom:2px">${esc(title)}</div>
+        <div style="font-size:12px;color:var(--fg3);line-height:1.5">${esc(desc)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+        <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;letter-spacing:.3px;text-transform:uppercase;${pill}">${esc(status)}</span>
+        ${ctaHtml}
+      </div>
+    </div>`;
+  };
+  const planDesc = pp.current ? `Current: ${pp.current}` : 'Current plan unknown';
+  const planStatus = pp.suggest ? 'warn' : 'ok';
+  const planCta = pp.suggest ? 'Open Power plans' : null;
+  const mhStatus = mh.count>0 ? 'warn' : 'ok';
+  const mhDesc  = mh.count>0 ? `${mh.count} background apps using ~${mh.total_mb} MB combined.` : 'No heavy background processes right now.';
+  const mhCta   = mh.count>0 ? 'Open Boost' : null;
+  const notStatus = nt.suggest ? 'warn' : 'ok';
+  const notDesc  = nt.suggest || 'Notifications already quiet.';
+  const notCta   = nt.suggest ? 'Open Settings' : null;
+  const dkStatus = dk.warn ? 'warn' : 'ok';
+  const dkDesc   = `${(dk.free_gb||0).toFixed ? dk.free_gb.toFixed(1) : dk.free_gb} GB free on C:`;
+  body.innerHTML =
+      row('⚡', 'Power plan',     pp.suggest||planDesc,                 planStatus, planCta, "closeGamingMode();showPage('performance')")
+    + row('🧠', 'Memory',         mhDesc,                                mhStatus,   mhCta,   "closeGamingMode();openBoost()")
+    + row('🔕', 'Notifications',  notDesc,                               notStatus,  notCta,  "closeGamingMode();showPage('settings')")
+    + row('💾', 'Disk headroom',  dkDesc + (dk.warn?' — tight for a game patch.':''), dkStatus, null, null)
+    + `<div style="font-size:11px;color:var(--fg4);margin-top:14px;line-height:1.6">${esc(r.note||'')}</div>`;
+}
+
+// ── Driver status modal (Feature 2 — narrate only) ────────────────────
+function openDriversModal(){ document.getElementById('drivers-modal').style.display='flex'; _driversLoad(); }
+function closeDriversModal(){ document.getElementById('drivers-modal').style.display='none'; }
+async function _driversLoad(){
+  const body=document.getElementById('drivers-body');
+  body.innerHTML='<div style="padding:30px;text-align:center;color:var(--fg3)"><span class="en">Enumerating drivers…</span><span class="ja">ドライバーを列挙中…</span></div>';
+  if(!window.pywebview) return;
+  let r; try{ r=await window.pywebview.api.scan_drivers(365); }
+  catch(e){ body.innerHTML='<div style="color:var(--error);padding:14px">'+esc(String(e))+'</div>'; return; }
+  if(!r||!r.ok){ body.innerHTML='<div style="color:var(--error);padding:14px">'+esc((r&&r.error)||'Query failed')+'</div>'; return; }
+  const rows=(r.drivers||[]);
+  if(!rows.length){
+    body.innerHTML='<div style="padding:30px;text-align:center;color:var(--fg2)">'
+      +'<div style="font-size:36px;margin-bottom:10px">✨</div>'
+      +'<div><span class="en">No drivers to flag.</span><span class="ja">更新対象のドライバーはありません。</span></div></div>';
+    return;
+  }
+  const pill = s => s==='stale'? 'background:rgba(255,156,151,.12);color:var(--error)'
+                  : s==='aging'? 'background:rgba(245,181,68,.12);color:var(--warn)'
+                  : s==='unknown'?'background:var(--surface2);color:var(--fg3)'
+                  :              'background:rgba(45,212,176,.12);color:var(--brand)';
+  body.innerHTML =
+    `<div style="font-size:12px;color:var(--fg3);margin-bottom:10px"><span class="en">${r.total} drivers scanned · ${r.stale} stale · ${r.aging} aging. Showing ${rows.length}.</span><span class="ja">${r.total}件のドライバーを確認 · 失効 ${r.stale} · 古い ${r.aging}。${rows.length}件表示中。</span></div>`
+   + '<div style="display:flex;flex-direction:column;gap:6px">'
+   + rows.map(d => `<div style="display:flex;gap:10px;align-items:center;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+        <span style="font-size:9px;font-weight:700;padding:3px 7px;border-radius:999px;letter-spacing:.3px;text-transform:uppercase;${pill(d.status)}">${esc(d.status)}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--fg);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.name)}</div>
+          <div style="font-size:10px;color:var(--fg3)">${esc(d.vendor)} · v${esc(d.version)}${d.age_days!=null?' · '+d.age_days+' days old':''}</div>
+        </div>
+      </div>`).join('')
+   + '</div>'
+   + `<div style="font-size:11px;color:var(--fg4);margin-top:14px;line-height:1.6">${esc(r.note||'')}</div>`;
+}
 async function _boostLoad(){
   const body=document.getElementById('boost-body');
   body.innerHTML='<div style="padding:30px;text-align:center;color:var(--fg3)"><span class="en">Scanning processes…</span><span class="ja">プロセスを確認中…</span></div>';
@@ -6866,6 +7034,7 @@ function toast(msg,opts){
     _bindInlinePref('pref-show-notifications','show_notifications');
     _bindInlinePref('pref-health-watch','health_watch_enabled');
     _bindInlinePref('pref-schedule-enabled','schedule_enabled');
+    _bindInlinePref('pref-installer-watch','installer_watch_enabled');
   };
   if(document.readyState==='complete'||document.readyState==='interactive') wire();
   else document.addEventListener('DOMContentLoaded',wire,{once:true});
