@@ -1,5 +1,4 @@
 """PC Health Agent — Real-time system monitor with ring-buffer history."""
-import os
 import shutil
 import run_hidden
 import threading
@@ -322,7 +321,6 @@ def check_alerts(m: dict) -> list:
 
 
 def set_thresholds(t: dict):
-    global _thresholds
     for k in ("cpu_pct", "ram_pct", "disk_pct", "battery_pct"):
         if k in t:
             _thresholds[k] = int(t[k])
@@ -352,7 +350,6 @@ def request_samples():
 
 
 def _worker():
-    global _running
     while _running:
         try:
             idle = (time.time() - _last_request_ts) > _IDLE_TIMEOUT

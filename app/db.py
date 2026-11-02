@@ -71,6 +71,17 @@ def init_db():
             );
             CREATE INDEX IF NOT EXISTS idx_memory_cat  ON user_memory(category);
             CREATE INDEX IF NOT EXISTS idx_memory_last ON user_memory(last_seen DESC);
+            CREATE TABLE IF NOT EXISTS action_log (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts         TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                category   TEXT NOT NULL,
+                action     TEXT NOT NULL,
+                target     TEXT,
+                outcome    TEXT NOT NULL DEFAULT 'ok',
+                detail     TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_actlog_ts  ON action_log(ts DESC);
+            CREATE INDEX IF NOT EXISTS idx_actlog_cat ON action_log(category);
         """)
         row = conn.execute("SELECT version FROM schema_version LIMIT 1").fetchone()
         if not row:
@@ -259,6 +270,33 @@ def clear_memory(category: str = None) -> int:
         else:
             cur = conn.execute("DELETE FROM user_memory")
         return cur.rowcount
+
+def log_action(category: str, action: str, target: str = "",
+               outcome: str = "ok", detail: str = ""):
+    """Append a row to the unified action_log table. Non-raising."""
+    try:
+        with _db() as conn:
+            conn.execute(
+                "INSERT INTO action_log (category, action, target, outcome, detail) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (category, action, target or "", outcome or "ok", detail or ""),
+            )
+    except Exception:
+        pass
+
+def list_action_log(limit: int = 100, category: str = None) -> list[dict]:
+    with _db() as conn:
+        if category:
+            rows = conn.execute(
+                "SELECT * FROM action_log WHERE category=? ORDER BY ts DESC LIMIT ?",
+                (category, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM action_log ORDER BY ts DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
 
 def memory_count() -> int:
     with _db() as conn:

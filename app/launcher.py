@@ -155,7 +155,7 @@ _CENTER_PALETTE = {
 def _render_frame(anim_t: float, hover_idx: int, theme: str = "dark") -> bytes:
     """Render the segment wheel to raw BGRA bytes (WHEEL_SIZE × WHEEL_SIZE).
     Renders at 2× resolution and downsamples with LANCZOS for smooth anti-aliasing."""
-    from PIL import Image, ImageDraw, ImageFilter
+    from PIL import Image, ImageDraw
 
     S  = 2                    # supersampling scale
     W  = WHEEL_SIZE * S       # canvas at 2× (400×400)
@@ -171,9 +171,6 @@ def _render_frame(anim_t: float, hover_idx: int, theme: str = "dark") -> bytes:
 
     t      = max(0.0, min(1.0, anim_t))
     # Keep old vars for any legacy code paths below.
-    in_r  = INNER_R * S
-    ou_r  = OUTER_R * S
-    outer = in_r + int((ou_r - in_r) * t)
     seg_a = int(255 * min(t * 1.8, 1.0))
 
     if t > 0.02:

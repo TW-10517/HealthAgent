@@ -31,7 +31,7 @@ import db
 
 db.migrate_from_txt(str(LOGS / "scan-history.txt"))
 
-from metadata import APP_VERSION, APP_NAME, APP_ID, UPDATE_MANIFEST_URL, WEBSITE_URL
+from metadata import APP_VERSION, APP_NAME, UPDATE_MANIFEST_URL, WEBSITE_URL
 
 # ── Error log ────────────────────────────────────────────────────────────────
 # A single rolling error.log under LOGS captures uncaught exceptions on both
@@ -67,7 +67,7 @@ def _create_shield_icon(size=64):
 
     ss = 4
     S = size * ss
-    cx = cy = S / 2.0
+    cy = S / 2.0
 
     # Dark rounded-square tile with a vertical navy gradient.
     img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
@@ -282,7 +282,7 @@ class AgentAPI:
         # and hold ~2 GB RAM for 5 min. First chat takes the one-time hit.
 
     def _check_ollama_status(self):
-        import urllib.request, time as _t
+        import time as _t
         _t.sleep(3)
         self._probe_ollama()
 
@@ -1384,6 +1384,9 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
         def _do_cleanup():
             results = cleanup_temp_files(paths)
             total_freed = sum(r["freed"] for r in results)
+            db.log_action("cleanup", "temp_files",
+                          f"{len(results)} items",
+                          "ok", f"freed {fmt_size(total_freed)}")
             return {
                 "results": results,
                 "totalFreed": total_freed,
@@ -1469,8 +1472,13 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
 
     def apply_organize(self, folder: str, category: str, file_paths: list):
         try:
-            return org_move(folder, category, file_paths)
+            r = org_move(folder, category, file_paths)
+            db.log_action("organize", "move", f"{category} in {folder}",
+                          "error" if r.get("failed") and not r.get("moved") else "ok",
+                          f"moved={r.get('moved',0)} failed={r.get('failed',0)}")
+            return r
         except Exception as e:
+            db.log_action("organize", "move", f"{category} in {folder}", "error", str(e))
             return {"moved": 0, "failed": 0, "errors": [str(e)]}
 
     def get_organize_ai(self, scan_result: dict, lang: str = "en"):
@@ -1499,8 +1507,13 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
     def undo_organize(self, folder: str):
         import organizer as _org
         try:
-            return _org.undo_last_session(os.path.normpath(folder))
+            r = _org.undo_last_session(os.path.normpath(folder))
+            db.log_action("organize", "undo", folder,
+                          "ok" if r.get("ok") else "error",
+                          r.get("msg") or "")
+            return r
         except Exception as e:
+            db.log_action("organize", "undo", folder, "error", str(e))
             return {"ok": False, "msg": str(e)}
 
     def get_organize_history(self, folder: str):
@@ -1773,7 +1786,7 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
                 ["explorer.exe", path],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
-            return {"ok": True, "msg": f"Opened folder in Explorer."}
+            return {"ok": True, "msg": "Opened folder in Explorer."}
 
         if os.path.isfile(path):
             ext = os.path.splitext(path)[1].lower()
@@ -1966,9 +1979,11 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
                 SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND,
             )
             if ret == 0:
+                db.log_action("recycle_bin", "empty", "", "ok", "")
                 return {"ok": True, "msg": "Recycle Bin emptied."}
             if ret in (0x80070057, -2147418113):
                 return {"ok": True, "msg": "Recycle Bin is already empty."}
+            db.log_action("recycle_bin", "empty", "", "error", f"ret={ret:#x}")
             return {"ok": False, "msg": f"SHEmptyRecycleBin returned {ret:#x}."}
 
         if confirm_token:
@@ -2108,7 +2123,7 @@ $bios = Get-CimInstance Win32_BIOS | Select-Object SerialNumber,Manufacturer
     # ── Storage analysis ─────────────────────────────────────────────────────
     def get_folder_sizes(self, path: str = "") -> dict:
         """Return top-level subfolder sizes for treemap."""
-        import os, sys_executor as sx
+        import os
         base = path or os.path.expanduser("~")
         if not os.path.isdir(base):
             return {"ok": False, "folders": []}
@@ -2324,6 +2339,46 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
             return {"ok": True, "items": items}
         except Exception as e:
             return {"ok": False, "items": [], "error": str(e)}
+
+    def get_boot_impact(self) -> dict:
+        """Return per-app startup boot impact in ms from Diagnostics-Performance
+        events 101 (app startup) and 103 (service startup). Returns the median
+        of the last 5 samples per app so a single slow cold-start doesn't
+        permanently flag an app. Shape: {ok, impact: {<name>: {ms, samples}}}."""
+        import json as _json
+        ps = r"""
+$ErrorActionPreference='SilentlyContinue'
+$cutoff = (Get-Date).AddDays(-30)
+Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Diagnostics-Performance/Operational'; Id=101,103; StartTime=$cutoff} -ErrorAction SilentlyContinue |
+  Select-Object -First 500 |
+  ForEach-Object {
+    $xml=[xml]$_.ToXml()
+    $n=$xml.Event.UserData.MonitoringEvent.Name
+    $t=$xml.Event.UserData.MonitoringEvent.TotalTime
+    if($n -and $t){ [PSCustomObject]@{ Name=$n; Ms=[int]$t } }
+  } | ConvertTo-Json -Depth 2 -Compress
+"""
+        try:
+            r = run_hidden.run(["powershell","-WindowStyle","Hidden","-NoProfile","-Command",ps],
+                               capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=20)
+            raw = _json.loads(r.stdout or "[]")
+            if isinstance(raw, dict): raw = [raw]
+            buckets = {}
+            for row in (raw or []):
+                nm = (row.get("Name") or "").strip()
+                ms = int(row.get("Ms") or 0)
+                if not nm or ms <= 0: continue
+                key = nm.lower()
+                buckets.setdefault(key, {"display": nm, "samples": []})["samples"].append(ms)
+            out = {}
+            for key, b in buckets.items():
+                samples = sorted(b["samples"])[:5]
+                if not samples: continue
+                median = samples[len(samples)//2]
+                out[key] = {"display": b["display"], "ms": int(median), "samples": len(samples)}
+            return {"ok": True, "impact": out}
+        except Exception as e:
+            return {"ok": False, "impact": {}, "error": str(e)}
 
     def get_power_plans(self) -> dict:
         """Return available power plans and the active one."""
@@ -2543,6 +2598,7 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
                     removed += 1
                 except Exception:
                     pass
+        db.log_action("browser_cache", "clean", browser, "ok", f"removed={removed}")
         return {"ok": True, "msg": f"Cleared {removed} cache entries for {browser}."}
 
     def generate_battery_report(self) -> dict:
@@ -2666,8 +2722,10 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
                               "disabled_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
                 self._save_disabled_startup(data)
                 winreg.DeleteValue(k, name)
+            db.log_action("startup", "disable", name, "ok", "")
             return {"ok": True, "msg": f"Disabled startup entry '{name}'."}
         except Exception as e:
+            db.log_action("startup", "disable", name, "error", str(e))
             return {"ok": False, "msg": str(e)}
 
     def enable_startup(self, name: str) -> dict:
@@ -2684,13 +2742,24 @@ Get-WinEvent -ProviderName Microsoft-Windows-Diagnostics-Performance -ErrorActio
                                   entry["value"])
             data.pop(name, None)
             self._save_disabled_startup(data)
+            db.log_action("startup", "enable", name, "ok", "")
             return {"ok": True, "msg": f"Restored startup entry '{name}'."}
         except Exception as e:
+            db.log_action("startup", "enable", name, "error", str(e))
             return {"ok": False, "msg": str(e)}
 
     def list_disabled_startup(self) -> dict:
         data = self._load_disabled_startup()
         return {"items": [{"name": k, **v} for k, v in data.items()]}
+
+    def list_action_log(self, limit: int = 100, category: str = "") -> dict:
+        """Return the unified action log, newest first."""
+        try:
+            rows = db.list_action_log(limit=int(limit or 100),
+                                      category=(category or None))
+            return {"ok": True, "items": rows}
+        except Exception as e:
+            return {"ok": False, "items": [], "error": str(e)}
 
     def get_disk_health(self) -> dict:
         """SMART-derived health per physical disk (SupportAssist-style)."""
@@ -2799,7 +2868,6 @@ ForEach-Object{
         _popup_window: if given, Ollama async callback goes to that window instead of self._window.
         """
         import assistant as asst
-        import monitor as mon_mod
 
         if not message or not message.strip():
             return {"type": "error", "content": "Please type a message."}
@@ -3013,7 +3081,7 @@ ForEach-Object{
             header = f"Found **{len(results)}** file(s) matching **{query}**. Say \"open the first\" to open one:"
             return self._file_results_response(header, results[:10])
         elif action_id == "open_folder":
-            import os as _os, re as _re, subprocess as _sp
+            import os as _os, re as _re
             m = _re.search(r'(documents?|downloads?|desktop|pictures?|videos?|music|onedrive)',
                            message.lower())
             name = m.group(1).rstrip("s") if m else "document"
@@ -3188,7 +3256,6 @@ ForEach-Object{
             import game_advisor as _ga
             _target = _popup_window
             self._chat_history.append({"role": "user", "content": message})
-            _hist = list(self._chat_history)
 
             def _advisor_turn():
                 title = _ga.extract_name(message)
@@ -3646,7 +3713,6 @@ def _set_window_icon(ico_path, title="Helix"):
 def run():
     import webview
     import launcher
-    import chat_popup
     import monitor_hud
 
     # Give this process its own taskbar identity (prevents grouping under python.exe)

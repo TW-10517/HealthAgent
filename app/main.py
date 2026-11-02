@@ -1,5 +1,5 @@
 """PC Health Agent — entry point."""
-import sys, os, webbrowser
+import sys, webbrowser
 from pathlib import Path
 from datetime import datetime
 

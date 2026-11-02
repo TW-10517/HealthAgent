@@ -231,6 +231,10 @@ def find_and_launch(app_name: str) -> tuple[str, bool]:
     label, args = resolve_app(name_lower)
     if label and args:
         try:
+            # No CREATE_NO_WINDOW here: the whitelist includes console targets
+            # (cmd, powershell) that the user explicitly asked to open — a
+            # visible terminal is the intended UX for those. For GUI targets
+            # Windows doesn't attach a console in the first place.
             subprocess.Popen(args, shell=False,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return f"Opening {label}…", True

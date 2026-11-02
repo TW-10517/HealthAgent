@@ -104,6 +104,7 @@ button{font-family:var(--font)}
   background:var(--brand);border-radius:0 3px 3px 0;transform:translateY(-50%);
   transition:height .22s cubic-bezier(.2,.9,.3,1.2),opacity .18s ease;opacity:0}
 .nav-item.active::before{height:60%;opacity:1}
+.nav-section .nav-item::before{display:none}
 
 /* ── Toasts ──────────────────────────────────────────────────────────────── */
 #toast-stack{position:fixed;right:16px;bottom:24px;z-index:400;display:flex;
@@ -146,7 +147,10 @@ button{font-family:var(--font)}
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 .sidebar{width:var(--nav-w);background:var(--nav-bg);
   border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
-.nav-section{padding:8px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-section{padding:8px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;position:relative}
+.nav-indicator{position:absolute;left:8px;width:3px;background:var(--brand);border-radius:2px;
+  pointer-events:none;opacity:0;transition:top .25s cubic-bezier(.2,.9,.3,1.05),height .25s cubic-bezier(.2,.9,.3,1.05),opacity .18s;z-index:1}
+.nav-indicator.show{opacity:1}
 .nav-item{display:flex;align-items:center;gap:10px;padding:0 12px;height:38px;width:100%;
   border:none;background:transparent;color:var(--fg3);cursor:pointer;
   border-radius:var(--r-lg);transition:background .12s,color .12s;text-align:left;
@@ -193,7 +197,8 @@ button{font-family:var(--font)}
 /* ── Page area ───────────────────────────────────────────────────────────── */
 .page-area{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative;background:var(--bg)}
 .page{display:none;flex:1;overflow-y:auto;padding:22px 28px;flex-direction:column;gap:24px}
-.page.active{display:flex}
+.page.active{display:flex;animation:helix-page-in .22s cubic-bezier(.2,.9,.3,1.05)}
+@keyframes helix-page-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .page-hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;margin-bottom:8px}
 .sb-spark{opacity:.75;margin-left:4px;flex-shrink:0}
 .updated-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--fg3);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px 10px}
@@ -1171,6 +1176,9 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
     <label class="inline-pref" title="Run a Quick Scan automatically 2 seconds after Helix opens.">
       <input type="checkbox" id="pref-scan-on-startup"><span class="en">Scan at start</span><span class="ja">起動時スキャン</span>
     </label>
+    <label class="inline-pref" title="Post-scan Windows notifications and health alerts.">
+      <input type="checkbox" id="pref-show-notifications"><span class="en">Alerts</span><span class="ja">通知</span>
+    </label>
     <button class="btn btn-secondary btn-sm" id="btn-fast" onclick="startScan(true)"
       data-tip="Skips the duplicate-file hash step (~15s). You still get disk usage, temp/cache size and startup counts, so the Overview score updates — but duplicates on Storage won't."
       data-tip-ja="重複ファイルのハッシュ計算（約15秒）を省略。ディスク使用量・一時/キャッシュ・起動アプリ数は取得でき概要スコアも更新しますが、ストレージの重複は空のままです。">
@@ -1200,6 +1208,7 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
       <kbd>Ctrl+K</kbd>
     </button>
     <div class="nav-section">
+      <div class="nav-indicator" id="nav-indicator"></div>
       <button class="nav-item active" data-page="overview" onclick="showPage('overview')">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>
         <span><span class="en">Overview</span><span class="ja">概要</span><span class="es">Resumen</span><span class="fr">Aperçu</span><span class="de">Übersicht</span><span class="zh">概览</span><span class="hi">अवलोकन</span></span>
@@ -1488,7 +1497,7 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
     <!-- ══ PAGE: Storage ═══════════════════════════════════════════════════ -->
     <div class="page" id="page-storage">
       <div class="page-hdr"><div><div class="page-title"><span class="en">Storage</span><span class="ja">ストレージ</span></div><div class="page-sub"><span class="en">Disk usage and reclaimable files</span><span class="ja">ディスク使用状況と解放可能なファイル</span></div></div>
-        <div class="page-actions"><span class="updated-chip" id="uc-storage"><span class="uc-dot"></span><span class="uc-time"></span><button class="uc-refresh" onclick="loadRecycleBin()"><span class="en">Refresh</span><span class="ja">更新</span></button></span><button class="btn btn-primary btn-sm" id="btn-cleanup" style="display:none" onclick="showCleanupDialog()"
+        <div class="page-actions"><label class="inline-pref" title="Background daemon alerts when disk gets low or RAM runs hot."><input type="checkbox" id="pref-health-watch"><span class="en">Health watch</span><span class="ja">自動監視</span></label><span class="updated-chip" id="uc-storage"><span class="uc-dot"></span><span class="uc-time"></span><button class="uc-refresh" onclick="loadRecycleBin()"><span class="en">Refresh</span><span class="ja">更新</span></button></span><button class="btn btn-primary btn-sm" id="btn-cleanup" style="display:none" onclick="showCleanupDialog()"
           data-tip="Opens a dialog where you pick what to remove (temp, cache, duplicates, Recycle Bin). Shows exactly how many MB will be freed before you confirm — nothing is deleted until you press Delete Selected."
           data-tip-ja="削除項目（一時／キャッシュ／重複／ゴミ箱）を選ぶダイアログを開き、実行前に開放予定MBを表示します。確定するまで削除されません。">🧹 <span class="en">Clean Up</span><span class="ja">クリーンアップ</span></button></div></div>
       <div class="tab-bar">
@@ -1690,7 +1699,7 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
           <div class="card card-sm" style="text-align:center;position:relative;overflow:hidden"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--info),#6366F1)"></div><div style="font-size:1.8rem;font-weight:700;font-family:var(--mono);color:var(--info);text-shadow:0 0 20px rgba(96,165,250,.3)" id="su-it">—</div><div style="font-size:10px;color:var(--fg3);text-transform:uppercase;letter-spacing:.06em;margin-top:4px;font-weight:700"><span class="en">IT Managed</span><span class="ja">IT 管理</span></div></div>
         </div>
         <div class="card"><div class="card-title"><span class="en">All Entries</span><span class="ja">すべてのエントリ</span><span class="card-title-right" id="su-total-label"></span></div>
-          <div class="table-wrap"><table class="data-table"><thead><tr><th><span class="en">App</span><span class="ja">アプリ</span></th><th><span class="en">Type</span><span class="ja">種類</span></th><th><span class="en">What is it?</span><span class="ja">これは何？</span></th><th><span class="en">Command</span><span class="ja">コマンド</span></th></tr></thead><tbody id="su-app-body"></tbody></table></div></div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th><span class="en">App</span><span class="ja">アプリ</span></th><th><span class="en">Type</span><span class="ja">種類</span></th><th><span class="en">Boot impact</span><span class="ja">起動負荷</span></th><th><span class="en">What is it?</span><span class="ja">これは何？</span></th><th><span class="en">Command</span><span class="ja">コマンド</span></th></tr></thead><tbody id="su-app-body"></tbody></table></div></div>
       </div>
     </div>
 
@@ -2124,7 +2133,7 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
     <!-- ══ PAGE: History ═══════════════════════════════════════════════════ -->
     <div class="page" id="page-history">
       <div class="page-hdr"><div><div class="page-title"><span class="en">Scan History</span><span class="ja">スキャン履歴</span></div><div class="page-sub"><span class="en">Previous scan results stored locally</span><span class="ja">ローカルに保存された過去のスキャン結果</span></div></div>
-        <div class="page-actions"><button class="btn btn-secondary btn-sm" id="btn-hist-back" style="display:none" onclick="showHistList()">← <span class="en">Back</span><span class="ja">戻る</span></button></div></div>
+        <div class="page-actions"><label class="inline-pref" title="Run scheduled quick scans and temp cleanup automatically."><input type="checkbox" id="pref-schedule-enabled"><span class="en">Schedule</span><span class="ja">自動実行</span></label><button class="btn btn-secondary btn-sm" id="btn-hist-back" style="display:none" onclick="showHistList()">← <span class="en">Back</span><span class="ja">戻る</span></button></div></div>
       <div class="card" id="hist-trend-card" style="margin-bottom:12px;display:none">
         <div class="card-title"><span class="en">Health Score Trend</span><span class="ja">スコア推移</span></div>
         <div class="trend-wrap"><canvas id="hist-trend-canvas" height="90"></canvas></div>
@@ -2223,6 +2232,16 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
             <div id="whats-new-text" style="font-size:12.5px;color:var(--fg2);line-height:1.5;white-space:pre-wrap"></div>
           </div>
           <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="toggleAboutDetail()"><span class="en">Details</span><span class="ja">詳細</span></button>
+          <button class="btn btn-secondary btn-sm" style="margin-top:8px;margin-left:6px" onclick="toggleActionLog()"><span class="en">Action log</span><span class="ja">操作ログ</span></button>
+          <div id="action-log-wrap" style="display:none;margin-top:10px">
+            <div class="table-wrap"><table class="data-table"><thead><tr>
+              <th style="width:150px"><span class="en">When</span><span class="ja">日時</span></th>
+              <th style="width:110px"><span class="en">Category</span><span class="ja">種別</span></th>
+              <th style="width:110px"><span class="en">Action</span><span class="ja">操作</span></th>
+              <th><span class="en">Target</span><span class="ja">対象</span></th>
+              <th style="width:80px"><span class="en">Outcome</span><span class="ja">結果</span></th>
+            </tr></thead><tbody id="action-log-body"><tr><td colspan="5" style="color:var(--fg3)"><span class="en">Loading…</span><span class="ja">読み込み中…</span></td></tr></tbody></table></div>
+          </div>
         </div>
       </div>
       <!-- Advanced block: hidden by default, revealed via rail click or button. -->
@@ -2734,6 +2753,18 @@ function _activateTab(group,panel){
     }
   });
 }
+function _moveNavIndicator(){
+  try{
+    const ind=document.getElementById('nav-indicator'); if(!ind) return;
+    const section=ind.parentElement; if(!section) return;
+    const active=section.querySelector('.nav-item.active');
+    if(!active){ ind.classList.remove('show'); return; }
+    const h=active.offsetHeight*0.6;
+    const top=active.offsetTop+(active.offsetHeight-h)/2;
+    ind.style.top=top+'px'; ind.style.height=h+'px';
+    ind.classList.add('show');
+  }catch(_){}
+}
 function showPage(name){
   const sub=_SUBPAGE[name];
   if(sub){
@@ -2749,6 +2780,7 @@ function showPage(name){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const pg=document.getElementById('page-'+name); if(pg) pg.classList.add('active');
   const nav=document.querySelector(`[data-page="${name}"]`); if(nav) nav.classList.add('active');
+  _moveNavIndicator();
   if(name==='history') loadHistory();
   if(name==='storage'){ loadRecycleBin(); _initStoragePage(); _replayStorageIfAny(); loadDiskHealth(); }
   if(name==='privacy'){ _replayPrivacyIfAny(); }
@@ -2878,6 +2910,20 @@ function cancelScan(){ if(window.pywebview) window.pywebview.api.cancel_scan(); 
 function openReport(){ if(lastUri && window.pywebview) window.pywebview.api.open_report(lastUri); }
 
 let _scanRunning=false, _progressTimer=null;
+let _progDisplayed=0, _progTarget=0, _progRaf=null;
+function _tickProgCount(){
+  _progRaf=null;
+  const el=document.getElementById('prog-pct'); if(!el){ _progDisplayed=_progTarget; return; }
+  const diff=_progTarget-_progDisplayed;
+  if(Math.abs(diff)<0.5){ _progDisplayed=_progTarget; el.textContent=Math.round(_progDisplayed); return; }
+  _progDisplayed+=diff*0.18;
+  el.textContent=Math.round(_progDisplayed);
+  _progRaf=requestAnimationFrame(_tickProgCount);
+}
+function _setProgPct(pct){
+  _progTarget=Math.max(0,Math.min(100,pct));
+  if(!_progRaf) _progRaf=requestAnimationFrame(_tickProgCount);
+}
 
 function _startProgressPoll(){
   if(_progressTimer) return;
@@ -2886,7 +2932,7 @@ function _startProgressPoll(){
     window.pywebview.api.get_scan_progress().then(s=>{
       if(!s||!_scanRunning) return;
       const pct=s.pct||0, done=s.done||0, total=s.total||0;
-      document.getElementById('prog-pct').textContent=pct;
+      _setProgPct(pct);
       document.getElementById('spr-fill').style.strokeDashoffset=CIRC_60-(CIRC_60*pct/100);
       if(total>0){
         document.getElementById('prog-step').innerHTML=
@@ -2911,6 +2957,7 @@ function onScanStart(){
   const overlay=document.getElementById('progress-overlay');
   overlay.style.display=''; overlay.classList.add('show');
   document.getElementById('s-dot').classList.add('scanning');
+  _progDisplayed=0; _progTarget=0;
   document.getElementById('prog-pct').textContent='0';
   document.getElementById('spr-fill').style.strokeDashoffset=CIRC_60;
   document.getElementById('s-text').innerHTML='<span class="en">Scanning… 0%</span><span class="ja">スキャン中… 0%</span>';
@@ -2996,8 +3043,35 @@ function renderStartup(d){
   document.getElementById('su-personal').textContent=d.startupPersonal; document.getElementById('su-it').textContent=d.startupIT;
   document.getElementById('su-total-label').textContent=d.startupTotal+' total';
   allStartupApps=d.startupApps||[]; renderStartupTable(allStartupApps);
+  _loadBootImpact();
 }
-function renderStartupTable(apps){document.getElementById('su-app-body').innerHTML=apps.filter(a=>a.name&&a.name.trim()).map((a,i)=>`<tr id="su-row-${i}"><td style="font-weight:500">${esc(a.name)}</td><td><span class="${a.it?'badge badge-it':'badge badge-user'}">${a.it?'IT':'Personal'}</span></td><td id="su-why-${i}" class="su-why-cell"><button class="btn btn-secondary btn-sm" data-su-name="${esc(a.name)}" data-su-cmd="${esc(a.cmd||'')}" data-su-idx="${i}" onclick="_explainStartup(this)"><span class="en">Why?</span><span class="ja">説明</span></button></td><td class="td-path">${esc(a.cmd)}</td></tr>`).join('');}
+function _bootImpactChip(ms){
+  if(!ms||ms<=0) return '<span style="color:var(--fg3);font-size:11px">—</span>';
+  let cls='chip-success',lbl_en='Low',lbl_ja='低';
+  if(ms>=10000){cls='chip-error';lbl_en='High';lbl_ja='高';}
+  else if(ms>=4000){cls='chip-warn';lbl_en='Medium';lbl_ja='中';}
+  const sec=(ms/1000).toFixed(ms<10000?1:0);
+  return '<span class="chip '+cls+'" title="'+sec+'s">'
+    +'<span class="en">'+lbl_en+' · '+sec+'s</span>'
+    +'<span class="ja">'+lbl_ja+' · '+sec+'秒</span></span>';
+}
+function renderStartupTable(apps){
+  const imp=window._bootImpact||{};
+  document.getElementById('su-app-body').innerHTML=apps.filter(a=>a.name&&a.name.trim()).map((a,i)=>{
+    const key=(a.name||'').toLowerCase();
+    const hit=imp[key]||imp[key.replace(/\.exe$/,'')]||null;
+    const chip=_bootImpactChip(hit&&hit.ms);
+    return `<tr id="su-row-${i}"><td style="font-weight:500">${esc(a.name)}</td><td><span class="${a.it?'badge badge-it':'badge badge-user'}">${a.it?'IT':'Personal'}</span></td><td>${chip}</td><td id="su-why-${i}" class="su-why-cell"><button class="btn btn-secondary btn-sm" data-su-name="${esc(a.name)}" data-su-cmd="${esc(a.cmd||'')}" data-su-idx="${i}" onclick="_explainStartup(this)"><span class="en">Why?</span><span class="ja">説明</span></button></td><td class="td-path">${esc(a.cmd)}</td></tr>`;
+  }).join('');
+}
+async function _loadBootImpact(){
+  if(window._bootImpact||!window.pywebview||!window.pywebview.api||!window.pywebview.api.get_boot_impact) return;
+  try{
+    const r=await window.pywebview.api.get_boot_impact();
+    window._bootImpact=(r&&r.ok&&r.impact)||{};
+    if(typeof allStartupApps!=='undefined'&&allStartupApps&&allStartupApps.length) renderStartupTable(allStartupApps);
+  }catch(_){ window._bootImpact={}; }
+}
 async function _explainStartup(btn){
   if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.explain_startup) return;
   const cell=btn.parentNode; const name=btn.dataset.suName; const cmd=btn.dataset.suCmd||'';
@@ -4122,7 +4196,7 @@ function loadPowerPlans(){
     const plans=d.plans||[];
     document.getElementById('si-pwr-results').innerHTML=
       '<div class="plan-chips" id="plan-chips-wrap">'+
-      plans.map(p=>`<button class="plan-chip${p.active?' active':''}" id="pc-${p.guid}" onclick="switchPowerPlan('${p.guid}')">${esc(p.name)}</button>`).join('')+
+      plans.map(p=>`<button class="plan-chip${p.active?' active':''}" id="pc-${esc(p.guid)}" data-plan-guid="${esc(p.guid)}" onclick="switchPowerPlan(this.dataset.planGuid)">${esc(p.name)}</button>`).join('')+
       '</div><div id="plan-msg" style="font-size:12px;color:var(--fg3);margin-top:8px"></div>';
   });
 }
@@ -5117,6 +5191,33 @@ function toggleAboutDetail(){
   if(!box) return;
   if(box.style.display==='none'){ box.style.display='block'; loadAbout(); }
   else { box.style.display='none'; }
+}
+function toggleActionLog(){
+  const box=document.getElementById('action-log-wrap');
+  if(!box) return;
+  if(box.style.display==='none'){ box.style.display='block'; loadActionLog(); }
+  else { box.style.display='none'; }
+}
+function loadActionLog(){
+  const body=document.getElementById('action-log-body');
+  if(!body||!window.pywebview||!window.pywebview.api||!window.pywebview.api.list_action_log){
+    if(body) body.innerHTML='<tr><td colspan="5" style="color:var(--fg3)">—</td></tr>'; return;
+  }
+  window.pywebview.api.list_action_log(100,'').then(r=>{
+    const items=(r&&r.items)||[];
+    if(!items.length){
+      body.innerHTML='<tr><td colspan="5" style="color:var(--fg3)"><span class="en">No actions logged yet.</span><span class="ja">まだ操作ログがありません。</span></td></tr>';
+      return;
+    }
+    const outcomeCls=o=>o==='error'?'chip-error':o==='ok'?'chip-success':'chip-muted';
+    body.innerHTML=items.map(it=>
+      '<tr><td class="td-mono" style="font-size:11px">'+esc(it.ts||'')+'</td>'
+      +'<td>'+esc(it.category||'')+'</td>'
+      +'<td>'+esc(it.action||'')+'</td>'
+      +'<td class="td-path" title="'+esc(it.target||'')+'">'+esc(it.target||'—')+'</td>'
+      +'<td><span class="chip '+outcomeCls(it.outcome)+'">'+esc(it.outcome||'')+'</span></td></tr>'
+    ).join('');
+  }).catch(()=>{ body.innerHTML='<tr><td colspan="5" style="color:var(--error)">Error</td></tr>'; });
 }
 function loadAbout(){
   if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.get_about) return;
@@ -6242,6 +6343,7 @@ window.addEventListener('unhandledrejection', e=>{
   }); }catch(_){}
 });
 window.addEventListener('pywebviewready',()=>{loadSettings();loadHistory();setTimeout(loadInsights,500);
+  setTimeout(_moveNavIndicator, 50); setTimeout(_moveNavIndicator, 400);
   setTimeout(startGlobalPoll, 800); setTimeout(_startSidebarPolling, 1200);
   setTimeout(_showFeatureOverviewIfFirst, 1500);
   setTimeout(loadBriefing, 1900);
@@ -6694,7 +6796,7 @@ function chatKeydown(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send
    change — AND repaints every mirror of the same key so the Settings page
    stays in sync without extra wiring. Default-on keys use default=true;
    others default to false. */
-const _INLINE_PREF_DEFAULT_ON=new Set(['ai_enabled','memory_enabled','briefing_enabled']);
+const _INLINE_PREF_DEFAULT_ON=new Set(['ai_enabled','memory_enabled','briefing_enabled','show_notifications']);
 function _bindInlinePref(id,key){
   const el=document.getElementById(id); if(!el) return;
   const defaultOn=_INLINE_PREF_DEFAULT_ON.has(key);
@@ -6761,6 +6863,9 @@ function toast(msg,opts){
     _bindInlinePref('pref-ai-enabled','ai_enabled');
     _bindInlinePref('pref-memory-enabled','memory_enabled');
     _bindInlinePref('pref-scan-on-startup','scan_on_startup');
+    _bindInlinePref('pref-show-notifications','show_notifications');
+    _bindInlinePref('pref-health-watch','health_watch_enabled');
+    _bindInlinePref('pref-schedule-enabled','schedule_enabled');
   };
   if(document.readyState==='complete'||document.readyState==='interactive') wire();
   else document.addEventListener('DOMContentLoaded',wire,{once:true});

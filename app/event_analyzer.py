@@ -1,6 +1,5 @@
 """PC Health Agent — Windows Event Log analyzer."""
 import run_hidden
-import json
 from datetime import datetime, timedelta
 
 # Event severity mapping

@@ -13,7 +13,6 @@ import os
 import json
 from datetime import datetime
 from pathlib import Path
-from scanner import is_protected, IT_PATTERN
 from thresholds import (
     DISK_PCT_WARN, DISK_PCT_CRIT, TEMP_SIZE_HIGH,
     STARTUP_COUNT_WARN, PROCESS_RAM_CRIT_MB,

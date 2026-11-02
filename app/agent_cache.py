@@ -7,9 +7,7 @@ without needing to rediscover them each query.
 Cache file: ../data/agent_context.txt  (plain text, ~400 tokens)
 Updated on: app start, scan completion, and manual refresh.
 """
-import json
 import os
-import platform
 from pathlib import Path
 
 _CACHE_PATH = Path(__file__).parent.parent / "data" / "agent_context.txt"
@@ -41,7 +39,7 @@ def _get_machine_info() -> str:
     """Collect basic machine facts. Cached after first call (fast path)."""
     lines = []
     try:
-        import ctypes, ctypes.wintypes as wt
+        import ctypes
         buf = ctypes.create_unicode_buffer(256)
         ctypes.windll.kernel32.GetComputerNameW(buf, ctypes.byref(ctypes.c_ulong(256)))
         lines.append(f"Host:{buf.value}")

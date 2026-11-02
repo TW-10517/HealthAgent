@@ -21,7 +21,6 @@ single 'caution' badge so the UI only has to render three states.
 from __future__ import annotations
 
 import json
-import subprocess
 from typing import Any
 
 from app import run_hidden

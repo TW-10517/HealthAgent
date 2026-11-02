@@ -1,6 +1,5 @@
 """PC Health Agent — scanner module. stdlib only, no pip required."""
-import os, sys, hashlib, winreg, shutil, platform
-import run_hidden
+import os, hashlib, winreg, shutil, platform
 from pathlib import Path
 from datetime import datetime
 

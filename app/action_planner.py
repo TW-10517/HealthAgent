@@ -37,7 +37,7 @@ _ACTION_RE = re.compile(
 def split_steps(message: str) -> list[str]:
     """Split a compound request into ordered step texts."""
     parts = _STEP_SEP.split(message.strip())
-    return [p.strip() for p in parts if p.strip()]
+    return [p.strip(" ,;.").strip() for p in parts if p.strip(" ,;.").strip()]
 
 
 def is_multi_step(message: str) -> bool:

@@ -11,8 +11,8 @@ import winreg
 import urllib.request
 import urllib.error
 from pathlib import Path
-from datetime import datetime, timedelta
-from scanner import is_protected, fmt_size, dir_size, PROTECTED, IT_PATTERN
+from datetime import datetime
+from scanner import is_protected, fmt_size, dir_size, IT_PATTERN
 from thresholds import (
     DISK_PCT_WARN, DISK_PCT_CRIT, TEMP_SIZE_WARN, TEMP_SIZE_CRIT,
     STARTUP_COUNT_WARN, STARTUP_COUNT_CRIT,

@@ -672,7 +672,6 @@ def get_sensitive_files() -> dict:
                 for fname in files:
                     fl    = fname.lower()
                     ext   = os.path.splitext(fl)[1]
-                    nm    = fl.replace("_", "").replace("-", "").replace(".", "")
                     name_hit = any(frag in fl for frag in _SENSITIVE_NAME_FRAGMENTS)
                     ext_hit  = ext in _SENSITIVE_EXTS
                     if name_hit or ext_hit:
