@@ -262,6 +262,40 @@ button{font-family:var(--font)}
 .card-title-right{margin-left:auto;font-size:14px;font-weight:700;
   color:var(--fg);text-transform:none;letter-spacing:0}
 
+/* ── Overview v3 dashboard (compact-strip + Findings-dominant layout) ─── */
+.ov-dash{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ov-dash > *{min-width:0}
+
+.ov-strip{display:flex;align-items:center;gap:14px;padding:10px 16px;
+  background:linear-gradient(90deg,rgba(45,212,176,.06),transparent 60%),var(--glass);
+  border:1px solid rgba(45,212,176,.14)}
+.ov-strip-ring{position:relative;width:68px;height:68px;flex-shrink:0}
+.ov-strip-ring-c{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.ov-strip-ring-c .hs-number{font-size:22px;font-weight:700;font-family:var(--mono);line-height:1;color:var(--brand)}
+.ov-strip-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.ov-strip-row{display:flex;align-items:baseline;gap:6px;font-size:11px;color:var(--fg2);flex-wrap:wrap}
+.ov-strip-row .hs-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--brand)}
+.ov-strip-sep{color:var(--fg4)}
+.ov-strip-title{font-size:14px;font-weight:600;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.ov-main{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:12px;min-width:0;align-items:stretch}
+@media (max-width:860px){.ov-main{grid-template-columns:1fr}}
+
+.ov-kpi-col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.ov-kpi{background:var(--glass);border:1px solid var(--glass-border);
+  border-radius:var(--r-xl);padding:10px 14px;min-width:0;
+  transition:border-color .15s ease,transform .15s ease;cursor:default}
+.ov-kpi.clickable{cursor:pointer}
+.ov-kpi.clickable:hover{border-color:var(--border2);transform:translateX(2px)}
+.ov-kpi-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.ov-kpi-label{font-size:10px;color:var(--fg2);font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.ov-kpi .kpi-chip{font-size:10px;padding:1px 7px}
+.ov-kpi-value{font-size:18px;font-weight:700;font-family:var(--mono);line-height:1.1;color:var(--fg)}
+.ov-kpi-sub{font-size:11px;color:var(--fg3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.ov-bottom{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;min-width:0}
+.ov-bottom > *{min-width:0}
+
 /* ── Health score (compact density pass) ────────────────────────────────── */
 .health-wrap{display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px;align-items:stretch;min-width:0}
 @media (max-width:720px){.health-wrap{grid-template-columns:1fr}}
@@ -1436,90 +1470,111 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
           </div>
         </div>
       </div>
-      <div id="ov-results" style="display:none" class="fade-in">
+      <div id="ov-results" style="display:none" class="fade-in ov-dash">
         <div id="analysis-overview"></div>
-        <!-- Hero banner (single-line compact) -->
-        <div class="card" style="background:linear-gradient(90deg,rgba(0,212,170,.06),transparent 60%),var(--glass);border:1px solid rgba(0,212,170,.12);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M5.9 17.1 A 8.5 8.5 0 1 1 18.1 17.1" stroke="#2DD4C0" stroke-width="2.6" stroke-linecap="round"/><polyline points="6,12 9.3,12 10.8,8.8 12.8,15.2 14.2,12 16.7,12" stroke="#8AF0FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
-          <span style="font-size:10px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.08em;flex-shrink:0"><span class="en">Status</span><span class="ja">状態</span></span>
-          <div style="font-size:13.5px;font-weight:600;color:var(--fg);min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="ov-hero-title">
-            <span class="en">Your PC is protected and performing well.</span><span class="ja">PCは保護され、良好な状態です。</span>
+
+        <!-- Strip 1: compact score + status in a single row -->
+        <div class="card ov-strip">
+          <div class="ov-strip-ring">
+            <svg width="68" height="68" viewBox="0 0 68 68">
+              <circle cx="34" cy="34" r="28" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="6"/>
+              <circle id="hs-circle" cx="34" cy="34" r="28" fill="none"
+                stroke="var(--brand)" stroke-width="6" stroke-linecap="round"
+                stroke-dasharray="175.93" stroke-dashoffset="175.93"
+                style="transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)"/>
+            </svg>
+            <div class="ov-strip-ring-c">
+              <span class="hs-number" id="hs-number">—</span>
+            </div>
           </div>
-          <div style="font-size:11px;color:var(--fg3);flex-shrink:0" id="ov-hero-sub"></div>
+          <div class="ov-strip-text">
+            <div class="ov-strip-row">
+              <span class="hs-label" id="hs-label">—</span>
+              <span class="ov-strip-sep">·</span>
+              <span style="font-size:11px;color:var(--fg3)" id="ov-scan-time"></span>
+            </div>
+            <div class="ov-strip-title" id="ov-hero-title">
+              <span class="en">Your PC is protected and performing well.</span><span class="ja">PCは保護され、良好な状態です。</span>
+            </div>
+            <div style="font-size:11px;color:var(--fg3)" id="ov-hero-sub"></div>
+          </div>
+          <!-- Hidden but kept for compatibility with renderOverview's score-desc writes -->
+          <div id="hs-desc" style="display:none"></div>
         </div>
 
-        <div class="health-wrap">
-          <div class="card health-score-card hoverable"
-            data-tip="0–100 overall PC health. Deducts points for low disk space, high temp/cache size, excess startup apps, high RAM/CPU. 85+ = Very Good, 70–84 = Good, 50–69 = Fair, below 50 = Needs attention."
-            data-tip-ja="PC全体の健康度(0〜100)。ディスク空き不足・一時/キャッシュ肥大・起動アプリ過多・CPU/メモリ高負荷で減点。85以上=非常に良好、70〜84=良好、50〜69=普通、50未満=要対応。">
-            <div class="card-title" style="margin-bottom:8px"><span class="en">Health Score</span><span class="ja">ヘルススコア</span></div>
-            <div class="hs-ring">
-              <svg width="150" height="150" viewBox="0 0 150 150">
-                <circle class="hs-bg" cx="75" cy="75" r="60"/>
-                <circle class="hs-fill" id="hs-circle" cx="75" cy="75" r="60"/>
-              </svg>
-              <div class="hs-center">
-                <span class="hs-number" id="hs-number">—</span>
-                <span class="hs-of">/100</span>
-              </div>
-            </div>
-            <div class="hs-label" id="hs-label">—</div>
-            <div class="hs-desc" id="hs-desc"></div>
-          </div>
-          <div class="card" style="overflow:auto">
+        <!-- Main row: Findings takes 2fr, right column stacks 4 KPIs -->
+        <div class="ov-main">
+          <div class="card" style="overflow:auto;min-width:0">
             <div class="card-title">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="10.5" r=".5" fill="currentColor" stroke="none"/></svg>
               <span class="en">Findings</span><span class="ja">検出結果</span>
-              <span class="card-title-right" id="ov-scan-time"></span>
             </div>
             <div class="issues-grid" id="issues-list">
               <div class="issue-item sev-ok"><div class="issue-dot"></div>
                 <span class="issue-text en">Run a scan to see results</span><span class="issue-text ja">スキャンを実行して結果を確認</span></div>
             </div>
           </div>
+          <div class="ov-kpi-col">
+            <div class="ov-kpi clickable" onclick="showPage('storage')"
+              data-tip="Free bytes on C:\. Below 10% can slow Windows. Click to open Storage."
+              data-tip-ja="Cドライブの空き容量。10%未満になると動作が遅くなります。">
+              <div class="ov-kpi-head">
+                <span class="ov-kpi-label"><span class="en">Disk Free</span><span class="ja">空き容量</span></span>
+                <span class="kpi-chip" id="kpi-disk-chip"></span>
+              </div>
+              <div class="ov-kpi-value" id="kpi-disk">—</div>
+              <div class="ov-kpi-sub" id="kpi-disk-sub">—</div>
+            </div>
+            <div class="ov-kpi clickable" onclick="showPage('storage')"
+              data-tip="Bytes you can safely free: temp files, cache, duplicate copies."
+              data-tip-ja="安全に削除できる容量：一時ファイル・キャッシュ・重複。">
+              <div class="ov-kpi-head">
+                <span class="ov-kpi-label"><span class="en">Reclaimable</span><span class="ja">解放可能</span></span>
+                <span class="kpi-chip" id="kpi-free-chip"></span>
+              </div>
+              <div class="ov-kpi-value" id="kpi-free">—</div>
+              <div class="ov-kpi-sub" id="kpi-free-sub">—</div>
+            </div>
+            <div class="ov-kpi clickable" onclick="showPage('startup')"
+              data-tip="Apps that start with Windows. Over 10 personal entries slows login."
+              data-tip-ja="Windows起動時に実行されるアプリ。10個超でログインが遅くなります。">
+              <div class="ov-kpi-head">
+                <span class="ov-kpi-label"><span class="en">Startup</span><span class="ja">起動アプリ</span></span>
+                <span class="kpi-chip" id="kpi-startup-chip"></span>
+              </div>
+              <div class="ov-kpi-value" id="kpi-startup">—</div>
+              <div class="ov-kpi-sub" id="kpi-startup-sub">—</div>
+            </div>
+            <div class="ov-kpi clickable" onclick="showPage('monitor')"
+              data-tip="The single process using the most RAM right now."
+              data-tip-ja="現在最もメモリを使っているプロセスとその使用量。">
+              <div class="ov-kpi-head">
+                <span class="ov-kpi-label"><span class="en">Top Process</span><span class="ja">上位プロセス</span></span>
+                <span class="kpi-chip" id="kpi-ram-chip"></span>
+              </div>
+              <div class="ov-kpi-value" id="kpi-ram">—</div>
+              <div class="ov-kpi-sub" id="kpi-ram-sub">—</div>
+            </div>
+          </div>
         </div>
-        <div class="kpi-grid">
-          <div class="kpi clickable" onclick="showPage('storage')"
-            data-tip="Free bytes on C:\. Below 10% can slow Windows (swap pressure, less room for Windows Update). Click to open Storage."
-            data-tip-ja="Cドライブの空き容量。10%未満になるとスワップやWindows Updateが圧迫されPCが遅くなります。クリックでストレージを開きます。">
-            <div class="kpi-label"><span class="en">Disk Free</span><span class="ja">空き容量</span></div>
-            <div class="kpi-value" id="kpi-disk">—</div><div class="kpi-sub" id="kpi-disk-sub">—</div><div class="kpi-chip" id="kpi-disk-chip"></div>
-          </div>
-          <div class="kpi clickable" onclick="showPage('storage')"
-            data-tip="Bytes you can safely free: temp files, cache, duplicate copies. Clean these to reclaim disk and often restore responsiveness."
-            data-tip-ja="安全に削除できる容量：一時ファイル・キャッシュ・重複。削除で空き容量が増え、動作が改善することがあります。">
-            <div class="kpi-label"><span class="en">Reclaimable</span><span class="ja">解放可能</span></div>
-            <div class="kpi-value" id="kpi-free">—</div><div class="kpi-sub" id="kpi-free-sub">—</div><div class="kpi-chip" id="kpi-free-chip"></div>
-          </div>
-          <div class="kpi clickable" onclick="showPage('startup')"
-            data-tip="Apps that start with Windows. Each one adds a few seconds to boot and takes RAM in the background. Over 10 personal entries typically slows login."
-            data-tip-ja="Windows起動時に実行されるアプリ数。各アプリが起動時間を伸ばしメモリも消費。10個を超えるとログインが明らかに遅くなります。">
-            <div class="kpi-label"><span class="en">Startup</span><span class="ja">起動アプリ</span></div>
-            <div class="kpi-value" id="kpi-startup">—</div><div class="kpi-sub" id="kpi-startup-sub">—</div><div class="kpi-chip" id="kpi-startup-chip"></div>
-          </div>
-          <div class="kpi clickable" onclick="showPage('monitor')"
-            data-tip="The single process using the most RAM right now, with its working set size. Over 1 GB is heavy — common for Chrome/Edge with many tabs."
-            data-tip-ja="現在最もメモリを使っているプロセスと使用量。1GB超は重め。多数のタブを開いたChrome/Edgeなどで発生します。">
-            <div class="kpi-label"><span class="en">Top Process</span><span class="ja">上位プロセス</span></div>
-            <div class="kpi-value" id="kpi-ram">—</div><div class="kpi-sub" id="kpi-ram-sub">—</div><div class="kpi-chip" id="kpi-ram-chip"></div>
-          </div>
-        </div>
-        <div class="two-col">
-          <div class="card card-sm">
+
+        <!-- Bottom row: Disk usage + Top processes -->
+        <div class="ov-bottom">
+          <div class="card card-sm" style="min-width:0">
             <div class="card-title"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><ellipse cx="10" cy="5.5" rx="7" ry="2.5"/><path d="M3 5.5v4c0 1.38 3.134 2.5 7 2.5s7-1.12 7-2.5v-4"/></svg>
               <span class="en">Disk Usage</span><span class="ja">ディスク使用</span></div>
             <div class="disk-row">
-              <div class="disk-ring-wrap"><svg width="80" height="80" viewBox="0 0 80 80"><defs><linearGradient id="disk-grad" x1="0" y1="0" x2="80" y2="80"><stop offset="0%" stop-color="#00D4AA"/><stop offset="100%" stop-color="#3B82F6"/></linearGradient></defs><circle class="drw-bg" cx="40" cy="40" r="35" style="stroke-width:6"/><circle class="drw-fill" id="ov-disk-ring" cx="40" cy="40" r="35" style="stroke-dasharray:219.91;stroke-dashoffset:219.91;stroke-width:6;stroke:url(#disk-grad)"/></svg>
-                <div class="drw-label"><span class="drw-pct" id="ov-disk-pct">—</span><span class="drw-sub"><span class="en">used</span><span class="ja">使用</span></span></div></div>
-              <div class="disk-details">
+              <div class="disk-ring-wrap"><svg width="72" height="72" viewBox="0 0 80 80"><defs><linearGradient id="disk-grad" x1="0" y1="0" x2="80" y2="80"><stop offset="0%" stop-color="#00D4AA"/><stop offset="100%" stop-color="#3B82F6"/></linearGradient></defs><circle class="drw-bg" cx="40" cy="40" r="35" style="stroke-width:6"/><circle class="drw-fill" id="ov-disk-ring" cx="40" cy="40" r="35" style="stroke-dasharray:219.91;stroke-dashoffset:219.91;stroke-width:6;stroke:url(#disk-grad)"/></svg>
+                <div class="drw-label"><span class="drw-pct" id="ov-disk-pct" style="font-size:14px">—</span><span class="drw-sub"><span class="en">used</span><span class="ja">使用</span></span></div></div>
+              <div class="disk-details" style="min-width:0">
                 <div class="disk-lbl"><span class="en">Free</span><span class="ja">空き</span></div>
-                <div class="big" id="ov-disk-free">—</div>
+                <div class="big" id="ov-disk-free" style="font-size:1.6rem">—</div>
                 <div class="disk-seg-bar"><div class="disk-seg-used" id="ov-disk-bar"></div></div>
                 <div class="disk-legend"><div class="dl-item"><div class="dl-swatch" style="background:var(--brand)"></div><span id="ov-disk-used-l">—</span></div><div class="dl-item"><div class="dl-swatch" style="background:var(--surface3)"></div><span id="ov-disk-free-l">—</span></div></div>
               </div>
             </div>
           </div>
-          <div class="card card-sm">
+          <div class="card card-sm" style="min-width:0">
             <div class="card-title"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,14 6,9 9.5,12.5 13.5,7 18,11"/><line x1="2" y1="17" x2="18" y2="17"/></svg>
               <span class="en">Top Processes</span><span class="ja">上位プロセス</span><span class="card-title-right" id="ov-ram-label"></span></div>
             <div class="bar-list" id="ov-proc-bars"></div>
@@ -3105,10 +3160,14 @@ function renderOverview(d){
   document.getElementById('ov-hero-title').innerHTML=`<span class="en">${esc(String(heroEN||''))}</span><span class="ja">${esc(String(heroJA||''))}</span>`;
   document.getElementById('ov-hero-sub').innerHTML=`<span class="en">Last scan: ${esc(String(d.at||''))} · ${d.issues===0?'No critical issues found':d.issues+' issue(s) detected'}</span><span class="ja">最終スキャン: ${esc(String(d.at||''))} · ${d.issues===0?'重大な問題なし':d.issues+'件検出'}</span>`;
 
-  const offset=CIRC_60*(1-d.score/100);
   const el=document.getElementById('hs-circle');
   const col=d.score>=80?'var(--success)':d.score>=60?'var(--brand)':d.score>=40?'var(--warn)':'var(--error)';
-  el.style.stroke=col; el.style.strokeDasharray=CIRC_60; el.style.strokeDashoffset=CIRC_60;
+  // Ring circumference is computed from the actual SVG radius so a layout
+  // resize (ov v3 strip = r28) doesn't need JS edits.
+  const hsR=parseFloat(el.getAttribute('r')||'28');
+  const hsCirc=2*Math.PI*hsR;
+  const offset=hsCirc*(1-d.score/100);
+  el.style.stroke=col; el.style.strokeDasharray=hsCirc; el.style.strokeDashoffset=hsCirc;
   setTimeout(()=>{el.style.strokeDashoffset=offset;},80);
   const n=document.getElementById('hs-number'); animateNum(n,d.score,700); n.style.color=col;
   const lb=document.getElementById('hs-label'); lb.style.color=col;
