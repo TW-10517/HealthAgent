@@ -262,23 +262,24 @@ button{font-family:var(--font)}
 .card-title-right{margin-left:auto;font-size:14px;font-weight:700;
   color:var(--fg);text-transform:none;letter-spacing:0}
 
-/* ── Health score ────────────────────────────────────────────────────────── */
-.health-wrap{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:stretch}
-@media (max-width:800px){.health-wrap{grid-template-columns:1fr}}
+/* ── Health score (compact density pass) ────────────────────────────────── */
+.health-wrap{display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px;align-items:stretch;min-width:0}
+@media (max-width:720px){.health-wrap{grid-template-columns:1fr}}
+.health-wrap > *{min-width:0}
 .health-score-card{display:flex;flex-direction:column;align-items:center;
-  justify-content:center;padding:28px 16px;gap:8px;position:relative;overflow:hidden}
-.hs-ring{position:relative;width:150px;height:150px;z-index:1}
+  justify-content:center;padding:14px 10px;gap:4px;position:relative;overflow:hidden}
+.hs-ring{position:relative;width:96px;height:96px;z-index:1}
 .hs-ring svg{transform:rotate(-90deg)}
-.hs-bg{fill:none;stroke:rgba(255,255,255,.05);stroke-width:8}
-.hs-fill{fill:none;stroke-width:8;stroke-linecap:round;
+.hs-bg{fill:none;stroke:rgba(255,255,255,.05);stroke-width:6}
+.hs-fill{fill:none;stroke-width:6;stroke-linecap:round;
   stroke-dasharray:376.99;stroke-dashoffset:376.99;transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1);
-  filter:drop-shadow(0 0 14px rgba(0,212,170,.45))}
-.hs-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
-.hs-number{font-size:44px;font-weight:700;font-family:var(--mono);line-height:1;
-  text-shadow:0 0 24px rgba(0,212,170,.3)}
-.hs-of{font-size:11px;color:var(--fg3)}
-.hs-label{font-size:14px;font-weight:700;margin-top:4px;z-index:1}
-.hs-desc{font-size:12px;color:var(--fg2);text-align:center;max-width:200px;line-height:1.6;z-index:1}
+  filter:drop-shadow(0 0 10px rgba(0,212,170,.4))}
+.hs-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
+.hs-number{font-size:26px;font-weight:700;font-family:var(--mono);line-height:1;
+  text-shadow:0 0 18px rgba(0,212,170,.3)}
+.hs-of{font-size:10px;color:var(--fg3)}
+.hs-label{font-size:12px;font-weight:700;margin-top:2px;z-index:1}
+.hs-desc{font-size:11px;color:var(--fg2);text-align:center;max-width:170px;line-height:1.45;z-index:1}
 
 /* ── Issues ──────────────────────────────────────────────────────────────── */
 .issues-grid{display:flex;flex-direction:column;gap:6px}
@@ -297,11 +298,9 @@ button{font-family:var(--font)}
 .issue-arrow{color:var(--fg4);font-size:14px;margin-left:auto;flex-shrink:0}
 
 /* ── KPI tiles ───────────────────────────────────────────────────────────── */
-.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-@media (max-width:1000px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:600px){.kpi-grid{grid-template-columns:1fr}}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;min-width:0}
 .kpi{background:var(--glass);border:1px solid var(--glass-border);
-  border-radius:var(--r-xl);padding:16px 18px;cursor:default;
+  border-radius:var(--r-xl);padding:12px 14px;cursor:default;min-width:0;
   transition:border-color .15s ease;position:relative;overflow:hidden}
 .kpi:hover{border-color:var(--border2)}
 .kpi.clickable{cursor:pointer}
@@ -538,7 +537,8 @@ select.setting-select:focus{outline:2px solid var(--brand);outline-offset:1px}
 .cleanup-size{font-size:11px;font-family:var(--mono);color:var(--fg2);flex-shrink:0}
 
 /* ── Layouts ─────────────────────────────────────────────────────────────── */
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.two-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;min-width:0}
+.two-col > *{min-width:0}
 .search-bar{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);
   border:1px solid rgba(255,255,255,.08);border-radius:100px;padding:0 14px;height:34px;
   backdrop-filter:blur(8px);transition:all .2s}
@@ -1438,18 +1438,14 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
       </div>
       <div id="ov-results" style="display:none" class="fade-in">
         <div id="analysis-overview"></div>
-        <!-- Hero banner -->
-        <div class="card" style="background:radial-gradient(ellipse at 0% 0%,rgba(0,212,170,.1),transparent 50%),radial-gradient(ellipse at 100% 100%,rgba(59,130,246,.08),transparent 50%),var(--glass);border:1px solid rgba(0,212,170,.1);padding:24px 26px;position:relative;overflow:hidden">
-          <div style="position:absolute;top:-30px;right:-20px;opacity:.04"><svg width="160" height="160" viewBox="0 0 24 24" fill="none"><path d="M5.9 17.1 A 8.5 8.5 0 1 1 18.1 17.1" stroke="#00D4AA" stroke-width="2.4" stroke-linecap="round"/></svg></div>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5.9 17.1 A 8.5 8.5 0 1 1 18.1 17.1" stroke="#2DD4C0" stroke-width="2.6" stroke-linecap="round"/><polyline points="6,12 9.3,12 10.8,8.8 12.8,15.2 14.2,12 16.7,12" stroke="#8AF0FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="16.9" cy="12" r="1.35" fill="#FFFFFF"/></svg>
-            <span style="font-size:10px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.08em"><span class="en">System Status</span><span class="ja">システムステータス</span></span>
+        <!-- Hero banner (single-line compact) -->
+        <div class="card" style="background:linear-gradient(90deg,rgba(0,212,170,.06),transparent 60%),var(--glass);border:1px solid rgba(0,212,170,.12);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M5.9 17.1 A 8.5 8.5 0 1 1 18.1 17.1" stroke="#2DD4C0" stroke-width="2.6" stroke-linecap="round"/><polyline points="6,12 9.3,12 10.8,8.8 12.8,15.2 14.2,12 16.7,12" stroke="#8AF0FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          <span style="font-size:10px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.08em;flex-shrink:0"><span class="en">Status</span><span class="ja">状態</span></span>
+          <div style="font-size:13.5px;font-weight:600;color:var(--fg);min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="ov-hero-title">
+            <span class="en">Your PC is protected and performing well.</span><span class="ja">PCは保護され、良好な状態です。</span>
           </div>
-          <div style="font-size:20px;font-weight:700;margin-bottom:4px;letter-spacing:-.02em" id="ov-hero-title">
-            <span class="en">Your PC is protected and performing well.</span>
-            <span class="ja">PCは保護され、良好な状態です。</span>
-          </div>
-          <div style="font-size:11px;color:var(--fg3)" id="ov-hero-sub"></div>
+          <div style="font-size:11px;color:var(--fg3);flex-shrink:0" id="ov-hero-sub"></div>
         </div>
 
         <div class="health-wrap">
