@@ -7026,7 +7026,33 @@ function handleChatResponse(r){
     appendChatMsg(r.content,'assistant');
     if(r.extra && r.extra.space_plan) _renderSpacePlan(r.extra.space_plan);
     if(r.extra && r.extra.slow_triage) _renderSlowTriage(r.extra.slow_triage);
+    if(r.extra && r.extra.startup_prune) _renderStartupPrune(r.extra.startup_prune);
   }
+}
+function _renderStartupPrune(p){
+  if(!p||!p.ok) return;
+  var cands=p.candidates||[];
+  if(!cands.length){
+    appendChatMsg('<div class="sp-card"><div class="sp-head">'+esc(p.headline||'')+'</div></div>','assistant','','',true);
+    return;
+  }
+  var _VCOLOR={'safe-to-disable':'var(--brand)','optional':'var(--info)','keep':'var(--fg3)','unknown':'var(--warn)'};
+  var html='<div class="sp-card">'
+    +'<div class="sp-head"><strong>Startup pruning</strong></div>'
+    +'<div class="sp-head" style="color:var(--fg2);font-size:12px">'+esc(p.headline||'')+'</div>'
+    +'<div class="sp-rows">';
+  cands.slice(0,8).forEach(function(c){
+    var col=_VCOLOR[c.verdict]||'var(--fg3)';
+    html+='<div class="sp-row" style="border-left:3px solid '+col+'">'
+      +'<div class="sp-info">'
+      +  '<div class="sp-label">'+esc(c.name)+(c.already_disabled?' <span style="color:var(--fg3);font-size:11px">(already off)</span>':'')+'</div>'
+      +  '<div class="sp-meta">'+esc(c.role||'unknown role')+' · <span style="color:'+col+'">'+esc(c.verdict)+'</span></div>'
+      +'</div>'
+      +'<button class="btn btn-sm" onclick="showPage(\'performance\')">Open Startup</button>'
+      +'</div>';
+  });
+  html+='</div></div>';
+  appendChatMsg(html,'assistant','','',true);
 }
 function _renderSlowTriage(d){
   if(!d) return;

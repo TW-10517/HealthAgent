@@ -163,7 +163,7 @@ def explain(name: str, cmd: str, *, narrate: bool = True) -> Dict[str, str]:
     # Fallback: ask the local model for a one-liner. Keep the prompt
     # tiny — qwen2.5:3b is ~37 tok/s on input.
     try:
-        from app import assistant as _asst  # noqa
+        import assistant as _asst
         prompt = (
             "You are describing a Windows startup entry in ONE short sentence "
             "(under 15 words). State only what the program does, not whether "
@@ -174,7 +174,152 @@ def explain(name: str, cmd: str, *, narrate: bool = True) -> Dict[str, str]:
         if reply and isinstance(reply, str):
             role = reply.strip().splitlines()[0][:120]
             return {"role": role, "verdict": "unknown", "source": "ollama"}
-    except Exception:
-        pass
+    except Exception as e:
+        from errors import quiet
+        quiet(e, "startup_explainer.explain.ollama")
 
     return {"role": "", "verdict": "unknown", "source": "unknown"}
+
+
+# ── Bulk ranking (Feature #10: Smart startup pruning) ────────────────
+#
+# Reads the user's current startup list via scanner.scan_startup(), applies
+# `_match` to each entry, filters out IT-managed + already-disabled names,
+# groups by verdict, and returns a plan the UI can render. Narrate-only;
+# nothing here calls `disable_startup`. The user still clicks the per-row
+# Disable button on the Startup tab after reviewing.
+
+_DISABLE_HINT = {
+    "safe-to-disable": "Safe to disable — launches on demand, no boot cost.",
+    "optional":        "Optional at boot — disable if you don't use it daily.",
+    "keep":            "Keep — this provides driver/security/boot function.",
+    "unknown":         "Unverified — leave on unless you recognise the command.",
+}
+
+
+def _already_disabled() -> set[str]:
+    """Names in Helix's disable-archive (LocalAppData logs/startup-disabled.json)."""
+    try:
+        import db as _db
+        raw = _db.get_setting("startup_disabled_archive") or ""
+        if raw:
+            import json as _json
+            data = _json.loads(raw)
+            return {str(r.get("name", "")) for r in (data or [])}
+    except Exception as e:
+        from errors import quiet
+        quiet(e, "startup_explainer._already_disabled")
+    return set()
+
+
+def rank_candidates(limit: int = 15) -> dict:
+    """Score every HKCU/HKLM Run entry → return a pruning plan.
+
+    Returns:
+        {
+          "ok":            bool,
+          "total":         int,                  # live startup entries
+          "candidates":    [{name,cmd,role,verdict,hint,impact}, ...],
+          "by_verdict":    {verdict: count},
+          "disabled_already": int,
+        }
+    `candidates` is ordered: safe-to-disable first, optional second, keep
+    last. Entries matching an IT-managed keyword are omitted — the disable
+    path refuses them anyway.
+    """
+    try:
+        from scanner import scan_startup
+    except Exception as e:
+        return {"ok": False, "msg": f"scanner unavailable: {e}"}
+    try:
+        entries = scan_startup() or []
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+
+    archived = _already_disabled()
+    out: list[dict] = []
+    by_verdict: dict[str, int] = {}
+    for e in entries:
+        name = (e.get("name") or "").strip()
+        cmd = (e.get("command") or "").strip()
+        if not name:
+            continue
+        if e.get("it_managed"):
+            continue
+        hit = _match(name, cmd)
+        if hit:
+            role, verdict, _ = hit
+        else:
+            role, verdict = "", "unknown"
+        # "impact" is a 0..3 rough rank: safe-to-disable > optional > unknown > keep.
+        impact = {"safe-to-disable": 3, "optional": 2, "unknown": 1, "keep": 0}.get(verdict, 0)
+        by_verdict[verdict] = by_verdict.get(verdict, 0) + 1
+        out.append({
+            "name": name, "cmd": cmd, "role": role,
+            "verdict": verdict, "impact": impact,
+            "hint": _DISABLE_HINT.get(verdict, ""),
+            "already_disabled": name in archived,
+        })
+    out.sort(key=lambda r: (-r["impact"], r["name"].lower()))
+    return {
+        "ok": True,
+        "total": len(entries),
+        "candidates": out[:limit],
+        "by_verdict": by_verdict,
+        "disabled_already": len(archived),
+    }
+
+
+def summarize(plan: dict, narrate: bool = True) -> dict:
+    """Plain-English summary + optional 2-sentence Ollama narration.
+
+    Returns the plan with `headline` and `narrated` fields added.
+    """
+    if not plan.get("ok"):
+        return {**plan, "headline": "Couldn't read your startup list.", "narrated": None}
+    bv = plan.get("by_verdict") or {}
+    safe = bv.get("safe-to-disable", 0)
+    opt  = bv.get("optional", 0)
+    keep = bv.get("keep", 0)
+    unk  = bv.get("unknown", 0)
+    total = plan.get("total", 0)
+    parts = []
+    if safe: parts.append(f"{safe} safe to disable")
+    if opt:  parts.append(f"{opt} optional")
+    if unk:  parts.append(f"{unk} unverified")
+    if keep: parts.append(f"{keep} should stay")
+    if not parts:
+        headline = f"You have {total} startup entries — nothing stands out to prune."
+    else:
+        headline = f"{total} startup entries — " + ", ".join(parts) + "."
+
+    narrated = None
+    if narrate:
+        try:
+            import db as _db
+            if (_db.get_setting("ai_enabled") or "true").lower() != "false":
+                import assistant as _asst
+                top = [c for c in (plan.get("candidates") or [])
+                       if c["verdict"] in ("safe-to-disable", "optional")][:4]
+                if top:
+                    bullets = "\n".join(
+                        f"- {c['name']} ({c['role'] or 'unknown role'}): {c['verdict']}"
+                        for c in top
+                    )
+                    context = (
+                        f"User startup entries ({total} total): {headline}\n"
+                        f"Top prune candidates:\n{bullets}\n\n"
+                        "Write 2 sentences: first name 1-2 of these that are safest to "
+                        "disable and why (one-liner), second remind the user that "
+                        "disabling only delays launch, not uninstall. No invented names."
+                    )
+                    reply = _asst.ollama_chat(
+                        "What should I disable at startup?",
+                        context=context, lang="en", history=None,
+                    )
+                    if reply:
+                        narrated = reply.strip()
+        except Exception as e:
+            from errors import quiet
+            quiet(e, "startup_explainer.summarize.narration")
+    return {**plan, "headline": headline, "narrated": narrated}

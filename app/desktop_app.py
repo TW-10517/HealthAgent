@@ -3251,15 +3251,20 @@ Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Diagnostics-Performan
         model (gated by `ai_enabled`). Narrate-only — never disables.
         """
         try:
-            from app import startup_explainer as _se
+            import startup_explainer as _se
         except Exception:
-            try:
-                import startup_explainer as _se  # type: ignore
-            except Exception:
-                return {"ok": False, "msg": "Explainer unavailable."}
+            return {"ok": False, "msg": "Explainer unavailable."}
         narrate = (db.get_setting("ai_enabled") or "true").lower() != "false"
         info = _se.explain(name or "", cmd or "", narrate=narrate)
         return {"ok": True, **info}
+
+    def rank_startup_candidates(self, limit: int = 15, narrate: bool = True) -> dict:
+        """Smart startup pruning (Feature #10): catalog-driven ranking of the
+        current Run-key entries with safe/optional/keep verdicts and an
+        optional 2-sentence Ollama summary. Narrate-only."""
+        import startup_explainer as _se
+        plan = _se.rank_candidates(limit=int(limit))
+        return _se.summarize(plan, narrate=bool(narrate))
 
     def create_restore_point(self, description: str = "Helix pre-maintenance") -> dict:
         """Request a Windows System Restore point. Requires System Protection
@@ -3846,6 +3851,25 @@ ForEach-Object{
             threading.Thread(target=_plan_turn, daemon=True).start()
             return {"type": "thinking",
                     "content": f"Building a plan to free {tgt:.0f} GB…"}
+
+        elif action_id == "startup_prune":
+            import startup_explainer as _se
+            _target = _popup_window
+            def _prune_turn():
+                plan = _se.summarize(_se.rank_candidates(limit=15), narrate=True)
+                content = plan.get("narrated") or plan.get("headline") or "No startup data."
+                payload = json.dumps({"type": "text", "content": content,
+                                      "extra": {"startup_prune": plan}})
+                code = f"onChatResponse({payload})"
+                if _target:
+                    try: _target.evaluate_js(code)
+                    except Exception as _e:
+                        from errors import quiet; quiet(_e, "chat.startup_prune.popup_js")
+                else:
+                    self._js(code)
+            threading.Thread(target=_prune_turn, daemon=True).start()
+            return {"type": "thinking",
+                    "content": "Reading your startup list and ranking candidates…"}
 
         elif action_id == "slow_triage":
             import live_triage as _lt

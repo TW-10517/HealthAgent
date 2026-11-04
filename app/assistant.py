@@ -92,6 +92,15 @@ _INTENTS = [
     (r'(clean up|cleanup|delete temp|remove temp)\s*(files?)?', 'cleanup_confirm', {}),
     # Window
     (r'(minimize|hide)\s+(the\s+)?(app|window|application)', 'minimize_window', {}),
+    # ── Smart startup pruning (Feature #10) ──
+    (r"^\s*(?:what|which)\s+(?:should\s+i\s+)?(?:disable|turn\s+off)\s+at\s+(?:startup|boot)[\s!?.]*$",
+     'startup_prune', {}),
+    (r"^\s*(?:help\s+me\s+)?(?:prune|clean\s+up|review)\s+(?:my\s+)?startup(?:\s+apps)?[\s!?.]*$",
+     'startup_prune', {}),
+    (r"^\s*(?:what|which)\s+startup\s+apps?\s+(?:can|should)\s+i\s+disable[\s!?.]*$",
+     'startup_prune', {}),
+    (r"^\s*suggest\s+startup\s+(?:apps?\s+)?(?:to\s+)?(?:disable|prune)[\s!?.]*$",
+     'startup_prune', {}),
     # ── Live slow-triage (Feature #8) ──
     # Order matters: declare BEFORE the generic help / check_pc_runs rules so
     # "why is my pc slow" / "my pc is slow" route here.
