@@ -82,10 +82,27 @@ _INTENTS = [
     # Diagnose action
     (r'(run|start|show|do)\s+(diagnos|troubleshoot)', 'run_diagnose', {}),
     (r'^troubleshoot(\s+(my|the|this)\s+)?(pc|computer|system|problem|issue)?', 'run_diagnose', {}),
-    # Cleanup
+    # Cleanup — "clean up 10 GB" must route to space_plan, so declare it first
+    (r"^\s*(?:i\s+(?:need|want|would\s+like)|free\s+up|freeup|clean(?:\s+up)?|"
+     r"make|give\s+me)\s+(?:about\s+|around\s+|roughly\s+)?(\d+(?:\.\d+)?)\s*(?:gb|gigs?|gigabytes?)\s*"
+     r"(?:free|of\s+(?:free\s+)?space|space)?[\s!?.]*$",
+     'space_plan', {}),
+    (r"^\s*(?:i\s+(?:need|want)|how\s+can\s+i\s+get)\s+(\d+(?:\.\d+)?)\s*(?:gb|gigs?)\s+of\s+free\s+space[\s!?.]*$",
+     'space_plan', {}),
     (r'(clean up|cleanup|delete temp|remove temp)\s*(files?)?', 'cleanup_confirm', {}),
     # Window
     (r'(minimize|hide)\s+(the\s+)?(app|window|application)', 'minimize_window', {}),
+    # ── Live slow-triage (Feature #8) ──
+    # Order matters: declare BEFORE the generic help / check_pc_runs rules so
+    # "why is my pc slow" / "my pc is slow" route here.
+    (r"^\s*why\s+is\s+(?:my\s+)?(?:pc|computer|laptop|machine|system)\s+(?:so\s+)?"
+     r"(?:slow|sluggish|laggy|stuttering|lagging)[\s!?.]*$", 'slow_triage', {}),
+    (r"^\s*(?:my\s+)?(?:pc|computer|laptop|machine|system)\s+(?:is\s+|feels\s+|seems\s+)?"
+     r"(?:so\s+)?(?:slow|sluggish|laggy|stuttering|lagging)[\s!?.]*$", 'slow_triage', {}),
+    (r"^\s*(?:what|what'?s|whats)\s+(?:is\s+)?slowing\s+(?:my\s+|the\s+)?(?:pc|computer|laptop|system)"
+     r"[\s!?.]*$", 'slow_triage', {}),
+    (r"^\s*(?:diagnose|check|triage)\s+(?:my\s+)?(?:slowness|slow|performance|speed)[\s!?.]*$",
+     'slow_triage', {}),
     # ── Morning briefing (Feature #4) ──
     # NOTE: bare "good morning" stays on the greet handler — it is more
     # commonly a hello than a request for the daily summary.
@@ -316,8 +333,9 @@ def ollama_chat(message: str, context: str = "", lang: str = "en",
         import db
         if (db.get_setting("ai_enabled") or "true").lower() == "false":
             return None
-    except Exception:
-        pass
+    except Exception as e:
+        from errors import quiet
+        quiet(e, "assistant.ollama_chat.ai_enabled_check")
 
     # Load persistent app/machine knowledge cache
     try:
@@ -354,8 +372,9 @@ def ollama_chat(message: str, context: str = "", lang: str = "en",
     try:
         import prompt_budget as _pb
         system, hist_capped, message = _pb.pack_prompt(system, hist_capped, message)
-    except Exception:
-        pass
+    except Exception as e:
+        from errors import quiet
+        quiet(e, "assistant.ollama_chat.pack_prompt")
 
     turns = ""
     for h in hist_capped:

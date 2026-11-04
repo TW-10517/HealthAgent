@@ -12,6 +12,65 @@ The repo/package id remains `PCHealthAgent`.
 **Download URLs**: `/Helix.exe` (23 MiB, UPX-compressed), `/Helix.zip`, `/version.json`
 **Current released version**: `1.1.5` (deployed to Cloudflare 2026-10-30; verify with `curl https://helix-57o.pages.dev/version.json` before assuming users are on it)
 
+## Standing engineering guardrails (MUST follow — honest-review 2026-11-04)
+
+These are the six rules that came out of a code audit. Every one exists because
+the codebase drifted without them. Enforce them whenever you touch Helix,
+regardless of what the current task is.
+
+1. **No new silent exceptions.** Never write bare `except Exception: pass`. Use
+   `from errors import quiet; quiet(e, "<module>.<function>")` so swallowed
+   failures leave one line in `logs/silent.log`. The ONLY exception: tight
+   per-process loops where a log write would dominate the cost (e.g. inside a
+   psutil `process_iter` — write a comment saying why). Grep must not add
+   silent-pass sites: `grep -nE "except Exception:\s*$" app/*.py` should return
+   nothing new beyond the pre-existing ~100 legacy sites.
+
+2. **No new `innerHTML` writes with unescaped user data.** Every value that
+   originates from a scan, filename, path, Windows event, chat input, Ollama
+   reply, user memory, or any other untrusted source goes through `esc()` /
+   `_escHtml()` before concatenation. For HTML attribute context inside
+   `onclick="…('${x}')"`, use `_escAttrJS(x)`. If you catch yourself writing
+   `innerHTML = '...' + someField`, STOP — pipe the field through `esc()` or
+   switch to `textContent`. Prefer `textContent` for pure-text updates. The
+   SPA audit found this rule was mostly already followed; do not regress it.
+
+3. **No duplicate modules.** Before creating `foo_v2.py`, `foo_new.py`,
+   or anything parallel to an existing module, grep for `import foo` across
+   `app/`. If the existing module covers 70% of what you need, extend it;
+   don't fork it. (Precedent: `live_triage.py` and `slow_triage.py` existed
+   in parallel for one day until I noticed. Deleted the second.)
+
+4. **AgentAPI is already a god-class — don't feed it.** `desktop_app.py` has
+   163 methods on a single class. When adding a new feature:
+   - Put the real logic in its own module (e.g. `briefing.py`, `space_plan.py`,
+     `live_triage.py`, `battery_coach.py` — this pattern already exists for
+     most features).
+   - Add ONLY a thin one-line forwarder on `AgentAPI` that calls into the
+     module. No business logic inside the method body. If the forwarder needs
+     more than two lines, something belongs in the module.
+   - Group the forwarder under an existing `# ── Section ──` header, or add a
+     new section header matching the feature's module name.
+   - Do not add new direct-implementation methods. If an existing method is
+     implemented inline, leave it alone unless the task requires editing it;
+     if you must edit, extract to a module as part of the change.
+
+5. **Never ship a feature without a smoke call.** After wiring any new chat
+   intent, API method, or UI handler, make at least one live call to it in
+   this session (via `python -c`, a probe script, or the running app). "The
+   tests pass" is not the same as "a human clicked it." If the feature touches
+   the UI, say so and tell the user it is smoke-tested only from Python until
+   they click it.
+
+6. **Keep the push queue short.** If there are more than two unpushed commits
+   on `main`, flag it to the user at the start of the next task. Three+
+   commits drifting from origin is a bus-factor risk; it already happened once
+   (`a994e15`, `d2a50e2`, `46a5816`).
+
+Economics note (out of this session's scope but keep visible): the unsigned
+exe + SmartScreen warning is the single biggest adoption blocker; a $200–400/yr
+code-signing cert is the fix. Nothing in the code can replace this.
+
 ## Session handoff — 2026-10-30 (polish pass + launcher theme sync, pushed on top of 1.1.5)
 
 Shipped on top of the 1.1.5 binary without a version bump (CI rebuilds the exe but `version.json` stays at 1.1.5 — these are UX refinements, not a new user-visible release). Bump to 1.1.6 at the next push if the user asks for it.

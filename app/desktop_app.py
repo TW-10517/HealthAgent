@@ -159,8 +159,9 @@ def _show_notification(title: str, message: str):
              "-EncodedCommand", encoded],
             creationflags=0x08000000,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        from errors import quiet
+        quiet(e, "_show_notification")
 
 
 class AgentAPI:
@@ -222,11 +223,13 @@ class AgentAPI:
                                    datetime.now().strftime("%Y-%m-%d"))
                     db.set_setting("last_update_version", APP_VERSION)
                     db.set_setting("whats_new_popup_pending", "true")
-                except Exception:
-                    pass
+                except Exception as e:
+                    from errors import quiet
+                    quiet(e, "_detect_fresh_update.grab_notes")
             threading.Thread(target=_grab_notes, daemon=True).start()
-        except Exception:
-            pass
+        except Exception as e:
+            from errors import quiet
+            quiet(e, "_detect_fresh_update")
 
     def get_whats_new(self) -> dict:
         """Return the latest release notes if we're still within the 3-day
@@ -382,8 +385,9 @@ class AgentAPI:
                     self._run_scheduled_actions(actions)
                     db.set_setting("schedule_last_run",
                                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                except Exception:
-                    pass
+                except Exception as e:
+                    from errors import quiet
+                    quiet(e, "_start_schedule_watch.tick")
         threading.Thread(target=_loop, daemon=True).start()
 
     def _run_scheduled_actions(self, actions: list):
@@ -396,8 +400,9 @@ class AgentAPI:
                     cleanup_temp_files(dry_run=False)
                 elif a == "snapshot":
                     self.capture_metrics_snapshot("scheduled")
-            except Exception:
-                pass
+            except Exception as e:
+                from errors import quiet
+                quiet(e, f"_run_scheduled_actions.{a}")
 
     def run_schedule_now(self) -> dict:
         """Fire the configured schedule right now (manual kick)."""
@@ -443,8 +448,9 @@ class AgentAPI:
                         _show_notification(
                             "PC Health — High Memory Usage",
                             f"RAM at {ram_pct:.0f}% — close unused apps to free memory.")
-                except Exception:
-                    pass
+                except Exception as e:
+                    from errors import quiet
+                    quiet(e, "_start_health_watch.tick")
         threading.Thread(target=_watch, daemon=True).start()
 
     # ── Installer watchdog (Feature 4) ───────────────────────────────────────
@@ -528,8 +534,9 @@ class AgentAPI:
                                 pass
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             continue
-                except Exception:
-                    pass
+                except Exception as e:
+                    from errors import quiet
+                    quiet(e, "_watch.tick")
         threading.Thread(target=_watch, daemon=True).start()
 
     # ── Game-launch narrator (Feature 5 — roadmap #6) ────────────────────────
@@ -628,8 +635,9 @@ class AgentAPI:
                                 pass
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             continue
-                except Exception:
-                    pass
+                except Exception as e:
+                    from errors import quiet
+                    quiet(e, "_watch.tick")
         threading.Thread(target=_watch, daemon=True).start()
 
     # ── Scan ─────────────────────────────────────────────────────────────────
@@ -781,8 +789,9 @@ class AgentAPI:
             try:
                 import agent_cache
                 agent_cache.build_cache(data)
-            except Exception:
-                pass
+            except Exception as e:
+                from errors import quiet
+                quiet(e, "_do_scan.agent_cache")
             if db.get_setting("show_notifications") == "true":
                 _show_notification(
                     "Scan Complete",
@@ -958,8 +967,9 @@ class AgentAPI:
                     snap = _bc.coach(narrate_=True)
                     self._battery_popup_pending = snap
                     self._battery_last_popup_pct = pct
-                except Exception:
-                    pass
+                except Exception as e:
+                    from errors import quiet
+                    quiet(e, "_start_battery_watch.tick")
         threading.Thread(target=_watch, daemon=True).start()
 
     def report_js_error(self, info: dict):
@@ -967,8 +977,9 @@ class AgentAPI:
         try:
             line = f"{datetime.now():%Y-%m-%d %H:%M:%S} {info}\n"
             (LOGS / "js-errors.log").open("a", encoding="utf-8").write(line)
-        except Exception:
-            pass
+        except Exception as e:
+            from errors import quiet
+            quiet(e, "report_js_error")
         return {"ok": True}
 
     def get_about(self) -> dict:
@@ -2308,6 +2319,15 @@ Get-CimInstance Win32_PnPSignedDriver |
             return {"ok": False, "msg": str(e)}
 
     # ── Recycle Bin ───────────────────────────────────────────────────────────
+    def get_space_plan(self, target_gb: float = 10.0) -> dict:
+        """Build a per-group cleanup plan for a disk goal. Narrate-only;
+        the UI hands each group back to its existing cleanup surface."""
+        try:
+            import space_plan as _sp
+            return _sp.build_plan(float(target_gb))
+        except Exception as e:
+            return {"ok": False, "msg": str(e), "groups": []}
+
     def get_recycle_bin(self) -> dict:
         """Return current Recycle Bin item count and total size."""
         try:
@@ -3805,6 +3825,45 @@ ForEach-Object{
 
             threading.Thread(target=_advisor_turn, daemon=True).start()
             return {"type": "thinking", "content": "Checking…"}
+
+        elif action_id == "space_plan":
+            import space_plan as _sp
+            import re as _re
+            m = _re.search(r"(\d+(?:\.\d+)?)\s*(?:gb|gigs?|gigabytes?)", message.lower())
+            tgt = float(m.group(1)) if m else 10.0
+            _target = _popup_window
+            def _plan_turn():
+                plan = _sp.build_plan(tgt)
+                content = _sp.plan_narration(plan)
+                payload = json.dumps({"type": "text", "content": content,
+                                      "extra": {"space_plan": plan}})
+                code = f"onChatResponse({payload})"
+                if _target:
+                    try: _target.evaluate_js(code)
+                    except Exception: pass
+                else:
+                    self._js(code)
+            threading.Thread(target=_plan_turn, daemon=True).start()
+            return {"type": "thinking",
+                    "content": f"Building a plan to free {tgt:.0f} GB…"}
+
+        elif action_id == "slow_triage":
+            import live_triage as _lt
+            _target = _popup_window
+            def _slow_turn():
+                r = _lt.triage_live(narrate_=True)
+                content = r.get("narrated") or _lt.plain_text(r)
+                payload = json.dumps({"type": "text", "content": content,
+                                      "extra": {"slow_triage": r}})
+                code = f"onChatResponse({payload})"
+                if _target:
+                    try: _target.evaluate_js(code)
+                    except Exception: pass
+                else:
+                    self._js(code)
+            threading.Thread(target=_slow_turn, daemon=True).start()
+            return {"type": "thinking",
+                    "content": "Snapshotting CPU, RAM, and disk I/O…"}
 
         elif action_id == "briefing":
             import briefing as _br

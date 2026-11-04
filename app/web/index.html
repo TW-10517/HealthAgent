@@ -717,6 +717,30 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
 .ai-send-btn:hover{background:#5EDCD0}
 .ai-send-btn:active{transform:scale(.95)}
 .ai-send-btn:disabled{background:#1C232C;color:#484F58;cursor:default}
+/* ── Slow-triage card ─────────────────────────────────── */
+.st-card{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:6px;background:var(--surface2)}
+.st-card.st-ok{border-left:3px solid var(--brand)}
+.st-card.st-warn{border-left:3px solid var(--warn)}
+.st-card.st-bad{border-left:3px solid var(--error)}
+.st-head{font-size:13.5px;color:var(--fg);margin-bottom:4px}
+.st-totals{font-size:11.5px;color:var(--fg3);margin-bottom:6px}
+.st-sub{font-size:11.5px;color:var(--fg2);margin:6px 0 3px}
+.st-rows{display:flex;flex-direction:column;gap:3px}
+.st-row{display:flex;justify-content:space-between;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px}
+.st-name{color:var(--fg)}
+.st-val{color:var(--fg3)}
+.st-actions{display:flex;gap:6px;margin-top:8px}
+/* ── Space plan card (conversational cleanup) ────────── */
+.sp-card{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:6px;background:var(--surface2)}
+.sp-head{font-size:12.5px;color:var(--fg2);margin-bottom:6px}
+.sp-warn{font-size:12px;color:var(--warn);margin-bottom:6px}
+.sp-rows{display:flex;flex-direction:column;gap:6px}
+.sp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+.sp-info{min-width:0;flex:1}
+.sp-label{font-size:13px;color:var(--fg)}
+.sp-meta{font-size:11.5px;color:var(--fg3)}
 /* ── File results ─────────────────────────────────────── */
 .fr-header{font-size:13px;opacity:1;margin-bottom:8px;color:var(--fg)}
 .fr-list{display:flex;flex-direction:column;gap:4px;margin-top:4px}
@@ -3592,7 +3616,7 @@ async function loadCoreDetail(){
   if(!window.pywebview){ return; }
   sum.textContent='…';
   let r; try{ r=await window.pywebview.api.get_cpu_core_detail(); }catch(e){ sum.textContent='error'; return; }
-  if(!r||!r.ok){ sum.textContent='unavailable'; idle.style.display='none'; res.style.display='block'; res.innerHTML='<div style="font-size:12px;color:var(--fg3);padding:8px 0">'+(r&&r.error||'No data')+'</div>'; return; }
+  if(!r||!r.ok){ sum.textContent='unavailable'; idle.style.display='none'; res.style.display='block'; res.innerHTML='<div style="font-size:12px;color:var(--fg3);padding:8px 0">'+esc(r&&r.error||'No data')+'</div>'; return; }
   idle.style.display='none'; res.style.display='block';
   sum.textContent=r.cores_physical+' cores · '+r.cores_logical+' threads';
   const stats=document.getElementById('mon-cores-stats');
@@ -7000,7 +7024,71 @@ function handleChatResponse(r){
     appendChatMsg(html,'assistant','','',true);
   } else {
     appendChatMsg(r.content,'assistant');
+    if(r.extra && r.extra.space_plan) _renderSpacePlan(r.extra.space_plan);
+    if(r.extra && r.extra.slow_triage) _renderSlowTriage(r.extra.slow_triage);
   }
+}
+function _renderSlowTriage(d){
+  if(!d) return;
+  var cpu=d.cpu_overall||0, ram=d.ram_overall||0;
+  var cls='ok'; if(cpu>=85||ram>=90) cls='bad'; else if(cpu>=60||ram>=80) cls='warn';
+  var disk=(d.disk_busy_pct==null)?'—':(d.disk_busy_pct.toFixed(0)+'%');
+  var html='<div class="st-card st-'+esc(cls)+'">'
+    +'<div class="st-totals">CPU '+cpu.toFixed(0)+'% · RAM '+ram.toFixed(0)
+    +'% · Disk busy '+esc(disk)+' · Net '+(d.net_mbps||0).toFixed(1)+' Mbps</div>';
+  (d.highlights||[]).forEach(function(h){
+    html+='<div class="st-sub">• '+esc(h)+'</div>';
+  });
+  function _rows(title,list,metric){
+    if(!list||!list.length) return '';
+    var h='<div class="st-sub">'+esc(title)+'</div><div class="st-rows">';
+    list.slice(0,3).forEach(function(p){
+      var m=(metric==='cpu')?(p.cpu.toFixed(0)+'%'):(p.mem_mb.toFixed(0)+' MB');
+      h+='<div class="st-row"><span class="st-name">'+esc(p.name)+'</span><span class="st-val">'+esc(m)+'</span></div>';
+    });
+    return h+'</div>';
+  }
+  html+=_rows('Top CPU',d.top_cpu,'cpu');
+  html+=_rows('Top RAM',d.top_ram,'mem');
+  html+='<div class="st-actions">'
+    +'<button class="btn btn-sm" onclick="showPage(\'performance\')">Open Performance</button>'
+    +'<button class="btn btn-sm" onclick="openBoost&&openBoost()">Boost…</button>'
+    +'</div></div>';
+  appendChatMsg(html,'assistant','','',true);
+}
+function _spGroupAction(g){
+  if(g.action==='empty_recycle_bin') return 'Open Recycle Bin';
+  if(g.action==='clean_browser_cache') return 'Open Security';
+  if(g.action==='cleanup_files') return 'Clean temp';
+  if(g.action==='open_page') return 'Review in Storage';
+  return 'Open';
+}
+function _spClickGroup(id){
+  if(id==='recycle'){ showPage('storage'); return; }
+  if(id==='browser'){ showPage('privacy'); return; }
+  if(id==='temp'){ showPage('storage'); return; }
+  if(id==='old'||id==='large'){ showPage('storage'); return; }
+}
+function _renderSpacePlan(plan){
+  if(!plan||!plan.groups||!plan.groups.length) return;
+  var tgt=(plan.target_gb||0).toFixed(1);
+  var avail=(plan.total_available_gb||0).toFixed(1);
+  var meet=plan.can_meet_target;
+  var free=(plan.current_free_gb!=null)?(' · free now '+plan.current_free_gb.toFixed(1)+' GB'):'';
+  var html='<div class="sp-card">'
+    +'<div class="sp-head"><strong>Cleanup plan</strong> · goal '+esc(tgt)
+    +' GB · available '+esc(avail)+' GB'+esc(free)+'</div>';
+  if(!meet) html+='<div class="sp-warn">Short of the goal — you may need to delete manually after reviewing.</div>';
+  html+='<div class="sp-rows">';
+  plan.groups.forEach(function(g){
+    html+='<div class="sp-row">'
+      +'<div class="sp-info"><div class="sp-label">'+esc(g.label)+'</div>'
+      +'<div class="sp-meta">'+g.size_gb.toFixed(2)+' GB · '+g.items+' item'+(g.items===1?'':'s')+'</div></div>'
+      +'<button class="btn btn-sm" onclick="_spClickGroup(\''+esc(g.id)+'\')">'+esc(_spGroupAction(g))+'</button>'
+      +'</div>';
+  });
+  html+='</div></div>';
+  appendChatMsg(html,'assistant','','',true);
 }
 function onChatResponse(r){
   const el=document.getElementById('async-thinking'); if(el) el.remove();
