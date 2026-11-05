@@ -121,6 +121,7 @@ def scan_temp():
 IT_PATTERN = {
     "eset", "ekrn", "egui",                   # ESET + its process names
     "optima", "acall",
+    "eye247", "eye\"247\"", "fuva",           # Fuva Brain Eye"247" work agent
     "onedrive", "teams",
     "microsoftedge", "msedge",                # Edge + its process name
     "securityhealth", "windowsdefender",
@@ -133,45 +134,194 @@ CRITICAL_PROCESSES = frozenset({
     "services", "svchost", "msmpeng", "mssenses",
 })
 
+_APPROVED_BASE = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved"
+
+# Every place Windows looks for logon entries, paired with the
+# StartupApproved key that records whether the user disabled it.
+#   (hive, run_subkey, approved_hive, approved_subkey, source_label)
+_RUN_KEYS = [
+    (winreg.HKEY_CURRENT_USER,
+     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+     winreg.HKEY_CURRENT_USER, _APPROVED_BASE + r"\Run", "HKCU\\Run"),
+    (winreg.HKEY_LOCAL_MACHINE,
+     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+     winreg.HKEY_LOCAL_MACHINE, _APPROVED_BASE + r"\Run", "HKLM\\Run"),
+    (winreg.HKEY_LOCAL_MACHINE,
+     r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run",
+     winreg.HKEY_LOCAL_MACHINE, _APPROVED_BASE + r"\Run32", "HKLM\\Run (32-bit)"),
+]
+
+
+def _read_approved(hive, subkey) -> dict:
+    """Map lower-cased entry name -> enabled bool from a StartupApproved key.
+
+    Task Manager stores its enable/disable decision here as a binary blob;
+    bit 0 of byte 0 is set when the entry is disabled. An entry with no
+    record has never been touched and therefore runs.
+    """
+    out = {}
+    try:
+        with winreg.OpenKey(hive, subkey) as key:
+            i = 0
+            while True:
+                try:
+                    name, val, _ = winreg.EnumValue(key, i)
+                    i += 1
+                except OSError:
+                    break
+                if not name:
+                    continue
+                try:
+                    disabled = bool(val[0] & 1)
+                except (TypeError, IndexError, KeyError):
+                    disabled = False
+                out[name.lower()] = not disabled
+    except OSError:
+        pass
+    return out
+
+
+def _classify_startup(name: str, command: str) -> str:
+    """Return 'it' | 'system' | 'personal' for one startup entry.
+
+    Keywords are matched against the command as well as the entry name:
+    the name alone is unreliable (HKCU's "Microsoft.Lists" actually launches
+    OneDrive.Sync.Service.exe). Anything launched out of the Windows
+    directory is an OS or driver component, not a personal app.
+    """
+    blob = (str(name) + " " + str(command)).lower()
+    for kw in IT_PATTERN:
+        if kw in blob:
+            return "it"
+    cmd = str(command).strip().strip('"').lower()
+    if cmd.startswith(("%windir%", "%systemroot%")):
+        return "system"
+    sysroot = (os.environ.get("SystemRoot") or "C:\\Windows").lower()
+    if cmd.startswith(sysroot):
+        return "system"
+    return "personal"
+
+
 def scan_startup():
+    """Every entry Windows launches at logon, with its real enabled state.
+
+    Reads the 64-bit and 32-bit HKLM Run keys, the HKCU Run key, and both
+    Startup folders. Disabled entries are returned with enabled=False
+    rather than dropped, so the UI can show them without callers counting
+    them as things that actually run.
+    """
     apps = []
-    reg_paths = [
-        (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"),
-        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"),
-    ]
-    for hive, subkey in reg_paths:
+    seen = set()
+
+    for hive, subkey, ahive, asubkey, label in _RUN_KEYS:
+        approved = _read_approved(ahive, asubkey)
         try:
             with winreg.OpenKey(hive, subkey) as key:
                 i = 0
                 while True:
                     try:
                         name, val, _ = winreg.EnumValue(key, i)
-                        is_it = any(kw in name.lower() for kw in IT_PATTERN)
-                        apps.append({"name": name, "command": val, "it_managed": is_it})
                         i += 1
                     except OSError:
                         break
+                    # The key's unnamed default value is not a startup entry.
+                    if not name or not str(name).strip():
+                        continue
+                    command = "" if val is None else str(val)
+                    ident = (label, str(name).lower())
+                    if ident in seen:
+                        continue
+                    seen.add(ident)
+                    cat = _classify_startup(name, command)
+                    apps.append({
+                        "name": name,
+                        "command": command,
+                        "it_managed": cat in ("it", "system"),
+                        "category": cat,
+                        "enabled": approved.get(str(name).lower(), True),
+                        "source": label,
+                    })
         except OSError:
             pass
+
+    folders = [
+        (os.path.join(os.environ.get("APPDATA", ""),
+                      r"Microsoft\Windows\Start Menu\Programs\Startup"),
+         winreg.HKEY_CURRENT_USER, "Startup folder"),
+        (os.path.join(os.environ.get("PROGRAMDATA", ""),
+                      r"Microsoft\Windows\Start Menu\Programs\Startup"),
+         winreg.HKEY_LOCAL_MACHINE, "Startup folder (all users)"),
+    ]
+    for folder, ahive, label in folders:
+        if not folder or not os.path.isdir(folder):
+            continue
+        approved = _read_approved(ahive, _APPROVED_BASE + r"\StartupFolder")
+        try:
+            entries = sorted(os.scandir(folder), key=lambda e: e.name.lower())
+        except OSError:
+            continue
+        for e in entries:
+            try:
+                if not e.is_file(follow_symlinks=False):
+                    continue
+            except OSError:
+                continue
+            if e.name.lower() == "desktop.ini":
+                continue
+            display = os.path.splitext(e.name)[0]
+            cat = _classify_startup(display, e.path)
+            apps.append({
+                "name": display,
+                "command": e.path,
+                "it_managed": cat in ("it", "system"),
+                "category": cat,
+                # Approval records for shortcuts keep the file extension.
+                "enabled": approved.get(e.name.lower(), True),
+                "source": label,
+            })
     return apps
 
 # ── Top processes ─────────────────────────────────────────────────────────────
+# Kernel bookkeeping entries that are not applications. Memory
+# Compression's working set is the OS's own compressed page store — it is
+# already counted in RAM usage and the user cannot act on it, so listing it
+# as the top memory consumer is actively misleading.
+_PSEUDO_PROCESSES = {"memcompression", "memory compression",
+                     "system idle process"}
+
+
 def scan_processes():
-    """Top-10 processes by memory. psutil is ~100x faster than PowerShell here."""
+    """Top-10 apps by memory, summed per executable.
+
+    Chromium-based apps (Edge, WebView2, Electron) spread their memory over
+    dozens of processes with the same name, so reporting one process' RSS
+    understates the app several-fold — Edge measured 1001 MB for its largest
+    process against 2625 MB across all 23. Instances are summed and counted.
+    psutil is ~100x faster than PowerShell here.
+    """
     if psutil is None:
         return []
-    procs = []
+    agg: dict[str, dict] = {}
     for p in psutil.process_iter(["name", "memory_info"]):
         try:
             mi = p.info.get("memory_info")
             if not mi:
                 continue
-            procs.append({
-                "name": p.info["name"] or "",
-                "mem_mb": round(mi.rss / (1 << 20)),
-            })
+            name = p.info["name"] or ""
+            if not name or name.lower() in _PSEUDO_PROCESSES:
+                continue
+            e = agg.get(name)
+            if e is None:
+                agg[name] = {"bytes": mi.rss, "count": 1}
+            else:
+                e["bytes"] += mi.rss
+                e["count"] += 1
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
+    procs = [{"name": n,
+              "mem_mb": round(v["bytes"] / (1 << 20)),
+              "count": v["count"]}
+             for n, v in agg.items()]
     procs.sort(key=lambda x: x["mem_mb"], reverse=True)
     return procs[:10]
 
@@ -180,39 +330,95 @@ def scan_total_ram():
         return round(psutil.virtual_memory().total / (1 << 30))
     return 0
 
+
+def scan_total_ram_mb() -> int:
+    """Unrounded total RAM in MB, for share-of-memory comparisons."""
+    if psutil is not None:
+        return round(psutil.virtual_memory().total / (1 << 20))
+    return 0
+
+
+def top_process_is_hogging(processes, total_ram_mb) -> bool:
+    """True when the heaviest app exceeds both the MB floor and the share
+    of installed RAM. See thresholds.PROCESS_RAM_PCT_HIGH for why a share
+    is used rather than a fixed ceiling."""
+    from thresholds import PROCESS_RAM_HIGH_MB, PROCESS_RAM_PCT_HIGH
+    if not processes:
+        return False
+    mb = processes[0].get("mem_mb", 0)
+    if mb <= PROCESS_RAM_HIGH_MB:
+        return False
+    if not total_ram_mb:
+        return False
+    return (mb / total_ram_mb * 100) > PROCESS_RAM_PCT_HIGH
+
 # ── Duplicates ────────────────────────────────────────────────────────────────
 SKIP_DIRS = {"node_modules", ".venv", ".git", "__pycache__", ".mypy_cache"}
+
+def _file_digest(path: str, chunk: int = 1 << 20):
+    """MD5 of a file's contents, read in fixed-size chunks.
+
+    Only ever used to compare files that already share an exact byte size,
+    so this is a duplicate check and not a security boundary. Chunked
+    reading keeps a multi-gigabyte download from being pulled into memory
+    in one go, which the previous open(fp,'rb').read() did.
+    """
+    h = hashlib.md5(usedforsecurity=False)
+    try:
+        with open(path, "rb") as f:
+            while True:
+                b = f.read(chunk)
+                if not b:
+                    break
+                h.update(b)
+    except (PermissionError, OSError):
+        return None
+    return h.hexdigest()
+
 
 def scan_duplicates(scan_path: str, max_files: int = 1500, min_size: int = 50_000,
                     progress_cb=None):
     if is_protected(scan_path): return []
     candidates = []
     try:
+        # Sorted walk so the max_files cap always truncates at the same
+        # place; unsorted order made repeat scans of one folder disagree.
         for root, dirs, files in os.walk(scan_path):
-            dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
-            for f in files:
+            dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+            for f in sorted(files):
                 fp = os.path.join(root, f)
                 try:
                     sz = os.path.getsize(fp)
-                    if sz >= min_size:
-                        candidates.append((fp, sz))
                 except OSError:
-                    pass
+                    continue
+                if sz >= min_size:
+                    candidates.append((fp, sz))
             if len(candidates) >= max_files:
                 break
     except (PermissionError, OSError):
         pass
 
     candidates = candidates[:max_files]
-    hash_map: dict[str, list] = {}
-    for i, (fp, sz) in enumerate(candidates):
-        if progress_cb and i % 100 == 0:
-            progress_cb(i, len(candidates))
-        try:
-            h = hashlib.md5(open(fp, "rb").read(), usedforsecurity=False).hexdigest()
-            hash_map.setdefault(h, []).append({"path": fp, "size": sz, "name": os.path.basename(fp)})
-        except (PermissionError, OSError):
-            pass
+
+    # Two files of different sizes cannot be duplicates, so hash only
+    # within size groups. The previous version hashed every candidate,
+    # reading far more data than necessary.
+    by_size: dict[int, list] = {}
+    for fp, sz in candidates:
+        by_size.setdefault(sz, []).append(fp)
+    to_hash = [(fp, sz) for sz, fps in by_size.items() if len(fps) > 1 for fp in fps]
+
+    # Keyed on (size, digest) so a digest collision across different sizes
+    # can never merge two unrelated files into one "duplicate" group.
+    hash_map: dict[tuple, list] = {}
+    for i, (fp, sz) in enumerate(to_hash):
+        if progress_cb and i % 25 == 0:
+            progress_cb(i, len(to_hash))
+        h = _file_digest(fp)
+        if h is None:
+            continue
+        hash_map.setdefault((sz, h), []).append(
+            {"path": fp, "size": sz, "name": os.path.basename(fp)})
 
     groups = []
     for files in hash_map.values():
@@ -243,6 +449,7 @@ def run_full_scan(include_dupes=True, progress_cb=None):
     print("  [4/5] RAM processes...", flush=True)
     processes = scan_processes()
     total_ram = scan_total_ram()
+    total_ram_mb = scan_total_ram_mb()
 
     dupes = []
     total_dupes = 0
@@ -256,14 +463,21 @@ def run_full_scan(include_dupes=True, progress_cb=None):
 
     from thresholds import (
         DISK_PCT_WARN, TEMP_SIZE_WARN, DUPES_SIZE_HIGH,
-        STARTUP_COUNT_WARN, PROCESS_RAM_HIGH_MB,
+        STARTUP_COUNT_WARN,
     )
+    it_apps = [a for a in startup if a["it_managed"]]
+    personal_apps = [a for a in startup if not a["it_managed"]]
+    # Only entries that are actually enabled can slow boot, so the warning
+    # counts those. A disabled entry still appears in the list for review.
+    personal_enabled = [a for a in personal_apps if a.get("enabled", True)]
+    enabled_apps = [a for a in startup if a.get("enabled", True)]
+
     issues = sum([
         disk["pct_free"] < DISK_PCT_WARN,
         total_temp > TEMP_SIZE_WARN,
         total_dupes > DUPES_SIZE_HIGH,
-        sum(1 for a in startup if not a["it_managed"]) > STARTUP_COUNT_WARN,
-        bool(processes and processes[0]["mem_mb"] > PROCESS_RAM_HIGH_MB),
+        len(personal_enabled) > STARTUP_COUNT_WARN,
+        top_process_is_hogging(processes, total_ram_mb),
     ])
 
     return {
@@ -275,10 +489,14 @@ def run_full_scan(include_dupes=True, progress_cb=None):
         "total_temp": total_temp,
         "total_temp_fmt": fmt_size(total_temp),
         "startup": startup,
-        "it_apps": [a for a in startup if a["it_managed"]],
-        "personal_apps": [a for a in startup if not a["it_managed"]],
+        "it_apps": it_apps,
+        "personal_apps": personal_apps,
+        "personal_enabled": personal_enabled,
+        "startup_enabled": enabled_apps,
+        "startup_disabled_count": len(startup) - len(enabled_apps),
         "processes": processes,
         "total_ram_gb": total_ram,
+        "total_ram_mb": total_ram_mb,
         "dupes": dupes,
         "total_dupes": total_dupes,
         "total_dupes_fmt": fmt_size(total_dupes),

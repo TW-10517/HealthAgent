@@ -84,7 +84,11 @@ def main():
     print("=" * 52)
     print(f"  Issues       : {data['issues']}")
     print(f"  Reclaimable  : {data['total_freeable_fmt']}")
-    print(f"  Startup apps : {len(data['startup'])}  ({len(data['personal_apps'])} personal)")
+    _en = data.get("startup_enabled") or data["startup"]
+    _pe = data.get("personal_enabled") or data["personal_apps"]
+    _off = data.get("startup_disabled_count", 0)
+    print(f"  Startup apps : {len(_en)} enabled  ({len(_pe)} personal"
+          + (f", {_off} disabled" if _off else "") + ")")
     print(f"  Report       : {path}")
     print("=" * 52)
     print()

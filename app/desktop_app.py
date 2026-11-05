@@ -21,6 +21,7 @@ LOGS.mkdir(parents=True, exist_ok=True)
 sys.path.insert(0, str(Path(__file__).parent))
 import run_hidden
 from scanner import run_full_scan, fmt_size, get_system_info, cleanup_temp_files, scan_disk, scan_temp
+from scanner import top_process_is_hogging as _top_process_is_hogging
 from report_gen import generate
 from suggestions import run_all_checks, get_ai_summary
 from organizer import scan_folder as org_scan, organize_category as org_move, get_organize_summary as org_summary
@@ -692,7 +693,11 @@ class AgentAPI:
             path = REPORTS / f"report-{ts}.html"
             path.write_text(html, encoding="utf-8")
 
-            score = max(0, 100 - data["issues"] * 20)
+            # Build the findings list once and derive the score from it, so
+            # the Findings panel count and the score always agree.
+            issue_details = _build_issue_details(data)
+            score = _score_from_issues(issue_details)
+            data["issues"] = sum(1 for i in issue_details if i.get("sev") != "info")
             data["score"] = score
             duration_ms = int((time.time() - t0) * 1000)
 
@@ -737,6 +742,13 @@ class AgentAPI:
                 "startupTotal": len(data["startup"]),
                 "startupPersonal": len(data["personal_apps"]),
                 "startupIT": len(data["it_apps"]),
+                # Entries Windows will actually launch; the rest are
+                # switched off in Task Manager and listed for review only.
+                "startupEnabled": len(data.get("startup_enabled") or []),
+                "startupDisabled": data.get("startup_disabled_count", 0),
+                "startupPersonalEnabled": len(data.get("personal_enabled") or []),
+                "startupITEnabled": sum(
+                    1 for a in (data.get("startup_enabled") or []) if a["it_managed"]),
                 "issues": data["issues"],
                 "totalRamGb": data["total_ram_gb"],
                 "totalUsedMb": total_used_mb,
@@ -748,7 +760,10 @@ class AgentAPI:
                 ],
                 "processes": data["processes"][:10],
                 "startupApps": [
-                    {"name": a["name"], "cmd": a["command"][:80], "it": a["it_managed"]}
+                    {"name": a["name"], "cmd": a["command"][:80], "it": a["it_managed"],
+                     "enabled": a.get("enabled", True),
+                     "category": a.get("category", "personal"),
+                     "source": a.get("source", "")}
                     for a in data["startup"]
                 ],
                 "topDupes": [
@@ -757,7 +772,7 @@ class AgentAPI:
                      "paths": [f["path"] for f in g["files"][:4]]}
                     for g in data["dupes"][:10]
                 ],
-                "issueDetails": _build_issue_details(data),
+                "issueDetails": issue_details,
             }
 
             # Run organize scan on Downloads during full scan
@@ -3513,9 +3528,14 @@ ForEach-Object{
             if not self._last_scan_data:
                 return {"type": "info", "content": "Run a scan to see startup apps."}
             d = self._last_scan_data
+            en = d.get("startup_enabled") or d["startup"]
+            off = d.get("startup_disabled_count", 0)
+            pe = d.get("personal_enabled") or d["personal_apps"]
+            it_en = sum(1 for a in en if a["it_managed"])
             return {"type": "data", "content":
-                    f"{len(d['startup'])} startup apps: "
-                    f"{len(d['personal_apps'])} personal, {len(d['it_apps'])} IT-managed."}
+                    f"{len(en)} startup apps run at logon: "
+                    f"{len(pe)} personal, {it_en} IT-managed."
+                    + (f" {off} more are disabled." if off else "")}
         elif action_id == "get_insights":
             return {"type": "action", "action": "navigate", "page": "insights",
                     "content": "Opening Insights and loading suggestions…",
@@ -4128,34 +4148,53 @@ def _check_downloads_organization():
             exts.add(name.rsplit(".", 1)[-1].lower())
     return {"file_count": count, "ext_count": len(exts), "folder": dl}
 
+def _score_from_issues(items) -> int:
+    """Health score from the same list the Findings panel renders.
+
+    Previously the score came from scanner's own 5-flag count while the UI
+    counted _build_issue_details(), which also appends an info-level
+    Downloads item — so the panel could say "3 issues" while the score was
+    arithmetic from 2. Only actionable (non-info) findings move the score,
+    and both numbers now come from this one list.
+    """
+    actionable = sum(1 for i in items if i.get("sev") != "info")
+    return max(0, 100 - actionable * 20)
+
+
 def _build_issue_details(data):
+    from thresholds import (
+        DISK_PCT_WARN, DISK_PCT_CRIT, TEMP_SIZE_WARN, DUPES_SIZE_HIGH,
+        STARTUP_COUNT_WARN,
+    )
     items = []
     d = data["disk"]
-    if d["pct_free"] < 10:
+    if d["pct_free"] < DISK_PCT_CRIT:
         items.append({"en": f"Critical: Only {d['fmt_free']} free on C: ({d['pct_free']}%)",
                       "ja": f"重大: Cドライブの空き {d['fmt_free']} のみ ({d['pct_free']}%)",
                       "sev": "error", "page": "storage"})
-    elif d["pct_free"] < 20:
+    elif d["pct_free"] < DISK_PCT_WARN:
         items.append({"en": f"Low disk space — {d['fmt_free']} free ({d['pct_free']}%)",
                       "ja": f"ディスク空き容量不足 — {d['fmt_free']} のみ ({d['pct_free']}%)",
                       "sev": "warning", "page": "storage"})
-    if data["total_temp"] > 500 * (1 << 20):
+    if data["total_temp"] > TEMP_SIZE_WARN:
         items.append({"en": f"Temp & cache files — {data['total_temp_fmt']} reclaimable",
                       "ja": f"一時ファイル — {data['total_temp_fmt']} 解放可能",
                       "sev": "warning", "page": "storage"})
-    if data["total_dupes"] > 100 * (1 << 20):
+    if data["total_dupes"] > DUPES_SIZE_HIGH:
         items.append({"en": f"Duplicate files — {data['total_dupes_fmt']} saveable in Downloads",
                       "ja": f"重複ファイル — ダウンロードで {data['total_dupes_fmt']} 節約可能",
                       "sev": "warning", "page": "storage"})
-    personal = len(data["personal_apps"])
-    if personal > 5:
+    # Disabled entries cannot slow boot, so only enabled ones are counted.
+    personal = len(data.get("personal_enabled") or data["personal_apps"])
+    if personal > STARTUP_COUNT_WARN:
         items.append({"en": f"{personal} personal startup apps may slow boot time",
                       "ja": f"個人スタートアップアプリ {personal} 個が起動を遅くする可能性",
                       "sev": "warning", "page": "startup"})
-    if data["processes"] and data["processes"][0]["mem_mb"] > 1500:
+    if _top_process_is_hogging(data["processes"], data.get("total_ram_mb", 0)):
         p = data["processes"][0]
-        items.append({"en": f"High memory — {p['name']} using {p['mem_mb']} MB",
-                      "ja": f"メモリ使用量大 — {p['name']} が {p['mem_mb']} MB 使用",
+        share = round(p["mem_mb"] / data["total_ram_mb"] * 100)
+        items.append({"en": f"High memory — {p['name']} using {p['mem_mb']} MB ({share}% of RAM)",
+                      "ja": f"メモリ使用量大 — {p['name']} が {p['mem_mb']} MB 使用 (RAMの{share}%)",
                       "sev": "warning", "page": "monitor"})
     org = _check_downloads_organization()
     if org:

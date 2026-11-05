@@ -10,7 +10,7 @@ The repo/package id remains `PCHealthAgent`.
 **GitHub**: `https://github.com/TW-10517/HealthAgent.git` (branch `main`)
 **Live site**: https://helix-57o.pages.dev (Cloudflare Pages, free tier, unlimited bandwidth)
 **Download URLs**: `/Helix.exe` (23 MiB, UPX-compressed), `/Helix.zip`, `/version.json`
-**Current released version**: `1.1.5` (deployed to Cloudflare 2026-10-30; verify with `curl https://helix-57o.pages.dev/version.json` before assuming users are on it)
+**Current released version**: `1.1.6` (pushed 2026-11-05; verify with `curl https://helix-57o.pages.dev/version.json` before assuming users are on it — CI rebuilds the binaries and regenerates `version.json` hashes after the source push)
 
 ## Standing engineering guardrails (MUST follow — honest-review 2026-11-04)
 
@@ -70,6 +70,91 @@ regardless of what the current task is.
 Economics note (out of this session's scope but keep visible): the unsigned
 exe + SmartScreen warning is the single biggest adoption blocker; a $200–400/yr
 code-signing cert is the fix. Nothing in the code can replace this.
+
+## Session handoff — 2026-11-05 (accuracy audit → 1.1.6)
+
+Every displayed value was audited against independent Windows ground truth
+(CIM/WMI, registry, `Get-WinEvent`, `Get-PhysicalDisk`) rather than against
+Helix's own code. Nine bugs found and fixed. **Lesson that generalises: four
+of the nine were "the backend and the frontend each computed the same number
+their own way."** When a value appears in two places, compute it once and pass
+it through.
+
+1. **`app/disk_health.py`** — `from app import run_hidden` raised
+   `ModuleNotFoundError` (only `app/` is on `sys.path`, there is no
+   `app/__init__.py`), so `get_disk_health()` always returned
+   `"Disk health module unavailable."` and the SPA did `display='none'` on the
+   card. The whole feature had been dead since it shipped. Fixed with a bare
+   `import run_hidden` plus a package-form fallback. **Any new sibling import
+   in `app/` must use the bare form.**
+2. **`scanner.scan_startup()` rewritten** — read only 2 registry keys, counted
+   the phantom unnamed default value that `winreg.EnumValue` returns as `""`,
+   ignored `StartupApproved` (so entries disabled in Task Manager counted as
+   running), and missed `WOW6432Node` plus both Startup folders. Now reads all
+   five sources, returns `enabled` / `source` / `category` per entry.
+   `_read_approved()` decodes Task Manager's blob (byte 0 bit 0 = disabled).
+3. **`_classify_startup()`** — keywords were matched against the registry
+   value name only, so HKCU's `Microsoft.Lists` (actually
+   `OneDrive.Sync.Service.exe`) and `RtkAudUService` (a Realtek driver in
+   `DriverStore`) counted as the user's personal apps. Now matches the command
+   too, and anything launched from `%WinDir%` is category `system`.
+4. **Fabricated 20-point deduction** — issue flags counted all personal
+   startup entries; now count `personal_enabled`. On this machine that is 1,
+   not 6, so the score went 60 → 80 with no change to the PC.
+5. **Score ≠ Findings count** — the score came from scanner's own 5-flag sum
+   while the panel rendered `_build_issue_details()`, which also appends an
+   info-level Downloads note. New `_score_from_issues(items)` derives the score
+   from that one list; JS `_countIssues(d)` counts non-info rows for the
+   headline. **Do not reintroduce a second count.**
+6. **Threshold drift** — `_build_issue_details` hardcoded its numbers while the
+   frontend compared against 6 and `thresholds.STARTUP_COUNT_WARN` is 5, so at
+   exactly 6 the chip said "OK" beside a Findings row flagging it. Both now
+   read `thresholds.py`.
+7. **`event_analyzer.get_events()`** — `-MaxEvents 50` per log capped the whole
+   fetch, and because warnings outnumber errors ~12:1 the newest 50 were almost
+   all DNS/wifi noise: a nominal 24 h window delivered ~90 minutes and 3 of 19
+   errors. Criticals/errors are now queried separately and never truncated;
+   warnings fill the remaining budget.
+8. **`scanner.scan_processes()`** — listed the kernel's `MemCompression`
+   pseudo-process as the top consumer (1179 MB working set, 3 MB private, not
+   actionable) and reported one process per name, so Edge read 1001 MB against
+   2625 MB across its 23 processes. Memory is now summed per executable with
+   `count`; `_PSEUDO_PROCESSES` is excluded. **Side effect handled:** a flat
+   `PROCESS_RAM_HIGH_MB` then fired on every browser, so
+   `thresholds.PROCESS_RAM_PCT_HIGH = 25` was added — the warning needs both
+   the MB floor and the share of installed RAM.
+9. **`scanner.scan_duplicates()` was nondeterministic** — unsorted `os.walk`
+   interacting with the 1500-file cap gave `14 MB`, then `0 B`, then `14 MB`
+   for the same folder across runs. Now a sorted walk, files grouped by size
+   before hashing (only same-size files get read at all), new chunked
+   `_file_digest()` replacing `open(fp,'rb').read()`, and groups keyed on
+   `(size, digest)`.
+
+Also: small-window scroll escape hatch in `web/index.html`
+(`@media (max-height:900px),(max-width:860px)` makes `.page` scroll and
+regions take natural height; `.page > :not(:last-child):not(.fit-fill)
+{flex-shrink:0}` stops non-filling children being squashed below their
+content). Large windows keep the fit-to-viewport layout untouched.
+
+**Verified end to end** — the running app's stored scan matched ground truth:
+score 80 / 1 issue, startup 15 registered / 11 enabled / 4 disabled, personal
+enabled 1, `msedgewebview2.exe` 2544 MB across 39 processes, no pseudo-process
+in the top 10, duplicates identical across two runs. 74/74 pytest green.
+
+**Known remaining, deliberately not changed:**
+- `desktop_app.py:742` `totalUsedMb` is a dead payload field nothing renders;
+  it sums only the top 10 and double-counts shared pages.
+- `C:\Windows\Temp` is unconditionally skipped because `PROTECTED` contains
+  `C:\Windows`, so `is_protected()` always matches. Latent — the directory is
+  absent on this machine.
+- Browser cache scans only the `Default` profile.
+- `disable_startup` / `enable_startup` still only handle HKCU Run. The Startup
+  page now lists HKLM, 32-bit and Startup-folder entries, and for those the
+  call returns a graceful "Entry not found in HKCU Run." Working but
+  incomplete.
+- `scan_on_startup` is `"true"` in this user's DB (so the app auto-scans on
+  launch) while `db.py:177` defaults it to `"false"`. The user flagged the
+  auto-scan as unexpected but never asked for it off.
 
 ## Session handoff — 2026-10-30 (polish pass + launcher theme sync, pushed on top of 1.1.5)
 

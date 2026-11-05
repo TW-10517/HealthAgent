@@ -262,39 +262,61 @@ button{font-family:var(--font)}
 .card-title-right{margin-left:auto;font-size:14px;font-weight:700;
   color:var(--fg);text-transform:none;letter-spacing:0}
 
-/* ── Overview v3 dashboard (compact-strip + Findings-dominant layout) ─── */
-.ov-dash{display:flex;flex-direction:column;gap:12px;min-width:0}
-.ov-dash > *{min-width:0}
+/* ── Overview v7: medium buttons in rows, click to expand details ─────── */
+.ov-btngrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;
+  min-width:0}
+@media (max-width:860px){.ov-btngrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.ov-btngrid{grid-template-columns:1fr}}
 
-.ov-strip{display:flex;align-items:center;gap:14px;padding:10px 16px;
-  background:linear-gradient(90deg,rgba(45,212,176,.06),transparent 60%),var(--glass);
-  border:1px solid rgba(45,212,176,.14)}
-.ov-strip-ring{position:relative;width:68px;height:68px;flex-shrink:0}
-.ov-strip-ring-c{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-.ov-strip-ring-c .hs-number{font-size:22px;font-weight:700;font-family:var(--mono);line-height:1;color:var(--brand)}
-.ov-strip-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-.ov-strip-row{display:flex;align-items:baseline;gap:6px;font-size:11px;color:var(--fg2);flex-wrap:wrap}
-.ov-strip-row .hs-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--brand)}
-.ov-strip-sep{color:var(--fg4)}
-.ov-strip-title{font-size:14px;font-weight:600;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-btn{appearance:none;border:1px solid var(--glass-border);background:var(--glass);
+  border-radius:var(--r-xl);padding:0 16px;min-width:0;cursor:pointer;
+  display:flex;align-items:center;gap:12px;text-align:left;color:inherit;
+  font:inherit;position:relative;overflow:hidden;height:84px;
+  transition:border-color .15s ease,transform .15s ease,background .15s ease}
+.ov-btn-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.ov-btn-top{display:flex;align-items:center;gap:7px;min-width:0}
+.ov-btn-val{font-size:19px;font-weight:700;font-family:var(--mono);line-height:1.1;
+  color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  flex:0 1 auto;min-width:0}
+.ov-btn-meta{font-size:10px;color:var(--fg3);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.ov-btn-top .kpi-chip{font-size:9px;padding:1px 6px;flex-shrink:0}
+.ov-btn:hover{border-color:var(--brand);transform:translateY(-2px);
+  background:linear-gradient(135deg,rgba(45,212,176,.06),transparent 70%),var(--glass)}
+.ov-btn:active{transform:translateY(0)}
+.ov-btn.featured{background:linear-gradient(135deg,rgba(45,212,176,.10),transparent 60%),var(--glass);
+  border-color:rgba(45,212,176,.22)}
+.ov-btn.active{border-color:var(--brand);
+  background:linear-gradient(135deg,rgba(45,212,176,.12),transparent 60%),var(--glass)}
+.ov-btn-icon{width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(45,212,176,.10);color:var(--brand)}
+.ov-btn-icon svg{width:18px;height:18px}
+.ov-btn-label{flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--fg);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-btn-chev{color:var(--fg4);flex-shrink:0;transition:transform .2s ease}
+.ov-btn.active .ov-btn-chev{transform:rotate(90deg);color:var(--brand)}
 
-.ov-main{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:12px;min-width:0;align-items:stretch}
-@media (max-width:860px){.ov-main{grid-template-columns:1fr}}
-
-.ov-kpi-col{display:flex;flex-direction:column;gap:10px;min-width:0}
-.ov-kpi{background:var(--glass);border:1px solid var(--glass-border);
-  border-radius:var(--r-xl);padding:10px 14px;min-width:0;
-  transition:border-color .15s ease,transform .15s ease;cursor:default}
-.ov-kpi.clickable{cursor:pointer}
-.ov-kpi.clickable:hover{border-color:var(--border2);transform:translateX(2px)}
-.ov-kpi-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
-.ov-kpi-label{font-size:10px;color:var(--fg2);font-weight:700;text-transform:uppercase;letter-spacing:.08em}
-.ov-kpi .kpi-chip{font-size:10px;padding:1px 7px}
-.ov-kpi-value{font-size:18px;font-weight:700;font-family:var(--mono);line-height:1.1;color:var(--fg)}
-.ov-kpi-sub{font-size:11px;color:var(--fg3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-.ov-bottom{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;min-width:0}
-.ov-bottom > *{min-width:0}
+/* Inline detail panel — slides down below the grid when a button is active */
+.ov-detail-panel{background:var(--glass);border:1px solid var(--glass-border);
+  border-radius:var(--r-xl);padding:20px 22px;min-width:0;margin-top:14px;
+  display:none;animation:ov-detail-in .25s cubic-bezier(.2,.9,.3,1.2)}
+.ov-detail-panel.open{display:block}
+@keyframes ov-detail-in{
+  from{opacity:0;transform:translateY(-6px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.ov-detail-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  padding-bottom:12px;border-bottom:1px solid var(--border)}
+.ov-detail-head svg{width:16px;height:16px;color:var(--brand)}
+.ov-detail-title{font-size:14px;font-weight:600;color:var(--fg);flex:1;min-width:0}
+.ov-detail-close{background:transparent;border:none;color:var(--fg3);cursor:pointer;
+  font-size:18px;line-height:1;padding:2px 8px;border-radius:6px;
+  transition:background .15s ease,color .15s ease}
+.ov-detail-close:hover{background:var(--surface2);color:var(--fg)}
+.ov-detail-body{min-width:0}
+.ov-detail-body .issues-grid{max-height:300px;overflow:auto}
+.ov-detail-body .bar-list{max-height:300px;overflow:auto}
 
 /* ── Health score (compact density pass) ────────────────────────────────── */
 .health-wrap{display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px;align-items:stretch;min-width:0}
@@ -1138,6 +1160,30 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
 /* Tabs: when a tab panel is active it's the fit-fill region. */
 .tab-panel.active{flex:1;min-height:0;overflow:auto}
 
+/* ── Small-window escape hatch ──────────────────────────────────────────────
+   Fit-to-viewport assumes there is enough height to squeeze everything in.
+   On a short or narrow window that assumption breaks and the bottom of the
+   page becomes unreachable. Below these breakpoints the page itself scrolls
+   and regions take their natural height instead of being compressed. */
+/* Non-filling regions must never shrink below their content — min-height:0
+   above allows that, which is what clipped the bottom of short pages. */
+.page > :not(:last-child):not(.fit-fill){flex-shrink:0}
+@media (max-height:900px),(max-width:860px){
+  .page{overflow-y:auto!important;overflow-x:hidden}
+  .page > :last-child:not(.fit-static),
+  .page > .fit-fill{flex:0 0 auto;overflow:visible}
+  .tab-panel.active{flex:0 0 auto;overflow:visible}
+  /* Inner scrollers get a cap instead of unbounded growth. */
+  .ov-detail-body .issues-grid,
+  .ov-detail-body .bar-list{max-height:none}
+}
+/* Make the page scrollbar visible rather than overlay-thin. */
+.page::-webkit-scrollbar{width:10px}
+.page::-webkit-scrollbar-track{background:transparent}
+.page::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px;
+  border:2px solid transparent;background-clip:content-box}
+.page::-webkit-scrollbar-thumb:hover{background:var(--fg4);background-clip:content-box}
+
 /* Density: reduce card padding, title margin, page gap. */
 .card{padding:14px 16px}
 .card-sm{padding:12px}
@@ -1470,114 +1516,171 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
           </div>
         </div>
       </div>
-      <div id="ov-results" style="display:none" class="fade-in ov-dash">
-        <div id="analysis-overview"></div>
+      <div id="ov-results" style="display:none" class="fade-in">
+        <div id="analysis-overview" style="margin-bottom:14px"></div>
 
-        <!-- Strip 1: compact score + status in a single row -->
-        <div class="card ov-strip">
-          <div class="ov-strip-ring">
-            <svg width="68" height="68" viewBox="0 0 68 68">
-              <circle cx="34" cy="34" r="28" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="6"/>
-              <circle id="hs-circle" cx="34" cy="34" r="28" fill="none"
-                stroke="var(--brand)" stroke-width="6" stroke-linecap="round"
-                stroke-dasharray="175.93" stroke-dashoffset="175.93"
-                style="transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)"/>
-            </svg>
-            <div class="ov-strip-ring-c">
-              <span class="hs-number" id="hs-number">—</span>
-            </div>
-          </div>
-          <div class="ov-strip-text">
-            <div class="ov-strip-row">
-              <span class="hs-label" id="hs-label">—</span>
-              <span class="ov-strip-sep">·</span>
-              <span style="font-size:11px;color:var(--fg3)" id="ov-scan-time"></span>
-            </div>
-            <div class="ov-strip-title" id="ov-hero-title">
-              <span class="en">Your PC is protected and performing well.</span><span class="ja">PCは保護され、良好な状態です。</span>
-            </div>
-            <div style="font-size:11px;color:var(--fg3)" id="ov-hero-sub"></div>
-          </div>
-          <!-- Hidden but kept for compatibility with renderOverview's score-desc writes -->
-          <div id="hs-desc" style="display:none"></div>
+        <!-- Button grid: 6 rectangular tiles, label only; click to expand -->
+        <div class="ov-btngrid">
+          <button class="ov-btn featured" type="button" onclick="ovShowDetail('score', this)">
+            <span class="ov-btn-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 14s-5-3.2-5-7.5A3 3 0 0 1 8 4a3 3 0 0 1 5 2.5C13 10.8 8 14 8 14z"/></svg></span>
+            <span class="ov-btn-main">
+              <span class="ov-btn-label"><span class="en">Health Score</span><span class="ja">健康スコア</span></span>
+              <span class="ov-btn-top"><span class="ov-btn-val" id="ovb-score">—</span><span class="kpi-chip" id="ovb-score-chip"></span></span>
+              <span class="ov-btn-meta" id="ovb-score-sub">—</span>
+            </span>
+            <span class="ov-btn-chev">›</span>
+          </button>
+          <button class="ov-btn" type="button" onclick="ovShowDetail('disk', this)">
+            <span class="ov-btn-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="8" cy="4" rx="5" ry="1.8"/><path d="M3 4v4c0 1 2.24 1.8 5 1.8s5-.8 5-1.8V4"/></svg></span>
+            <span class="ov-btn-main">
+              <span class="ov-btn-label"><span class="en">Disk Free</span><span class="ja">空き容量</span></span>
+              <span class="ov-btn-top"><span class="ov-btn-val" id="ovb-disk">—</span><span class="kpi-chip" id="ovb-disk-chip"></span></span>
+              <span class="ov-btn-meta" id="ovb-disk-sub">—</span>
+            </span>
+            <span class="ov-btn-chev">›</span>
+          </button>
+          <button class="ov-btn" type="button" onclick="ovShowDetail('reclaim', this)">
+            <span class="ov-btn-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 5h8l-1 8H5z"/><path d="M6 5V3h4v2"/></svg></span>
+            <span class="ov-btn-main">
+              <span class="ov-btn-label"><span class="en">Reclaimable</span><span class="ja">解放可能</span></span>
+              <span class="ov-btn-top"><span class="ov-btn-val" id="ovb-reclaim">—</span><span class="kpi-chip" id="ovb-reclaim-chip"></span></span>
+              <span class="ov-btn-meta" id="ovb-reclaim-sub">—</span>
+            </span>
+            <span class="ov-btn-chev">›</span>
+          </button>
+          <button class="ov-btn" type="button" onclick="ovShowDetail('startup', this)">
+            <span class="ov-btn-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2v7M5 5l3-3 3 3"/><path d="M3 10v3h10v-3"/></svg></span>
+            <span class="ov-btn-main">
+              <span class="ov-btn-label"><span class="en">Startup</span><span class="ja">起動アプリ</span></span>
+              <span class="ov-btn-top"><span class="ov-btn-val" id="ovb-startup">—</span><span class="kpi-chip" id="ovb-startup-chip"></span></span>
+              <span class="ov-btn-meta" id="ovb-startup-sub">—</span>
+            </span>
+            <span class="ov-btn-chev">›</span>
+          </button>
+          <button class="ov-btn" type="button" onclick="ovShowDetail('findings', this)">
+            <span class="ov-btn-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="10.5" r=".5" fill="currentColor" stroke="none"/></svg></span>
+            <span class="ov-btn-main">
+              <span class="ov-btn-label"><span class="en">Findings</span><span class="ja">検出結果</span></span>
+              <span class="ov-btn-top"><span class="ov-btn-val" id="ovb-findings">—</span><span class="kpi-chip" id="ovb-findings-chip"></span></span>
+              <span class="ov-btn-meta" id="ovb-findings-sub">—</span>
+            </span>
+            <span class="ov-btn-chev">›</span>
+          </button>
+          <button class="ov-btn" type="button" onclick="ovShowDetail('procs', this)">
+            <span class="ov-btn-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="10" height="10" rx="1.5"/><path d="M6 6h4v4H6z"/></svg></span>
+            <span class="ov-btn-main">
+              <span class="ov-btn-label"><span class="en">Top Processes</span><span class="ja">上位プロセス</span></span>
+              <span class="ov-btn-top"><span class="ov-btn-val" id="ovb-procs">—</span><span class="kpi-chip" id="ovb-procs-chip"></span></span>
+              <span class="ov-btn-meta" id="ovb-procs-sub">—</span>
+            </span>
+            <span class="ov-btn-chev">›</span>
+          </button>
         </div>
 
-        <!-- Main row: Findings takes 2fr, right column stacks 4 KPIs -->
-        <div class="ov-main">
-          <div class="card" style="overflow:auto;min-width:0">
-            <div class="card-title">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="10.5" r=".5" fill="currentColor" stroke="none"/></svg>
-              <span class="en">Findings</span><span class="ja">検出結果</span>
-            </div>
-            <div class="issues-grid" id="issues-list">
-              <div class="issue-item sev-ok"><div class="issue-dot"></div>
-                <span class="issue-text en">Run a scan to see results</span><span class="issue-text ja">スキャンを実行して結果を確認</span></div>
-            </div>
+        <!-- Expandable detail panel -->
+        <div class="ov-detail-panel" id="ov-detail-panel">
+          <div class="ov-detail-head">
+            <svg id="ov-detail-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></svg>
+            <div class="ov-detail-title" id="ov-detail-title">—</div>
+            <button class="ov-detail-close" type="button" onclick="ovCloseDetail()" title="Close">✕</button>
           </div>
-          <div class="ov-kpi-col">
-            <div class="ov-kpi clickable" onclick="showPage('storage')"
-              data-tip="Free bytes on C:\. Below 10% can slow Windows. Click to open Storage."
-              data-tip-ja="Cドライブの空き容量。10%未満になると動作が遅くなります。">
-              <div class="ov-kpi-head">
-                <span class="ov-kpi-label"><span class="en">Disk Free</span><span class="ja">空き容量</span></span>
-                <span class="kpi-chip" id="kpi-disk-chip"></span>
-              </div>
-              <div class="ov-kpi-value" id="kpi-disk">—</div>
-              <div class="ov-kpi-sub" id="kpi-disk-sub">—</div>
-            </div>
-            <div class="ov-kpi clickable" onclick="showPage('storage')"
-              data-tip="Bytes you can safely free: temp files, cache, duplicate copies."
-              data-tip-ja="安全に削除できる容量：一時ファイル・キャッシュ・重複。">
-              <div class="ov-kpi-head">
-                <span class="ov-kpi-label"><span class="en">Reclaimable</span><span class="ja">解放可能</span></span>
-                <span class="kpi-chip" id="kpi-free-chip"></span>
-              </div>
-              <div class="ov-kpi-value" id="kpi-free">—</div>
-              <div class="ov-kpi-sub" id="kpi-free-sub">—</div>
-            </div>
-            <div class="ov-kpi clickable" onclick="showPage('startup')"
-              data-tip="Apps that start with Windows. Over 10 personal entries slows login."
-              data-tip-ja="Windows起動時に実行されるアプリ。10個超でログインが遅くなります。">
-              <div class="ov-kpi-head">
-                <span class="ov-kpi-label"><span class="en">Startup</span><span class="ja">起動アプリ</span></span>
-                <span class="kpi-chip" id="kpi-startup-chip"></span>
-              </div>
-              <div class="ov-kpi-value" id="kpi-startup">—</div>
-              <div class="ov-kpi-sub" id="kpi-startup-sub">—</div>
-            </div>
-            <div class="ov-kpi clickable" onclick="showPage('monitor')"
-              data-tip="The single process using the most RAM right now."
-              data-tip-ja="現在最もメモリを使っているプロセスとその使用量。">
-              <div class="ov-kpi-head">
-                <span class="ov-kpi-label"><span class="en">Top Process</span><span class="ja">上位プロセス</span></span>
-                <span class="kpi-chip" id="kpi-ram-chip"></span>
-              </div>
-              <div class="ov-kpi-value" id="kpi-ram">—</div>
-              <div class="ov-kpi-sub" id="kpi-ram-sub">—</div>
-            </div>
-          </div>
+          <div class="ov-detail-body" id="ov-detail-body"></div>
         </div>
 
-        <!-- Bottom row: Disk usage + Top processes -->
-        <div class="ov-bottom">
-          <div class="card card-sm" style="min-width:0">
-            <div class="card-title"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><ellipse cx="10" cy="5.5" rx="7" ry="2.5"/><path d="M3 5.5v4c0 1.38 3.134 2.5 7 2.5s7-1.12 7-2.5v-4"/></svg>
-              <span class="en">Disk Usage</span><span class="ja">ディスク使用</span></div>
+        <!-- Off-screen host for stateful widgets (score ring + disk ring + issues + procs).
+             Must NOT be display:none — rAF (used by animateNum) is paused in that subtree
+             so numeric values would stay as "—". Position off-screen instead. -->
+        <div id="ov-widgets" style="position:absolute;left:-10000px;top:0;width:1px;height:1px;overflow:hidden;pointer-events:none;visibility:hidden">
+          <!-- Score ring + headline -->
+          <div id="ovw-score" style="display:flex;align-items:center;gap:22px;flex-wrap:wrap">
+            <div style="position:relative;width:140px;height:140px;flex-shrink:0">
+              <svg viewBox="0 0 120 120" style="width:100%;height:100%">
+                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="8"/>
+                <circle id="hs-circle" cx="60" cy="60" r="50" fill="none"
+                  stroke="var(--brand)" stroke-width="8" stroke-linecap="round"
+                  stroke-dasharray="314.16" stroke-dashoffset="314.16"
+                  style="transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1);filter:drop-shadow(0 0 12px rgba(0,212,170,.4))"/>
+              </svg>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                <span id="hs-number" style="font-size:36px;font-weight:700;font-family:var(--mono);color:var(--brand)">—</span>
+                <span style="font-size:10px;color:var(--fg3);margin-top:2px">/ 100</span>
+              </div>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="margin-bottom:8px"><span id="hs-label" class="kpi-chip">—</span></div>
+              <div style="font-size:16px;font-weight:600;color:var(--fg);margin-bottom:6px" id="ov-hero-title">
+                <span class="en">Your PC is protected and performing well.</span><span class="ja">PCは保護され、良好な状態です。</span>
+              </div>
+              <div style="font-size:12px;color:var(--fg3);line-height:1.55" id="ov-hero-sub"></div>
+              <div id="hs-desc" style="font-size:11px;color:var(--fg3);margin-top:6px"></div>
+              <span id="ov-scan-time" style="display:none"></span>
+            </div>
+          </div>
+
+          <!-- Disk ring + details -->
+          <div id="ovw-disk">
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px">
+              <div style="font-size:28px;font-weight:700;font-family:var(--mono);color:var(--fg)" id="kpi-disk">—</div>
+              <span class="kpi-chip" id="kpi-disk-chip"></span>
+              <span style="font-size:11px;color:var(--fg3);margin-left:auto" id="kpi-disk-sub">—</span>
+            </div>
             <div class="disk-row">
-              <div class="disk-ring-wrap"><svg width="72" height="72" viewBox="0 0 80 80"><defs><linearGradient id="disk-grad" x1="0" y1="0" x2="80" y2="80"><stop offset="0%" stop-color="#00D4AA"/><stop offset="100%" stop-color="#3B82F6"/></linearGradient></defs><circle class="drw-bg" cx="40" cy="40" r="35" style="stroke-width:6"/><circle class="drw-fill" id="ov-disk-ring" cx="40" cy="40" r="35" style="stroke-dasharray:219.91;stroke-dashoffset:219.91;stroke-width:6;stroke:url(#disk-grad)"/></svg>
+              <div class="disk-ring-wrap"><svg width="88" height="88" viewBox="0 0 80 80"><defs><linearGradient id="disk-grad" x1="0" y1="0" x2="80" y2="80"><stop offset="0%" stop-color="#00D4AA"/><stop offset="100%" stop-color="#3B82F6"/></linearGradient></defs><circle class="drw-bg" cx="40" cy="40" r="35" style="stroke-width:6"/><circle class="drw-fill" id="ov-disk-ring" cx="40" cy="40" r="35" style="stroke-dasharray:219.91;stroke-dashoffset:219.91;stroke-width:6;stroke:url(#disk-grad)"/></svg>
                 <div class="drw-label"><span class="drw-pct" id="ov-disk-pct" style="font-size:14px">—</span><span class="drw-sub"><span class="en">used</span><span class="ja">使用</span></span></div></div>
               <div class="disk-details" style="min-width:0">
                 <div class="disk-lbl"><span class="en">Free</span><span class="ja">空き</span></div>
-                <div class="big" id="ov-disk-free" style="font-size:1.6rem">—</div>
+                <div class="big" id="ov-disk-free" style="font-size:1.5rem">—</div>
                 <div class="disk-seg-bar"><div class="disk-seg-used" id="ov-disk-bar"></div></div>
                 <div class="disk-legend"><div class="dl-item"><div class="dl-swatch" style="background:var(--brand)"></div><span id="ov-disk-used-l">—</span></div><div class="dl-item"><div class="dl-swatch" style="background:var(--surface3)"></div><span id="ov-disk-free-l">—</span></div></div>
               </div>
             </div>
           </div>
-          <div class="card card-sm" style="min-width:0">
-            <div class="card-title"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,14 6,9 9.5,12.5 13.5,7 18,11"/><line x1="2" y1="17" x2="18" y2="17"/></svg>
-              <span class="en">Top Processes</span><span class="ja">上位プロセス</span><span class="card-title-right" id="ov-ram-label"></span></div>
+
+          <!-- Findings list -->
+          <div id="ovw-findings">
+            <div class="issues-grid" id="issues-list">
+              <div class="issue-item sev-ok"><div class="issue-dot"></div>
+                <span class="issue-text en">Run a scan to see results</span><span class="issue-text ja">スキャンを実行して結果を確認</span></div>
+            </div>
+          </div>
+
+          <!-- Processes bar list -->
+          <div id="ovw-procs">
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px">
+              <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--fg)" id="kpi-ram">—</div>
+              <span class="kpi-chip" id="kpi-ram-chip"></span>
+              <span style="font-size:11px;color:var(--fg3);margin-left:auto" id="kpi-ram-sub">—</span>
+            </div>
+            <div style="font-size:11px;color:var(--fg3);margin-bottom:10px" id="ov-ram-label"></div>
             <div class="bar-list" id="ov-proc-bars"></div>
+          </div>
+
+          <!-- Reclaimable -->
+          <div id="ovw-reclaim">
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px">
+              <div style="font-size:28px;font-weight:700;font-family:var(--mono);color:var(--fg)" id="kpi-free">—</div>
+              <span class="kpi-chip" id="kpi-free-chip"></span>
+              <span style="font-size:11px;color:var(--fg3);margin-left:auto" id="kpi-free-sub">—</span>
+            </div>
+            <div style="font-size:12px;color:var(--fg3);line-height:1.6">
+              <span class="en">Open Storage to see what you can clean up — temp files, browser cache, old files, large files.</span>
+              <span class="ja">ストレージを開いて削除候補を確認できます。</span>
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="showPage('storage')"><span class="en">Open Storage</span><span class="ja">ストレージを開く</span></button>
+          </div>
+
+          <!-- Startup -->
+          <div id="ovw-startup">
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px">
+              <div style="font-size:28px;font-weight:700;font-family:var(--mono);color:var(--fg)" id="kpi-startup">—</div>
+              <span class="kpi-chip" id="kpi-startup-chip"></span>
+              <span style="font-size:11px;color:var(--fg3);margin-left:auto" id="kpi-startup-sub">—</span>
+            </div>
+            <div style="font-size:12px;color:var(--fg3);line-height:1.6">
+              <span class="en">Apps launched automatically with Windows. Over 10 personal entries can slow login.</span>
+              <span class="ja">Windows起動時に自動で起動するアプリ。10個を超えるとログインが遅くなります。</span>
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="showPage('startup')"><span class="en">Manage Startup</span><span class="ja">起動アプリを管理</span></button>
           </div>
         </div>
       </div>
@@ -3150,6 +3253,115 @@ function onScanError(msg){ _stopProgressPoll(); resetScanUI(); document.getEleme
 function onScanCancelled(){ _stopProgressPoll(); resetScanUI(); document.getElementById('s-text').innerHTML=`<span class="en">Scan cancelled</span><span class="ja">キャンセル</span>`; showToast('Scan cancelled','info'); }
 function resetScanUI(){ _scanRunning=false; ['btn-scan','btn-fast'].forEach(id=>document.getElementById(id).disabled=false); const o=document.getElementById('progress-overlay'); o.classList.remove('show'); o.style.display=''; document.getElementById('s-dot').classList.remove('scanning'); }
 
+// Overview detail-panel show/hide (v7)
+const _OV_DETAIL = {
+  score:    {title_en:'Health Score',    title_ja:'健康スコア',     widget:'ovw-score'},
+  disk:     {title_en:'Disk Usage',      title_ja:'ディスク使用',   widget:'ovw-disk'},
+  reclaim:  {title_en:'Reclaimable Space',title_ja:'解放可能な容量', widget:'ovw-reclaim'},
+  startup:  {title_en:'Startup Apps',    title_ja:'起動アプリ',     widget:'ovw-startup'},
+  findings: {title_en:'Findings',        title_ja:'検出結果',        widget:'ovw-findings'},
+  procs:    {title_en:'Top Processes',   title_ja:'上位プロセス',   widget:'ovw-procs'},
+};
+let _ovActiveDetail = null;
+function ovShowDetail(key, btn){
+  const panel=document.getElementById('ov-detail-panel');
+  const body=document.getElementById('ov-detail-body');
+  const title=document.getElementById('ov-detail-title');
+  const meta=_OV_DETAIL[key]; if(!meta) return;
+  // Toggle off if same button clicked again
+  if(_ovActiveDetail===key){ ovCloseDetail(); return; }
+  // Move widget into body (keeps IDs live); return any prior widget home
+  if(_ovActiveDetail){
+    const prev=_OV_DETAIL[_ovActiveDetail];
+    const prevEl=document.getElementById(prev.widget);
+    if(prevEl) document.getElementById('ov-widgets').appendChild(prevEl);
+  }
+  body.innerHTML='';
+  const w=document.getElementById(meta.widget);
+  if(w){ w.style.display=''; body.appendChild(w); }
+  title.innerHTML=`<span class="en">${meta.title_en}</span><span class="ja">${meta.title_ja}</span>`;
+  panel.classList.add('open');
+  _ovActiveDetail=key;
+  document.querySelectorAll('.ov-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  // Re-apply scan data to the now-visible widget (prior writes may have hit
+  // the off-screen host where rAF was throttled).
+  if(window._lastScanData){ try{ renderOverview(window._lastScanData); }catch(e){} }
+}
+function ovCloseDetail(){
+  const panel=document.getElementById('ov-detail-panel');
+  if(_ovActiveDetail){
+    const prev=_OV_DETAIL[_ovActiveDetail];
+    const prevEl=document.getElementById(prev.widget);
+    if(prevEl){ document.getElementById('ov-widgets').appendChild(prevEl); }
+  }
+  panel.classList.remove('open');
+  document.getElementById('ov-detail-body').innerHTML='';
+  document.querySelectorAll('.ov-btn').forEach(b=>b.classList.remove('active'));
+  _ovActiveDetail=null;
+}
+
+// Fill the at-a-glance values on the six Overview button faces.
+function _ovBtnFaces(d){
+  const set=(id,val,sub,chip,cls,col)=>{
+    const v=document.getElementById('ovb-'+id); if(v){ v.textContent=val; if(col) v.style.color=col; }
+    const s=document.getElementById('ovb-'+id+'-sub'); if(s) s.textContent=sub;
+    const c=document.getElementById('ovb-'+id+'-chip');
+    if(c){ c.textContent=chip||''; c.className='kpi-chip'+(cls?' '+cls:''); c.style.display=chip?'':'none'; }
+  };
+  const sCol=d.score>=80?'var(--success)':d.score>=60?'var(--brand)':d.score>=40?'var(--warn)':'var(--error)';
+  set('score', d.score+' / 100', d.scoreLabel||'', d.score>=60?'Good':'Low',
+      d.score>=60?'chip-success':'chip-warn', sCol);
+  set('disk', d.diskFmtFree, `${d.diskFmtUsed} / ${d.diskTotalGb} GB used`,
+      d.diskPctFree<20?'Low':'OK', d.diskPctFree<20?'chip-warn':'chip-success',
+      d.diskPctFree<10?'var(--error)':d.diskPctFree<20?'var(--warn)':'');
+  set('reclaim', d.freeable, 'Temp: '+d.temp, d.freeableBytes>0?'Free up':'Clean',
+      d.freeableBytes>0?'chip-warn':'chip-success', d.freeableBytes>0?'var(--warn)':'');
+  // Counts describe what Windows actually launches. STARTUP_COUNT_WARN is 5
+  // in thresholds.py; this chip used to compare against 6, so at exactly 6
+  // it read "OK" while the Findings panel flagged the same number.
+  const suEn=(d.startupEnabled!=null?d.startupEnabled:d.startupTotal);
+  const suPe=(d.startupPersonalEnabled!=null?d.startupPersonalEnabled:d.startupPersonal);
+  const suOff=d.startupDisabled||0;
+  set('startup', suEn+' apps', `${suPe} personal · ${d.startupIT} IT`+(suOff?` · ${suOff} off`:''),
+      suPe>5?'Many':'OK', suPe>5?'chip-warn':'chip-success',
+      suPe>5?'var(--warn)':'');
+  // Count actionable findings only. Info-level notes still render in the
+  // panel but must not inflate the headline, or it disagrees with the
+  // score (which is 100 - 20 per actionable finding).
+  const n=_countIssues(d);
+  const nInfo=((d.issueDetails&&d.issueDetails.length)||0)-n;
+  set('findings', n===0?'All clear':(n+(n===1?' issue':' issues')),
+      n===0?(nInfo?nInfo+' note'+(nInfo===1?'':'s'):'No action needed'):'Click to review',
+      n===0?'OK':'Review',
+      n===0?'chip-success':'chip-warn', n===0?'':'var(--warn)');
+  const top=d.processes&&d.processes.length?d.processes[0]:null;
+  // mem_mb is now summed across every instance of the executable, so the
+  // old flat 1500 MB test fired on any browser. Judge it as a share of
+  // installed RAM instead (matches thresholds.PROCESS_RAM_PCT_HIGH).
+  const hog=_procIsHog(top,d);
+  set('procs', top?fmtMB(top.mem_mb):'—',
+      top?top.name+(top.count>1?` · ${top.count} processes`:''):'—',
+      hog?'High':'OK', hog?'chip-warn':'chip-success', hog?'var(--warn)':'');
+}
+
+// Actionable findings (everything except info-level notes). The health
+// score is 100 - 20 per actionable finding, so any headline count must use
+// this or the two numbers contradict each other on screen.
+function _countIssues(d){
+  const list=(d&&d.issueDetails)||[];
+  return list.filter(i=>i&&i.sev!=='info').length;
+}
+
+// True when one app exceeds both the MB floor and its share of total RAM.
+function _procIsHog(top,d){
+  if(!top||!top.mem_mb) return false;
+  if(top.mem_mb<=1500) return false;
+  const totalMb=(d&&d.totalRamGb)?d.totalRamGb*1024:0;
+  if(!totalMb) return false;
+  return (top.mem_mb/totalMb*100)>25;
+}
+
 function renderOverview(d){
   document.getElementById('idle-state').style.display='none';
   document.getElementById('ov-results').style.display='block';
@@ -3178,23 +3390,34 @@ function renderOverview(d){
   document.getElementById('hs-desc').innerHTML=`<span class="en">${descs.en[sk]||descs.en[60]}</span><span class="ja">${descs.ja[sk]||descs.ja[60]}</span>`;
 
   const il=document.getElementById('issues-list');
-  if(d.issueDetails&&d.issueDetails.length>0){
+  // nRows drives whether the list renders; nIssues is the actionable count
+  // shown as the headline so it always agrees with the score.
+  const nRows=(d.issueDetails&&d.issueDetails.length)||0;
+  const nIssues=_countIssues(d);
+  if(nRows>0){
     il.innerHTML=d.issueDetails.map(i=>{
       const sev=esc(String(i.sev||'')).replace(/[^a-z0-9_-]/gi,'');
       const page=(i.page||'overview').replace(/[^a-z0-9_-]/gi,'');
       return `<div class="issue-item sev-${sev}" onclick="showPage('${page}')"><div class="issue-dot"></div><span class="issue-text en">${esc(i.en||'')}</span><span class="issue-text ja">${esc(i.ja||'')}</span><span class="issue-arrow">›</span></div>`;
     }).join('');
   } else { il.innerHTML=`<div class="issue-item sev-ok"><div class="issue-dot"></div><span class="issue-text en">No issues — your PC is in great shape</span><span class="issue-text ja">問題なし — PCは素晴らしい状態です</span></div>`; }
+  const fc=document.getElementById('ov-findings-count');
+  if(fc) fc.textContent=nIssues===0?'All clear':(nIssues+' '+(nIssues===1?'issue':'issues'));
 
   const dCol=d.diskPctFree<10?'var(--error)':d.diskPctFree<20?'var(--warn)':'inherit';
   setKpi('kpi-disk',d.diskFmtFree,dCol,`${d.diskFmtUsed} / ${d.diskTotalGb} GB`,d.diskPctFree<20?'Low':'OK',d.diskPctFree<20?'chip-warn':'chip-success');
   setKpi('kpi-free',d.freeable,d.freeableBytes>0?'var(--warn)':'inherit',`Temp: ${d.temp}`,d.freeableBytes>0?'Reclaimable':'Clean',d.freeableBytes>0?'chip-warn':'chip-success');
-  setKpi('kpi-startup',d.startupTotal,d.startupPersonal>6?'var(--warn)':'inherit',`${d.startupPersonal} personal · ${d.startupIT} IT`,d.startupPersonal>6?'Many':'OK',d.startupPersonal>6?'chip-warn':'chip-success');
+  const kPe=(d.startupPersonalEnabled!=null?d.startupPersonalEnabled:d.startupPersonal);
+  const kEn=(d.startupEnabled!=null?d.startupEnabled:d.startupTotal);
+  const kOff=d.startupDisabled||0;
+  setKpi('kpi-startup',kEn,kPe>5?'var(--warn)':'inherit',`${kPe} personal · ${d.startupIT} IT`+(kOff?` · ${kOff} off`:''),kPe>5?'Many':'OK',kPe>5?'chip-warn':'chip-success');
   const top=d.processes&&d.processes.length?d.processes[0]:null;
-  setKpi('kpi-ram',top?fmtMB(top.mem_mb):'—',top&&top.mem_mb>1500?'var(--warn)':'inherit',top?top.name:'—',top&&top.mem_mb>1500?'High':'OK',top&&top.mem_mb>1500?'chip-warn':'chip-success');
+  const kHog=_procIsHog(top,d);
+  setKpi('kpi-ram',top?fmtMB(top.mem_mb):'—',kHog?'var(--warn)':'inherit',top?top.name+(top.count>1?` · ${top.count} processes`:''):'—',kHog?'High':'OK',kHog?'chip-warn':'chip-success');
   renderDiskRing('ov-disk-ring','ov-disk-pct','ov-disk-free','ov-disk-bar','ov-disk-used-l','ov-disk-free-l',d,219.91);
   document.getElementById('ov-ram-label').textContent=d.totalRamGb+' GB';
-  if(d.processes&&d.processes.length){const max=d.processes[0].mem_mb;document.getElementById('ov-proc-bars').innerHTML=d.processes.slice(0,5).map(p=>{const pct=max>0?p.mem_mb/max*100:0;return`<div class="bar-row"><div class="bar-name">${esc(p.name)}</div><div class="bar-track"><div class="bar-fill bc-proc" data-pct="${pct.toFixed(1)}"></div></div><div class="bar-val">${fmtMB(p.mem_mb)}</div></div>`;}).join('');}
+  _ovBtnFaces(d);
+  if(d.processes&&d.processes.length){const max=d.processes[0].mem_mb;document.getElementById('ov-proc-bars').innerHTML=d.processes.slice(0,5).map(p=>{const pct=max>0?p.mem_mb/max*100:0;const inst=p.count>1?` <span style="color:var(--fg4);font-size:10px">×${p.count}</span>`:'';return`<div class="bar-row"><div class="bar-name">${esc(p.name)}${inst}</div><div class="bar-track"><div class="bar-fill bc-proc" data-pct="${pct.toFixed(1)}"></div></div><div class="bar-val">${fmtMB(p.mem_mb)}</div></div>`;}).join('');}
 }
 
 function renderStorage(d){
@@ -3213,8 +3436,14 @@ function renderStorage(d){
 function renderStartup(d){
   document.getElementById('startup-idle').style.display='none'; document.getElementById('startup-results').style.display='block';
   document.getElementById('startup-search').style.display='flex';
-  document.getElementById('su-personal').textContent=d.startupPersonal; document.getElementById('su-it').textContent=d.startupIT;
-  document.getElementById('su-total-label').textContent=d.startupTotal+' total';
+  // Headline counts describe what actually launches; disabled entries are
+  // still listed in the table below, badged as off.
+  document.getElementById('su-personal').textContent=(d.startupPersonalEnabled!=null?d.startupPersonalEnabled:d.startupPersonal);
+  document.getElementById('su-it').textContent=d.startupIT;
+  const _suOff=d.startupDisabled||0;
+  const _suEn=(d.startupEnabled!=null?d.startupEnabled:d.startupTotal);
+  document.getElementById('su-total-label').textContent=
+    _suEn+' enabled'+(_suOff?` · ${_suOff} disabled`:'');
   allStartupApps=d.startupApps||[]; renderStartupTable(allStartupApps);
   _loadBootImpact();
 }
@@ -3234,7 +3463,10 @@ function renderStartupTable(apps){
     const key=(a.name||'').toLowerCase();
     const hit=imp[key]||imp[key.replace(/\.exe$/,'')]||null;
     const chip=_bootImpactChip(hit&&hit.ms);
-    return `<tr id="su-row-${i}"><td style="font-weight:500">${esc(a.name)}</td><td><span class="${a.it?'badge badge-it':'badge badge-user'}">${a.it?'IT':'Personal'}</span></td><td>${chip}</td><td id="su-why-${i}" class="su-why-cell"><button class="btn btn-secondary btn-sm" data-su-name="${esc(a.name)}" data-su-cmd="${esc(a.cmd||'')}" data-su-idx="${i}" onclick="_explainStartup(this)"><span class="en">Why?</span><span class="ja">説明</span></button></td><td class="td-path">${esc(a.cmd)}</td></tr>`;
+    const off=(a.enabled===false);
+    const kind=a.category==='system'?'System':(a.it?'IT':'Personal');
+    const offBadge=off?' <span class="badge" style="opacity:.75"><span class="en">Disabled</span><span class="ja">無効</span></span>':'';
+    return `<tr id="su-row-${i}"${off?' style="opacity:.55"':''}><td style="font-weight:500">${esc(a.name)}${offBadge}</td><td><span class="${a.it?'badge badge-it':'badge badge-user'}">${kind}</span></td><td>${off?'<span style="color:var(--fg3);font-size:11px">—</span>':chip}</td><td id="su-why-${i}" class="su-why-cell"><button class="btn btn-secondary btn-sm" data-su-name="${esc(a.name)}" data-su-cmd="${esc(a.cmd||'')}" data-su-idx="${i}" onclick="_explainStartup(this)"><span class="en">Why?</span><span class="ja">説明</span></button></td><td class="td-path">${esc(a.cmd)}</td></tr>`;
   }).join('');
 }
 async function _loadBootImpact(){
@@ -3289,7 +3521,7 @@ function renderDashboardAnalysis(d){
     `Disk has <strong>${d.diskFmtFree}</strong> free (${freePct}% available) out of ${d.diskTotalGb} GB total.`,
     `<strong>${d.issues} issue${d.issues===1?'':'s'}</strong> detected — ${d.issues===0?'no action needed':'review the list below'}.`,
     `<strong>${freeableLabel}</strong> reclaimable via temp files and duplicates${d.freeableBytes>0?' — consider cleaning up':''}.`,
-    `<strong>${d.startupPersonal}</strong> personal startup app${d.startupPersonal===1?'':'s'} (${d.startupIT} IT-managed) run at boot.`,
+    `<strong>${(d.startupPersonalEnabled!=null?d.startupPersonalEnabled:d.startupPersonal)}</strong> personal startup app${(d.startupPersonalEnabled!=null?d.startupPersonalEnabled:d.startupPersonal)===1?'':'s'} (${d.startupIT} IT-managed) run at boot.`,
   ];
   const rec=d.issues>0?`Run a cleanup to reclaim ${freeableLabel} and resolve ${d.issues} issue${d.issues===1?'':'s'}.`
     :freePct<20?`Disk space is low — clean up temp files or large files to stay healthy.`
@@ -3316,15 +3548,18 @@ function renderStorageAnalysis(d){
 }
 
 function renderStartupAnalysis(d){
-  const personal=d.startupPersonal||0;
-  const it=d.startupIT||0;
-  const total=d.startupTotal||0;
+  // Enabled-only counts: a disabled entry does not run and cannot slow boot.
+  const personal=(d.startupPersonalEnabled!=null?d.startupPersonalEnabled:d.startupPersonal)||0;
+  const it=(d.startupITEnabled!=null?d.startupITEnabled:d.startupIT)||0;
+  const total=(d.startupEnabled!=null?d.startupEnabled:d.startupTotal)||0;
   const status=personal>8?'crit':personal>5?'warn':'good';
   const apps=d.startupApps||[];
-  const personalNames=apps.filter(a=>!a.it).slice(0,3).map(a=>a.name).join(', ');
+  // Must match the enabled-only count above, or the names contradict it.
+  const _pEn=apps.filter(a=>!a.it&&a.enabled!==false);
+  const personalNames=_pEn.slice(0,3).map(a=>a.name).join(', ');
   const items=[
     `<strong>${total}</strong> app${total===1?'':'s'} run at Windows startup — <strong>${personal}</strong> personal, <strong>${it}</strong> IT-managed.`,
-    personal>0&&personalNames?`Personal startup apps include: <strong>${esc(personalNames)}${apps.filter(a=>!a.it).length>3?'…':''}</strong>.`
+    personal>0&&personalNames?`Personal startup apps include: <strong>${esc(personalNames)}${_pEn.length>3?'…':''}</strong>.`
       :`All startup entries are IT-managed tools — no personal apps.`,
     `IT-managed apps (${it}) are required by your organisation and cannot be changed.`,
     personal>5?`${personal} personal startup apps may noticeably slow boot time.`:`${personal<=3?'Few':'Moderate number of'} personal apps — boot time should be unaffected.`,
@@ -6220,6 +6455,10 @@ var _globalMonTimer=null;
 // ── Animated number counter ───────────────────────────────────────────────
 function animateNum(el,to,duration){
   if(!el) return;
+  // If element is in a hidden subtree, rAF may be paused — write final value directly.
+  if(!el.offsetParent && getComputedStyle(el).position!=='fixed'){
+    el.textContent=to; return;
+  }
   duration=duration||500;
   const from=parseFloat(el.textContent)||0;
   if(from===to) return;

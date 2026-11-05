@@ -154,8 +154,9 @@ def bi_block(en: str, ja: str) -> str:
 def build_perf_cards(data: dict) -> str:
     cards = []
     disk     = data["disk"]
-    startup  = data["startup"]
-    personal = data["personal_apps"]
+    # Enabled-only: disabled entries are listed but never slow boot.
+    startup  = data.get("startup_enabled") or data["startup"]
+    personal = data.get("personal_enabled") or data["personal_apps"]
     procs    = data["processes"]
     total_temp = data["total_temp"]
 
@@ -268,6 +269,11 @@ def build_startup_rows(apps):
         else:
             chip   = '<span class="chip chip-yellow">個人 / Personal</span>'
             action = '<span style="color:var(--yellow);font-size:12px;font-weight:600">Review / 確認</span>'
+        # A disabled entry is listed for completeness but does not run, so
+        # say so rather than implying it launches at every logon.
+        if a.get("enabled") is False:
+            chip  += ' <span class="chip">無効 / Disabled</span>'
+            action = '<span style="color:var(--fg3);font-size:12px">Not running / 無効</span>'
         cmd = (a["command"][:65] + "…") if len(a["command"]) > 65 else a["command"]
         rows += (
             f'<tr><td>{a["name"]} {chip}</td>'

@@ -25,9 +25,16 @@ DUPES_SIZE_HIGH = 100 * MB
 STARTUP_COUNT_WARN = 5
 STARTUP_COUNT_CRIT = 8
 
-# ── Process RAM MB (top process) ────────────────────────────────────────────
+# ── Process RAM (top app, memory summed across its instances) ───────────────
+# Absolute floor so the warning never fires on trivially small numbers.
 PROCESS_RAM_HIGH_MB = 1500
 PROCESS_RAM_CRIT_MB = 2000
+# scan_processes() sums every instance of an executable, so a browser
+# legitimately totals several GB. A fixed MB ceiling would fire constantly
+# and mean nothing, so "one app is hogging memory" is judged as a share of
+# installed RAM; the MB floor above must also be exceeded.
+PROCESS_RAM_PCT_HIGH = 25
+PROCESS_RAM_PCT_CRIT = 40
 
 # ── Live CPU % ──────────────────────────────────────────────────────────────
 CPU_PCT_WARN = 90

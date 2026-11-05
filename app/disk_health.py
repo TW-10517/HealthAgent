@@ -23,7 +23,14 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app import run_hidden
+# Sibling module. Imported bare because desktop_app.py puts app/ itself on
+# sys.path (not the repo root), so `from app import run_hidden` raises
+# ModuleNotFoundError and silently killed this whole feature. The package
+# form is kept as a fallback for callers that do import app.disk_health.
+try:
+    import run_hidden
+except ImportError:  # pragma: no cover - only when imported as app.disk_health
+    from app import run_hidden
 
 _PS_PRIMARY = (
     "Get-PhysicalDisk | Select-Object FriendlyName, SerialNumber, HealthStatus, "
