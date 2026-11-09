@@ -1891,7 +1891,7 @@ div[id$="-modal"][style*="display: flex"] > div:first-child:not(#shortcuts-box){
           <div class="card card-sm" style="text-align:center;position:relative;overflow:hidden"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--info),#6366F1)"></div><div style="font-size:1.8rem;font-weight:700;font-family:var(--mono);color:var(--info);text-shadow:0 0 20px rgba(96,165,250,.3)" id="su-it">—</div><div style="font-size:10px;color:var(--fg3);text-transform:uppercase;letter-spacing:.06em;margin-top:4px;font-weight:700"><span class="en">IT Managed</span><span class="ja">IT 管理</span></div></div>
         </div>
         <div class="card"><div class="card-title"><span class="en">All Entries</span><span class="ja">すべてのエントリ</span><span class="card-title-right" id="su-total-label"></span></div>
-          <div class="table-wrap"><table class="data-table"><thead><tr><th><span class="en">App</span><span class="ja">アプリ</span></th><th><span class="en">Type</span><span class="ja">種類</span></th><th><span class="en">Boot impact</span><span class="ja">起動負荷</span></th><th><span class="en">What is it?</span><span class="ja">これは何？</span></th><th><span class="en">Command</span><span class="ja">コマンド</span></th></tr></thead><tbody id="su-app-body"></tbody></table></div></div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th><span class="en">App</span><span class="ja">アプリ</span></th><th><span class="en">Type</span><span class="ja">種類</span></th><th><span class="en">Boot impact</span><span class="ja">起動負荷</span></th><th><span class="en">What is it?</span><span class="ja">これは何？</span></th><th><span class="en">Runs at logon</span><span class="ja">ログオン時</span></th><th><span class="en">Command</span><span class="ja">コマンド</span></th></tr></thead><tbody id="su-app-body"></tbody></table></div></div>
       </div>
     </div>
 
@@ -3466,8 +3466,77 @@ function renderStartupTable(apps){
     const off=(a.enabled===false);
     const kind=a.category==='system'?'System':(a.it?'IT':'Personal');
     const offBadge=off?' <span class="badge" style="opacity:.75"><span class="en">Disabled</span><span class="ja">無効</span></span>':'';
-    return `<tr id="su-row-${i}"${off?' style="opacity:.55"':''}><td style="font-weight:500">${esc(a.name)}${offBadge}</td><td><span class="${a.it?'badge badge-it':'badge badge-user'}">${kind}</span></td><td>${off?'<span style="color:var(--fg3);font-size:11px">—</span>':chip}</td><td id="su-why-${i}" class="su-why-cell"><button class="btn btn-secondary btn-sm" data-su-name="${esc(a.name)}" data-su-cmd="${esc(a.cmd||'')}" data-su-idx="${i}" onclick="_explainStartup(this)"><span class="en">Why?</span><span class="ja">説明</span></button></td><td class="td-path">${esc(a.cmd)}</td></tr>`;
+    return `<tr id="su-row-${i}"${off?' style="opacity:.55"':''}><td style="font-weight:500">${esc(a.name)}${offBadge}</td><td><span class="${a.it?'badge badge-it':'badge badge-user'}">${kind}</span></td><td>${off?'<span style="color:var(--fg3);font-size:11px">—</span>':chip}</td><td id="su-why-${i}" class="su-why-cell"><button class="btn btn-secondary btn-sm" data-su-name="${esc(a.name)}" data-su-cmd="${esc(a.cmd||'')}" data-su-idx="${i}" onclick="_explainStartup(this)"><span class="en">Why?</span><span class="ja">説明</span></button></td><td id="su-act-${i}">${_suActionCell(a,i,off)}</td><td class="td-path">${esc(a.cmd)}</td></tr>`;
   }).join('');
+}
+// The on/off control for one row. `toggleBlock` is decided by the backend
+// (startup_toggle.block_for_row) — never re-derive it here from the source
+// string or the IT badge, or the button will offer what the backend refuses.
+function _suActionCell(a,i,off){
+  const blk=a.toggleBlock||'';
+  if(blk==='it'){
+    return `<span class="badge" style="opacity:.8" title="IT-managed agent — Helix will not switch it off"><span class="en">Managed</span><span class="ja">管理対象</span></span>`;
+  }
+  if(blk==='admin'){
+    return `<span class="badge" style="opacity:.8" title="Machine-wide entry — Windows requires administrator rights"><span class="en">Needs admin</span><span class="ja">管理者権限</span></span>`;
+  }
+  const label=off?`<span class="en">Enable</span><span class="ja">有効化</span>`
+                 :`<span class="en">Disable</span><span class="ja">無効化</span>`;
+  return `<button class="btn btn-secondary btn-sm" data-su-name="${esc(a.name)}" data-su-src="${esc(a.source||'')}" data-su-on="${off?'0':'1'}" data-su-idx="${i}" onclick="_toggleStartup(this)">${label}</button>`;
+}
+// Switch one logon entry on or off, then re-read the whole list from the
+// backend. Patching the single cell would leave the headline counts (and the
+// "many startup apps" finding derived from them) describing the old state.
+async function _toggleStartup(btn){
+  if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.disable_startup) return;
+  const name=btn.getAttribute('data-su-name')||'';
+  const src=btn.getAttribute('data-su-src')||'';
+  const turnOn=btn.getAttribute('data-su-on')==='0';
+  const prev=btn.innerHTML;
+  btn.disabled=true;
+  btn.innerHTML='<span class="en">Working…</span><span class="ja">処理中…</span>';
+  let r={};
+  try{
+    r=await (turnOn?window.pywebview.api.enable_startup(name,src)
+                   :window.pywebview.api.disable_startup(name,src));
+  }catch(e){ r={ok:false,msg:String(e)}; }
+  if(r&&r.ok){
+    toast(r.msg||(turnOn?'Enabled':'Disabled'),{type:'success'});
+    await _refreshStartupEntries();
+  }else{
+    btn.disabled=false;
+    btn.innerHTML=prev;
+    toast((r&&r.msg)||'Could not change that entry',
+          {type:(r&&(r.needs_admin||r.it_managed))?'warn':'error'});
+  }
+}
+// Re-read logon entries and repaint the table plus the three headline counts
+// from the backend's own numbers (scanner.startup_counts).
+async function _refreshStartupEntries(){
+  if(!window.pywebview||!window.pywebview.api||!window.pywebview.api.get_startup_entries) return;
+  let r={};
+  try{ r=await window.pywebview.api.get_startup_entries(); }catch(_){ return; }
+  if(!r||!r.ok||!r.apps) return;
+  const c=r.counts||{};
+  const d=window._lastScanData;
+  if(d){
+    // Keep the cached scan in step so anything re-rendered from it later
+    // (the analysis panel, the Overview KPI) shows the new state too.
+    d.startupApps=r.apps;
+    d.startupTotal=c.total; d.startupPersonal=c.personal; d.startupIT=c.it;
+    d.startupEnabled=c.enabled; d.startupDisabled=c.disabled;
+    d.startupPersonalEnabled=c.personalEnabled; d.startupITEnabled=c.itEnabled;
+  }
+  renderStartupTable(r.apps);
+  const pe=document.getElementById('su-personal');
+  const it=document.getElementById('su-it');
+  const tl=document.getElementById('su-total-label');
+  if(pe) pe.textContent=c.personalEnabled;
+  if(it) it.textContent=c.it;
+  if(tl) tl.textContent=c.enabled+' enabled'+(c.disabled?` · ${c.disabled} disabled`:'');
+  // The score stays as the last scan measured it — a toggle does not re-score
+  // the PC, and claiming otherwise would be inventing a measurement.
+  if(d){ try{ renderStartupAnalysis(d); }catch(_){ } }
 }
 async function _loadBootImpact(){
   if(window._bootImpact||!window.pywebview||!window.pywebview.api||!window.pywebview.api.get_boot_impact) return;
@@ -5776,13 +5845,21 @@ function loadActionLog(){
       body.innerHTML='<tr><td colspan="5" style="color:var(--fg3)"><span class="en">No actions logged yet.</span><span class="ja">まだ操作ログがありません。</span></td></tr>';
       return;
     }
-    const outcomeCls=o=>o==='error'?'chip-error':o==='ok'?'chip-success':'chip-muted';
+    // 'blocked' is a refusal, not a failure — Helix declined on purpose
+    // (IT-managed entry, or a machine-wide one needing admin).
+    const outcomeCls=o=>o==='error'?'chip-error':o==='ok'?'chip-success'
+                      :o==='blocked'?'chip-warn':'chip-muted';
     body.innerHTML=items.map(it=>
       '<tr><td class="td-mono" style="font-size:11px">'+esc(it.ts||'')+'</td>'
       +'<td>'+esc(it.category||'')+'</td>'
       +'<td>'+esc(it.action||'')+'</td>'
       +'<td class="td-path" title="'+esc(it.target||'')+'">'+esc(it.target||'—')+'</td>'
-      +'<td><span class="chip '+outcomeCls(it.outcome)+'">'+esc(it.outcome||'')+'</span></td></tr>'
+      // detail carries the why (which source, which refusal); surface it on
+      // hover rather than dropping it, since an audit row without the reason
+      // is half a record.
+      +'<td><span class="chip '+outcomeCls(it.outcome)+'"'
+      +(it.detail?' title="'+esc(it.detail)+'"':'')+'>'
+      +esc(it.outcome||'')+'</span></td></tr>'
     ).join('');
   }).catch(()=>{ body.innerHTML='<tr><td colspan="5" style="color:var(--error)">Error</td></tr>'; });
 }

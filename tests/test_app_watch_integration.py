@@ -31,6 +31,21 @@ def _patch_watcher_timings(aw, poll=0.05, settle=0, startup=0, timeout_s=0.0):
     aw._OLLAMA_TIMEOUT_S = timeout_s
 
 
+@pytest.fixture(autouse=True)
+def _not_fullscreen(monkeypatch):
+    """Pin the non-intrusive gates off.
+
+    `app_watch._loop()` imports the real `focus_detect` and `continue`s past
+    every poll while the foreground window is fullscreen or the CPU is busy.
+    Without this the suite's result depends on whether the developer happened
+    to have a maximized window in front, which is how these tests silently
+    started failing.
+    """
+    import focus_detect as fd
+    monkeypatch.setattr(fd, "is_fullscreen_foreground", lambda: False)
+    monkeypatch.setattr(fd, "is_cpu_busy", lambda: False)
+
+
 def test_watcher_fires_toast_for_new_game(monkeypatch):
     import app_watch as aw
     _patch_watcher_timings(aw, poll=0.05, startup=0, timeout_s=0.0)

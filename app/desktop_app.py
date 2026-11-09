@@ -22,12 +22,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 import run_hidden
 from scanner import run_full_scan, fmt_size, get_system_info, cleanup_temp_files, scan_disk, scan_temp
 from scanner import top_process_is_hogging as _top_process_is_hogging
+from scanner import scan_startup as _scan_startup, startup_counts as _startup_counts
 from report_gen import generate
 from suggestions import run_all_checks, get_ai_summary
 from organizer import scan_folder as org_scan, organize_category as org_move, get_organize_summary as org_summary
 import monitor as mon
 import event_analyzer as evtlog
 import troubleshooter as tshoot
+import startup_toggle as _startup_toggle
 import db
 
 db.migrate_from_txt(str(LOGS / "scan-history.txt"))
@@ -714,6 +716,8 @@ class AgentAPI:
                                40:"普通",20:"悪い",0:"危険"}
             score_key = (score // 20) * 20
             total_used_mb = sum(p["mem_mb"] for p in data["processes"])
+            _su_counts = (data.get("startup_counts")
+                          or _startup_counts(data["startup"]))
 
             payload = {
                 "scanId": scan_id,
@@ -739,16 +743,17 @@ class AgentAPI:
                 "dupes": data["total_dupes_fmt"],
                 "dupesBytes": data["total_dupes"],
                 "dupeGroups": data["dupe_groups_count"],
-                "startupTotal": len(data["startup"]),
-                "startupPersonal": len(data["personal_apps"]),
-                "startupIT": len(data["it_apps"]),
-                # Entries Windows will actually launch; the rest are
-                # switched off in Task Manager and listed for review only.
-                "startupEnabled": len(data.get("startup_enabled") or []),
-                "startupDisabled": data.get("startup_disabled_count", 0),
-                "startupPersonalEnabled": len(data.get("personal_enabled") or []),
-                "startupITEnabled": sum(
-                    1 for a in (data.get("startup_enabled") or []) if a["it_managed"]),
+                # All from scanner.startup_counts() so a live refresh after a
+                # toggle quotes the same numbers as the scan. "Enabled" is what
+                # Windows will actually launch; the rest are switched off in
+                # Task Manager and listed for review only.
+                "startupTotal": _su_counts["total"],
+                "startupPersonal": _su_counts["personal"],
+                "startupIT": _su_counts["it"],
+                "startupEnabled": _su_counts["enabled"],
+                "startupDisabled": _su_counts["disabled"],
+                "startupPersonalEnabled": _su_counts["personalEnabled"],
+                "startupITEnabled": _su_counts["itEnabled"],
                 "issues": data["issues"],
                 "totalRamGb": data["total_ram_gb"],
                 "totalUsedMb": total_used_mb,
@@ -759,13 +764,11 @@ class AgentAPI:
                     for t in data["temp_items"][:12]
                 ],
                 "processes": data["processes"][:10],
-                "startupApps": [
-                    {"name": a["name"], "cmd": a["command"][:80], "it": a["it_managed"],
-                     "enabled": a.get("enabled", True),
-                     "category": a.get("category", "personal"),
-                     "source": a.get("source", "")}
-                    for a in data["startup"]
-                ],
+                # Shaped by startup_toggle.row_for_ui so these rows and the
+                # ones get_startup_entries() returns after a toggle are
+                # identical, including why an entry can't be switched off.
+                "startupApps": [_startup_toggle.row_for_ui(a)
+                                for a in data["startup"]],
                 "topDupes": [
                     {"name": g["files"][0]["name"], "count": g["count"],
                      "saveable": g["saveable_fmt"], "saveableBytes": g["saveable_bytes"],
@@ -2063,6 +2066,12 @@ Get-CimInstance Win32_PnPSignedDriver |
             return {"ok": False, "error": "Unknown action"}
         result = tshoot.execute_action(action_id)
         tshoot.log_action(action_id, result)
+        # troubleshooter keeps its own log; mirror into the unified action_log
+        # so one page can answer "what has Helix changed on this PC".
+        db.log_action("troubleshoot", action_id,
+                      str(info.get("label", info.get("name", "")))[:120],
+                      "ok" if (result or {}).get("ok") else "error",
+                      str((result or {}).get("msg", ""))[:200])
         return result
 
     def get_action_log(self):
@@ -2305,6 +2314,8 @@ Get-CimInstance Win32_PnPSignedDriver |
                 WM_CLOSE = 0x0010
                 for h in hwnds:
                     ctypes.windll.user32.PostMessageW(h, WM_CLOSE, 0, 0)
+                db.log_action("app", "close", name, "ok",
+                              f"{len(hwnds)} windows, confirmed")
                 return {"ok": True, "msg": f"Closed {len(hwnds)} windows of **{name}**."}
             self._pending_confirmations[token] = _do_close
             return {
@@ -2321,6 +2332,7 @@ Get-CimInstance Win32_PnPSignedDriver |
         for hwnd, _, _ in matches:
             ctypes.windll.user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)
         n = len(matches)
+        db.log_action("app", "close", name, "ok", f"{n} window(s)")
         return {"ok": True, "msg": f"Sent close signal to {n} window{'s' if n > 1 else ''} of **{name}**."}
 
     def confirm_action(self, token: str) -> dict:
@@ -2479,9 +2491,12 @@ Get-CimInstance Win32_PnPSignedDriver |
             op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI
             ret = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
             if ret == 0 and not op.fAnyOperationsAborted:
+                db.log_action("file", "recycle", p, "ok", "")
                 return {"ok": True, "msg": f"Moved to Recycle Bin: {os.path.basename(p)}"}
+            db.log_action("file", "recycle", p, "error", f"ret={ret:#x}")
             return {"ok": False, "msg": f"Delete failed (code {ret:#x})."}
         except Exception as e:
+            db.log_action("file", "recycle", path, "error", str(e))
             return {"ok": False, "msg": str(e)}
 
     def reveal_in_explorer(self, path: str) -> dict:
@@ -3162,78 +3177,34 @@ Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Diagnostics-Performan
             "note": "Narration only — review each suggestion and apply from its own page.",
         }
 
-    # ── Startup entries: disable / re-enable with undo ───────────────────────
-    _STARTUP_HIVES = {
-        "HKCU": r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
-    }
-    _STARTUP_DISABLED_SUBKEY = r"SOFTWARE\PCHealthAgent\DisabledStartup"
+    # ── Startup entries: disable / re-enable ─────────────────────────────────
+    # The mechanism lives in startup_toggle.py. This path is the only one in
+    # Helix that changes what Windows launches at logon.
 
     def _startup_backup_path(self):
+        """Archive written by builds before 1.1.7, which deleted Run values.
+
+        Still read so an entry disabled by an older build can be switched back
+        on; nothing writes it any more.
+        """
         return LOGS / "startup-disabled.json"
 
-    def _load_disabled_startup(self) -> dict:
-        import json as _json
-        p = self._startup_backup_path()
-        try:
-            if p.exists():
-                return _json.loads(p.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-        return {}
+    def disable_startup(self, name: str, source: str = "") -> dict:
+        """Switch a logon entry off. See startup_toggle for the mechanism."""
+        return _startup_toggle.set_enabled(name, source, False)
 
-    def _save_disabled_startup(self, data: dict):
-        import json as _json
-        p = self._startup_backup_path()
-        p.write_text(_json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    def disable_startup(self, name: str) -> dict:
-        """Remove an HKCU Run entry and remember its command for undo."""
-        import winreg
-        if not name or any(c in name for c in '\\/\x00'):
-            return {"ok": False, "msg": "Invalid name."}
-        subkey = self._STARTUP_HIVES["HKCU"]
-        try:
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, subkey, 0,
-                                winreg.KEY_READ | winreg.KEY_WRITE) as k:
-                try:
-                    val, typ = winreg.QueryValueEx(k, name)
-                except FileNotFoundError:
-                    return {"ok": False, "msg": "Entry not found in HKCU Run."}
-                data = self._load_disabled_startup()
-                data[name] = {"hive": "HKCU", "subkey": subkey,
-                              "value": val, "type": int(typ),
-                              "disabled_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-                self._save_disabled_startup(data)
-                winreg.DeleteValue(k, name)
-            db.log_action("startup", "disable", name, "ok", "")
-            return {"ok": True, "msg": f"Disabled startup entry '{name}'."}
-        except Exception as e:
-            db.log_action("startup", "disable", name, "error", str(e))
-            return {"ok": False, "msg": str(e)}
-
-    def enable_startup(self, name: str) -> dict:
-        """Restore a previously disabled HKCU Run entry from the backup log."""
-        import winreg
-        data = self._load_disabled_startup()
-        entry = data.get(name)
-        if not entry:
-            return {"ok": False, "msg": "No undo record for that entry."}
-        try:
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, entry["subkey"], 0,
-                                winreg.KEY_WRITE) as k:
-                winreg.SetValueEx(k, name, 0, entry.get("type", winreg.REG_SZ),
-                                  entry["value"])
-            data.pop(name, None)
-            self._save_disabled_startup(data)
-            db.log_action("startup", "enable", name, "ok", "")
-            return {"ok": True, "msg": f"Restored startup entry '{name}'."}
-        except Exception as e:
-            db.log_action("startup", "enable", name, "error", str(e))
-            return {"ok": False, "msg": str(e)}
+    def enable_startup(self, name: str, source: str = "") -> dict:
+        """Switch a logon entry back on, including ones an older build removed."""
+        return _startup_toggle.set_enabled(name, source, True,
+                                           self._startup_backup_path())
 
     def list_disabled_startup(self) -> dict:
-        data = self._load_disabled_startup()
-        return {"items": [{"name": k, **v} for k, v in data.items()]}
+        """Entries switched off, across all five sources plus the legacy archive."""
+        return _startup_toggle.list_disabled(self._startup_backup_path())
+
+    def get_startup_entries(self) -> dict:
+        """Fresh logon entries + counts, for refreshing the page after a toggle."""
+        return _startup_toggle.entries()
 
     def list_action_log(self, limit: int = 100, category: str = "") -> dict:
         """Return the unified action log, newest first."""
@@ -3301,9 +3272,13 @@ Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Diagnostics-Performan
             )
             out = (r.stdout or "").strip()
             if out == "ok":
+                db.log_action("restore_point", "create", desc, "ok", "")
                 return {"ok": True, "msg": f"Restore point '{desc}' created."}
-            return {"ok": False, "msg": out or (r.stderr or "").strip() or "Unknown error."}
+            msg = out or (r.stderr or "").strip() or "Unknown error."
+            db.log_action("restore_point", "create", desc, "error", msg[:200])
+            return {"ok": False, "msg": msg}
         except Exception as e:
+            db.log_action("restore_point", "create", desc, "error", str(e))
             return {"ok": False, "msg": str(e)}
 
     def list_restore_points(self) -> dict:

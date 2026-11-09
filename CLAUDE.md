@@ -148,10 +148,11 @@ in the top 10, duplicates identical across two runs. 74/74 pytest green.
   `C:\Windows`, so `is_protected()` always matches. Latent — the directory is
   absent on this machine.
 - Browser cache scans only the `Default` profile.
-- `disable_startup` / `enable_startup` still only handle HKCU Run. The Startup
-  page now lists HKLM, 32-bit and Startup-folder entries, and for those the
-  call returns a graceful "Entry not found in HKCU Run." Working but
-  incomplete.
+- HKLM, 32-bit HKLM and all-users Startup-folder entries can be *read* and
+  listed but not switched off without elevation; Helix shows a "Needs admin"
+  badge instead of a button rather than prompting for a UAC elevation it has
+  no path to. (Fixed in the 2026-11-09 session: the HKCU-only limitation that
+  used to live here is gone — see that handoff block.)
 - `scan_on_startup` is `"true"` in this user's DB (so the app auto-scans on
   launch) while `db.py:177` defaults it to `"false"`. The user flagged the
   auto-scan as unexpected but never asked for it off.
@@ -290,6 +291,7 @@ PCHealthAgent/
 │   ├── protected.py      # 3-layer protected-apps logic (critical floor + IT defaults + user extras)
 │   ├── run_hidden.py     # subprocess helper: CREATE_NO_WINDOW for console tools
 │   ├── disk_health.py    # Get-PhysicalDisk SMART probe → {healthy|caution|bad|unknown}
+│   ├── startup_toggle.py # Logon-entry on/off via StartupApproved, all 5 sources
 │   ├── monitor_hud.py    # Floating HUD mini-window (idle-aware, hidden-gated polling)
 │   └── db.py             # SQLite storage (scan history, settings)
 ├── tests/                # pytest suite (37 tests): test_safety.py, test_logic.py, conftest.py
@@ -567,7 +569,9 @@ Edit `website/index.html` or `website/styles.css` → commit → push (on user g
 | `get_ai_status()` / `ollama_chat(...)` | Honour `ai_enabled` setting; return `{status:'disabled'}` / None when AI is off |
 | `apply_first_run_mode('work'\|'personal'\|'minimal')` / `get_first_run_mode()` | First-launch presets; writes `onboarded_mode` |
 | `create_restore_point(description)` / `list_restore_points()` | Windows System Restore via WMI |
-| `disable_startup(name)` / `enable_startup(name)` / `list_disabled_startup()` | HKCU Run entry disable with undo archive (`logs/startup-disabled.json`) |
+| `disable_startup(name, source="")` / `enable_startup(name, source="")` | Flip one logon entry via `startup_toggle.set_enabled` — writes the `StartupApproved` blob Task Manager uses (Run value is never deleted), across all five sources. Read back and verified before returning. Refuses `category="it"` entries (`it_managed:true`) and machine-wide ones without elevation (`needs_admin:true`); re-enabling an IT entry is allowed. Every call lands in `action_log`. |
+| `list_disabled_startup()` | Every entry currently switched off, across all five sources, plus the pre-1.1.7 undo archive (`logs/startup-disabled.json`, read-only now). |
+| `get_startup_entries()` | Fresh rows + `scanner.startup_counts()` for repainting the Startup table and its headline counts after a toggle. Rows come from `startup_toggle.row_for_ui()` — the same shaper the scan payload uses, so the two can't drift. |
 | `capture_metrics_snapshot(label)` / `compare_snapshots(before, after)` | In-memory before/after metric delta |
 | `run_schedule_now()` | Fire the in-process scheduler loop immediately (otherwise checks every 10 min) |
 | `undo_organize(folder)` | Reverse the last organize-move batch |

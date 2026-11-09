@@ -331,6 +331,26 @@ def scan_total_ram():
     return 0
 
 
+def startup_counts(startup) -> dict:
+    """The logon-entry counts every surface quotes.
+
+    run_full_scan bakes these into a scan and AgentAPI.get_startup_entries()
+    recomputes them after the user switches an entry on or off. Both call this
+    one function, so a number on the Startup page cannot drift from the number
+    inside the scan that produced the page.
+    """
+    enabled = [a for a in startup if a.get("enabled", True)]
+    return {
+        "total": len(startup),
+        "enabled": len(enabled),
+        "disabled": len(startup) - len(enabled),
+        "personalEnabled": sum(1 for a in enabled if not a["it_managed"]),
+        "itEnabled": sum(1 for a in enabled if a["it_managed"]),
+        "personal": sum(1 for a in startup if not a["it_managed"]),
+        "it": sum(1 for a in startup if a["it_managed"]),
+    }
+
+
 def scan_total_ram_mb() -> int:
     """Unrounded total RAM in MB, for share-of-memory comparisons."""
     if psutil is not None:
@@ -471,6 +491,7 @@ def run_full_scan(include_dupes=True, progress_cb=None):
     # counts those. A disabled entry still appears in the list for review.
     personal_enabled = [a for a in personal_apps if a.get("enabled", True)]
     enabled_apps = [a for a in startup if a.get("enabled", True)]
+    counts = startup_counts(startup)
 
     issues = sum([
         disk["pct_free"] < DISK_PCT_WARN,
@@ -494,6 +515,7 @@ def run_full_scan(include_dupes=True, progress_cb=None):
         "personal_enabled": personal_enabled,
         "startup_enabled": enabled_apps,
         "startup_disabled_count": len(startup) - len(enabled_apps),
+        "startup_counts": counts,
         "processes": processes,
         "total_ram_gb": total_ram,
         "total_ram_mb": total_ram_mb,
